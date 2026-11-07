@@ -1,0 +1,24 @@
+{
+  "name": "@cpm/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat build",
+    "test": "hardhat test nodejs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint test scripts hardhat.config.ts"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.6.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "5.0.7",
+    "@types/node": "26.6.6",
+    "eslint": "10.14.0",
+    "hardhat": "3.21.2",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "viem": "2.57.16"
+  }
+}

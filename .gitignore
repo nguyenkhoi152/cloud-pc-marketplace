@@ -1,0 +1,73 @@
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Dependencies and virtual environments
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Build output and caches
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.cache/
+.turbo/
+.parcel-cache/
+*.tsbuildinfo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Test reports and coverage
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+playwright-report/
+test-results/
+
+# Logs and temporary files
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+
+# Local infrastructure state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!*.example.tfvars
+!*.example.tfvars.json
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/types/
+contracts/deployments/local.json
+
+# Claude local config and other (non-project) installed skills
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/ui-ux-pro-max/
+.claude/settings.local.json

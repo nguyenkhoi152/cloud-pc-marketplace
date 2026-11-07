@@ -1,0 +1,14 @@
+{
+  "name": "cloud-pc-marketplace",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/shared", "web", "db", "contracts"],
+  "engines": { "node": ">=20.9.0" },
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "lint": "npm run lint -w web && npm run lint -w @cpm/shared && npm run lint -w @cpm/db-tests && npm run lint -w @cpm/contracts",
+    "typecheck": "npm run typecheck -w @cpm/shared && npm run typecheck -w web && npm run typecheck -w @cpm/db-tests && npm run typecheck -w @cpm/contracts",
+    "test": "npm run test -w @cpm/shared && npm run test -w @cpm/db-tests && npm run test -w @cpm/contracts"
+  }
+}
