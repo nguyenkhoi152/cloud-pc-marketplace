@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chi tiết máy — Bản mẫu thiết kế</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="has-mbar">
+<a class="skip" href="#main">Bỏ qua điều hướng</a>
+<div class="notice" role="note"><strong>BẢN MẪU THIẾT KẾ.</strong> Dữ liệu minh hoạ, không phải máy thật. Không có trạng thái online, hiệu năng hay đánh giá. PCP là token thử, không có giá trị tiền thật.</div>
+<header class="top"><div class="top-in">
+<a class="brand" href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Cloud PC Marketplace</a>
+<nav class="nav" aria-label="Chính">
+<a href="machines.html" aria-current="page">Tìm máy</a>
+<a href="session.html">Phiên thuê</a>
+<a href="#" aria-disabled="true">Ví PCP</a>
+<a href="#" aria-disabled="true">Workspace</a>
+<a href="#" aria-disabled="true">Dành cho host</a>
+</nav>
+<span class="role">Vai trò: Khách (mẫu)</span>
+</div></header>
+<main id="main">
+<p class="crumb"><a href="machines.html">Tìm máy</a> / Máy dựng phim 4K</p>
+<div class="chips" style="margin-bottom:12px"><span class="chip sample">Dữ liệu mẫu</span><span class="chip info">Trạng thái: chưa xác định (chưa có heartbeat)</span></div>
+<h1>Máy dựng phim 4K</h1>
+<p class="lead">Host demo A · cấu hình do host khai báo, kiểm tra lần cuối 2026-11-07 (minh hoạ).</p>
+<div class="detail">
+<div class="stack">
+<section class="card" aria-labelledby="cfg"><h2 id="cfg">Cấu hình khai báo</h2>
+<div class="deck">
+<div class="tile"><small>CPU</small><b>Ryzen 7 5800X</b></div>
+<div class="tile"><small>RAM</small><b class="num">32 GB</b></div>
+<div class="tile"><small>GPU</small><b>RTX 3070</b></div>
+<div class="tile"><small>VRAM</small><b class="num">8 GB</b></div>
+<div class="tile"><small>Hệ điều hành</small><b>Windows 11</b></div>
+<div class="tile"><small>Vùng</small><b>Hà Nội</b></div>
+</div></section>
+<section class="card" aria-labelledby="app"><h2 id="app">Ứng dụng đã cài (host khai báo)</h2>
+<div class="chips"><span class="chip">DaVinci Resolve</span><span class="chip">Blender</span></div></section>
+<section class="card" aria-labelledby="cam"><h2 id="cam">Cam kết của host</h2>
+<p style="margin:0">Cửa sổ nhận thuê ít nhất <b class="num">6 giờ</b>. Chỉ thuê tức thời, mỗi lần một người dùng giữ máy. Workspace: <b>tương thích</b>.</p>
+<p class="reason">Bản mẫu không đưa ra điểm hiệu năng, số fps, độ trễ hay đánh giá của người dùng vì chưa có dữ liệu đo thật.</p></section>
+<section class="card" aria-labelledby="how"><h2 id="how">Quy trình sau khi đặt</h2>
+<ol class="steps">
+<li><div><h3>Giữ máy</h3><p>Hệ thống giữ máy cho bạn trong thời hạn nạp escrow.</p></div></li>
+<li><div><h3>Nạp escrow</h3><p>Ký giao dịch bằng ví; PCP được khoá trong escrow, chưa trả cho host.</p></div></li>
+<li><div><h3>Kích hoạt và kết nối</h3><p>Chỉ sau khi nhận tiền đã xác nhận mới cấp quyền truy cập.</p></div></li>
+<li><div><h3>Kết thúc</h3><p>Hết gói hoặc bạn dừng; escrow được giải ngân, hoặc mở tranh chấp.</p></div></li>
+</ol></section>
+</div>
+<aside class="aside card" aria-labelledby="dat"><h2 id="dat">Đặt thuê</h2>
+<table class="money"><caption class="field-label" style="text-align:left;margin-bottom:8px">Gói demo 15 phút</caption>
+<tbody><tr><td>Giá gói</td><td class="num">20 PCP</td></tr>
+<tr><td>Phí nền tảng (10% phần trả host)</td><td class="num">2 PCP</td></tr>
+<tr><td>Host nhận</td><td class="num">18 PCP</td></tr>
+<tr><td>Bạn trả (khoá trong escrow)</td><td class="num">20 PCP</td></tr></tbody></table>
+<p class="reason">Gas bằng AVAX Fuji thử, tính riêng.</p>
+<div style="margin-top:16px"><button class="btn" type="button" disabled style="width:100%">Đặt thuê máy này</button>
+<p class="reason">Chưa khả dụng: cần đăng nhập, ví và backend thật. Bản mẫu không giả kết quả đặt máy.</p></div>
+</aside>
+</div>
+<div class="mbar"><span><strong class="num">20 PCP</strong><br><small>gói 15 phút</small></span><button class="btn" type="button" disabled>Đặt thuê (chưa khả dụng)</button></div>
+</main>
+</body>
+</html>

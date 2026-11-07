@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tổng quan — Bản mẫu thiết kế</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Bỏ qua điều hướng</a>
+<div class="notice" role="note"><strong>BẢN MẪU THIẾT KẾ.</strong> Dữ liệu minh hoạ, không phải máy thật. Không có trạng thái online, hiệu năng hay đánh giá. PCP là token thử, không có giá trị tiền thật.</div>
+<header class="top"><div class="top-in">
+<a class="brand" href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Cloud PC Marketplace</a>
+<nav class="nav" aria-label="Chính">
+<a href="machines.html">Tìm máy</a>
+<a href="session.html">Phiên thuê</a>
+<a href="#" aria-disabled="true">Ví PCP</a>
+<a href="#" aria-disabled="true">Workspace</a>
+<a href="#" aria-disabled="true">Dành cho host</a>
+</nav>
+<span class="role">Vai trò: Khách (mẫu)</span>
+</div></header>
+<main id="main">
+<h1>Bản mẫu UI — Cloud PC Marketplace</h1>
+<p class="lead">Ba màn hình tĩnh để duyệt hướng thiết kế “Trust Console” (sáng, rõ ràng, ưu tiên minh bạch tiền và trạng thái). Chưa thay giao diện ứng dụng trong <code>web/</code>.</p>
+<div class="hub">
+<a class="card" href="machines.html"><h2>1. Danh sách máy</h2><p class="reason">Bộ lọc, thẻ máy có nhãn dữ liệu mẫu.</p></a>
+<a class="card" href="machine.html"><h2>2. Chi tiết máy</h2><p class="reason">Cấu hình khai báo, quy trình, bảng giá/phí, CTA bị khoá có lý do.</p></a>
+<a class="card" href="session.html"><h2>3. Phiên thuê</h2><p class="reason">8 trạng thái remote, vùng desktop, escrow, workspace.</p></a>
+</div>
+<section class="card" style="margin-top:24px" aria-labelledby="gc"><h2 id="gc">Ghi chú thiết kế để duyệt</h2>
+<ul class="notes">
+<li>Tham khảo thinkmay.net ở mức cấu trúc (chỉ từ văn bản trang, chưa xem được ảnh render): nav rõ, thẻ gói có thông số dạng danh sách, CTA nổi bật. Không sao chép nhãn hiệu, văn bản hay số liệu của họ.</li>
+<li>Khác biệt có chủ đích: Thinkmay là dịch vụ cloud gaming của một nhà cung cấp; đây là chợ nhiều host nên giá/phí/escrow và cam kết host được đặt lên trước.</li>
+<li>Không có điểm hiệu năng, fps, ping, đánh giá sao hay chấm “online”. Mọi nút cần backend đều khoá và nêu lý do.</li>
+<li>Màu: teal làm màu chính, vàng cho nhãn dữ liệu mẫu; trạng thái luôn có chữ, không chỉ dùng màu. Dark mode theo cài đặt hệ thống.</li>
+<li>Font đặt là Be Vietnam Pro, dự phòng font hệ thống; bản mẫu chưa tải font ngoài nên máy chưa cài sẽ hiện font dự phòng.</li>
+<li>Mobile: một cột, thanh CTA cố định ở trang chi tiết, mục tiêu chạm tối thiểu 44px.</li>
+</ul></section>
+</main>
+</body>
+</html>

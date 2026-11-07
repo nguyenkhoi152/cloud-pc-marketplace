@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tìm máy — Bản mẫu thiết kế</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Bỏ qua điều hướng</a>
+<div class="notice" role="note"><strong>BẢN MẪU THIẾT KẾ.</strong> Dữ liệu minh hoạ, không phải máy thật. Không có trạng thái online, hiệu năng hay đánh giá. PCP là token thử, không có giá trị tiền thật.</div>
+<header class="top"><div class="top-in">
+<a class="brand" href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Cloud PC Marketplace</a>
+<nav class="nav" aria-label="Chính">
+<a href="machines.html" aria-current="page">Tìm máy</a>
+<a href="session.html">Phiên thuê</a>
+<a href="#" aria-disabled="true">Ví PCP</a>
+<a href="#" aria-disabled="true">Workspace</a>
+<a href="#" aria-disabled="true">Dành cho host</a>
+</nav>
+<span class="role">Vai trò: Khách (mẫu)</span>
+</div></header>
+<main id="main">
+<h1>Tìm máy để thuê</h1>
+<p class="lead">Chỉ hiển thị máy đã được duyệt. Trạng thái online chưa xác định vì chưa có heartbeat thật; bản mẫu không hiển thị số liệu hiệu năng.</p>
+<div class="layout">
+<form class="card filters" aria-label="Bộ lọc máy" onsubmit="return false">
+<h2>Bộ lọc</h2>
+<label>Từ khoá<input type="search" placeholder="Ví dụ: Blender"></label>
+<label>RAM tối thiểu (GB)<input type="number" min="0" inputmode="numeric"></label>
+<label>VRAM tối thiểu (GB)<input type="number" min="0" inputmode="numeric"></label>
+<label>Giá tối đa (PCP)<input type="text" inputmode="decimal"></label>
+<label>Hệ điều hành<select><option>Tất cả</option><option>Windows 11</option><option>Ubuntu 24.04</option></select></label>
+<label>Vùng<select><option>Tất cả</option><option>Hà Nội</option><option>TP.HCM</option><option>Đà Nẵng</option></select></label>
+<label class="check"><input type="checkbox"> Tương thích workspace</label>
+<button class="btn" type="submit">Áp dụng bộ lọc</button>
+<button class="btn ghost" type="reset">Xoá lọc</button>
+</form>
+<section aria-labelledby="kq"><h2 id="kq">3 máy minh hoạ</h2>
+<ul class="grid">
+<li><article class="card mcard" aria-labelledby="t-demo-1">
+<header><h3 id="t-demo-1">Máy dựng phim 4K</h3><span class="chip sample">Dữ liệu mẫu</span></header>
+<dl class="specs"><dt>CPU</dt><dd>Ryzen 7 5800X</dd><dt>RAM</dt><dd>32 GB</dd><dt>GPU</dt><dd>RTX 3070 · 8 GB VRAM</dd><dt>Hệ điều hành</dt><dd>Windows 11</dd><dt>Vùng</dt><dd>Hà Nội</dd></dl>
+<div class="chips"><span class="chip">Host cam kết ≥ 6 giờ</span><span class="chip ok">Workspace: Tương thích</span><span class="chip info">Trạng thái: chưa xác định</span></div>
+<div class="price"><span><strong class="num">20 PCP</strong> <small>/ 15 phút</small></span><a class="btn" href="machine.html" aria-label="Xem chi tiết Máy dựng phim 4K">Xem chi tiết</a></div>
+</article></li>
+<li><article class="card mcard" aria-labelledby="t-demo-2">
+<header><h3 id="t-demo-2">Máy lập trình / build</h3><span class="chip sample">Dữ liệu mẫu</span></header>
+<dl class="specs"><dt>CPU</dt><dd>Core i5-12400</dd><dt>RAM</dt><dd>16 GB</dd><dt>GPU</dt><dd>Không GPU rời</dd><dt>Hệ điều hành</dt><dd>Ubuntu 24.04</dd><dt>Vùng</dt><dd>TP.HCM</dd></dl>
+<div class="chips"><span class="chip">Host cam kết ≥ 4 giờ</span><span class="chip ok">Workspace: Tương thích</span><span class="chip info">Trạng thái: chưa xác định</span></div>
+<div class="price"><span><strong class="num">20 PCP</strong> <small>/ 15 phút</small></span><a class="btn" href="machine.html" aria-label="Xem chi tiết Máy lập trình / build">Xem chi tiết</a></div>
+</article></li>
+<li><article class="card mcard" aria-labelledby="t-demo-3">
+<header><h3 id="t-demo-3">Máy đồ hoạ 3D</h3><span class="chip sample">Dữ liệu mẫu</span></header>
+<dl class="specs"><dt>CPU</dt><dd>Core i7-13700</dd><dt>RAM</dt><dd>64 GB</dd><dt>GPU</dt><dd>RTX 4070 · 12 GB VRAM</dd><dt>Hệ điều hành</dt><dd>Windows 11</dd><dt>Vùng</dt><dd>Đà Nẵng</dd></dl>
+<div class="chips"><span class="chip">Host cam kết ≥ 8 giờ</span><span class="chip">Workspace: Chưa tương thích</span><span class="chip info">Trạng thái: chưa xác định</span></div>
+<div class="price"><span><strong class="num">20 PCP</strong> <small>/ 15 phút</small></span><a class="btn" href="machine.html" aria-label="Xem chi tiết Máy đồ hoạ 3D">Xem chi tiết</a></div>
+</article></li>
+</ul></section>
+</div>
+</main>
+</body>
+</html>

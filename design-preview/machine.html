@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chi tiết máy · Cloud PC Marketplace (bản mẫu)</title>
+<meta name="description" content="Bản mẫu thiết kế Cloud PC Marketplace. Dữ liệu minh hoạ, chưa phải sản phẩm hoạt động.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="has-mbar">
+<a class="skip" href="#main">Bỏ qua điều hướng</a>
+<div class="notice" role="note"><strong>Bản mẫu thiết kế.</strong> Dữ liệu minh hoạ, không phải máy thật; chưa có đăng nhập, ví, đặt thuê hay kết nối. PCP là token thử, không có giá trị tiền thật.</div>
+<header class="site-header"><div class="pill">
+<a class="brand" href="index.html"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Cloud PC Marketplace</a>
+<button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Mở menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path class="bar b1" d="M4 7h16"/><path class="bar b2" d="M4 12h16"/><path class="bar b3" d="M4 17h16"/></svg></button>
+<nav class="nav" id="site-nav" aria-label="Chính"><div class="nav-inner">
+<a href="index.html">Giới thiệu</a>
+<a href="machines.html" aria-current="page">Tìm máy</a>
+<a href="index.html#host">Dành cho host</a>
+<a href="index.html#workspace">Workspace</a>
+<span class="soon" aria-disabled="true">Ví PCP<small>chưa có</small></span>
+</div></nav>
+<a class="btn small cta-head" href="machines.html">Tìm máy</a>
+</div></header>
+<main id="main">
+<section class="wrap" style="padding-top:40px">
+<p class="crumb"><a href="machines.html">Tìm máy</a> / Máy dựng phim 4K</p>
+<div class="chips" style="margin-bottom:12px"><span class="chip sample">Dữ liệu mẫu</span><span class="chip unknown">Trạng thái: chưa xác định (chưa có heartbeat)</span></div>
+<h1 style="font-size:clamp(2rem,5vw,3rem)">Máy dựng phim 4K</h1>
+<p class="lead">Host demo A · cấu hình do host khai báo, kiểm tra lần cuối 2026-11-07 (minh hoạ).</p>
+<div class="detail" style="margin-top:32px">
+<div class="stack">
+<section class="card" aria-labelledby="cfg"><h2 id="cfg" style="font-size:1.4rem">Cấu hình khai báo</h2>
+<div class="deck"><div class="tile"><small>CPU</small><b>Ryzen 7 5800X</b></div><div class="tile"><small>RAM</small><b class="num">32 GB</b></div><div class="tile"><small>GPU</small><b>RTX 3070</b></div><div class="tile"><small>VRAM</small><b class="num">8 GB</b></div><div class="tile"><small>Hệ điều hành</small><b>Windows 11</b></div><div class="tile"><small>Vùng</small><b>Hà Nội</b></div></div></section>
+<section class="card" aria-labelledby="app"><h2 id="app" style="font-size:1.4rem">Ứng dụng (host khai báo)</h2><div class="chips"><span class="chip">DaVinci Resolve</span><span class="chip">Blender</span></div></section>
+<section class="card" aria-labelledby="cam"><h2 id="cam" style="font-size:1.4rem">Cam kết của host</h2><p style="margin:0">Cửa sổ nhận thuê ít nhất <b class="num">6 giờ</b>. Chỉ thuê tức thời, mỗi lần một người dùng giữ máy. Workspace: <b>tương thích</b>.</p><p class="reason">Bản mẫu không có điểm hiệu năng, fps, độ trễ hay đánh giá vì chưa có dữ liệu đo thật.</p></section>
+<section class="card" aria-labelledby="how"><h2 id="how" style="font-size:1.4rem">Sau khi đặt thuê</h2>
+<ol class="flow"><li><div><h3>Giữ máy</h3><p>Hệ thống giữ máy cho bạn trong thời hạn nạp escrow.</p></div></li><li><div><h3>Nạp escrow</h3><p>PCP được khoá trong escrow, chưa trả cho host.</p></div></li><li><div><h3>Kích hoạt và kết nối</h3><p>Chỉ sau khi nhận tiền đã xác nhận mới cấp quyền truy cập.</p></div></li><li><div><h3>Kết thúc</h3><p>Hết gói hoặc dừng sớm đều trả cả gói; hoặc mở khiếu nại.</p></div></li></ol></section>
+</div>
+<aside class="card aside" aria-labelledby="dat"><h2 id="dat" style="font-size:1.4rem">Đặt thuê</h2>
+<table class="money"><caption class="reason" style="text-align:left;margin-bottom:8px">Gói demo 15 phút</caption><tbody>
+<tr><td>Giá gói</td><td class="num">20 PCP</td></tr><tr><td>Phí nền tảng (10% phần trả host)</td><td class="num">2 PCP</td></tr><tr><td>Host nhận</td><td class="num">18 PCP</td></tr><tr class="total"><td>Bạn trả (khoá trong escrow)</td><td class="num">20 PCP</td></tr></tbody></table>
+<p class="reason">Phí gas bằng AVAX thử tính riêng. Kết thúc sớm vẫn trả cả gói.</p>
+<div style="margin-top:16px"><button class="btn" type="button" disabled style="width:100%">Đặt thuê máy này</button><p class="reason">Chưa khả dụng: cần đăng nhập, ví và backend thật. Bản mẫu không giả kết quả đặt máy.</p>
+<p style="margin:16px 0 0"><a href="session.html">Xem bố cục trang phiên thuê (mẫu) →</a></p></div></aside>
+</div></section>
+<div class="mbar"><span class="price num">20 PCP<small>gói 15 phút</small></span><button class="btn" type="button" disabled>Đặt thuê (chưa khả dụng)</button></div>
+</main>
+<footer class="site-footer"><div class="wrap">
+<p><strong>Cloud PC Marketplace</strong> — bản mẫu thiết kế, tên làm việc tạm thời. Toàn bộ máy, giá và cam kết host là dữ liệu minh hoạ lấy từ fixture của dự án.</p>
+<p>PCP là token thử trên mạng thử, không có giá trị tiền thật, không mua/bán/rút. Chưa có điều khoản thương mại.</p>
+<p><a href="index.html">Giới thiệu</a> · <a href="machines.html">Tìm máy</a></p>
+</div></footer>
+<script src="app.js" defer></script>
+</body>
+</html>

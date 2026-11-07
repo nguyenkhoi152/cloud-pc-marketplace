@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phiên thuê · Cloud PC Marketplace (bản mẫu)</title>
+<meta name="description" content="Bản mẫu thiết kế Cloud PC Marketplace. Dữ liệu minh hoạ, chưa phải sản phẩm hoạt động.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Bỏ qua điều hướng</a>
+<div class="notice" role="note"><strong>Bản mẫu thiết kế.</strong> Dữ liệu minh hoạ, không phải máy thật; chưa có đăng nhập, ví, đặt thuê hay kết nối. PCP là token thử, không có giá trị tiền thật.</div>
+<header class="site-header"><div class="pill">
+<a class="brand" href="index.html"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Cloud PC Marketplace</a>
+<button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Mở menu"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path class="bar b1" d="M4 7h16"/><path class="bar b2" d="M4 12h16"/><path class="bar b3" d="M4 17h16"/></svg></button>
+<nav class="nav" id="site-nav" aria-label="Chính"><div class="nav-inner">
+<a href="index.html">Giới thiệu</a>
+<a href="machines.html" aria-current="page">Tìm máy</a>
+<a href="index.html#host">Dành cho host</a>
+<a href="index.html#workspace">Workspace</a>
+<span class="soon" aria-disabled="true">Ví PCP<small>chưa có</small></span>
+</div></nav>
+<a class="btn small cta-head" href="machines.html">Tìm máy</a>
+</div></header>
+<main id="main">
+<section class="wrap" style="padding-top:40px">
+<p class="crumb"><a href="machines.html">Tìm máy</a> / <a href="machine.html">Máy dựng phim 4K</a> / Phiên thuê</p>
+<h1 style="font-size:clamp(2rem,5vw,3rem)">Phiên thuê</h1>
+<p class="lead">Trang này chỉ mô phỏng bố cục quản lý phiên. Không có phiên, máy hay desktop thật. Màn hình máy thuê dự kiến hiển thị trong ứng dụng Moonlight, không phải trong trang web.</p>
+<section class="card" style="margin-top:28px" aria-labelledby="tt"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h2 id="tt" style="font-size:1.4rem">Máy dựng phim 4K · Host demo A</h2><span class="chip sample">Trạng thái minh hoạ</span></div>
+<p class="reason" id="sl" style="margin-top:12px">Trạng thái remote — mỗi trạng thái hiển thị riêng, không gộp thành “thành công”.</p>
+<ol class="states" aria-labelledby="sl" style="margin-top:10px"><li>Preparing</li><li aria-current="true">Ready</li><li>Connecting</li><li>Active</li><li>Disconnected</li><li>Expired</li><li>Revoking</li><li>CleanupFailed</li></ol>
+<p class="reason">Đang đánh dấu “Ready” làm ví dụ trình bày; không phản ánh máy thật.</p></section>
+<div class="cols" style="margin-top:16px">
+<section class="card stack" aria-labelledby="kn"><h2 id="kn" style="font-size:1.4rem">Kết nối</h2>
+<div class="link-map" role="group" aria-label="Cách kết nối dự kiến"><div class="link-node"><h3>Trang web này</h3><p>Chỉ để xem trạng thái, thời gian và kết thúc phiên. Desktop không hiển thị trong trang web.</p></div><div class="link-arrow" aria-hidden="true">↓</div><div class="link-node"><h3>Ứng dụng Moonlight trên máy của bạn</h3><p>Hiển thị màn hình của máy thuê sau khi ghép cặp. Chưa hoạt động trong bản mẫu.</p></div><div class="link-arrow" aria-hidden="true">↓</div><div class="link-node"><h3>Sunshine trên máy host</h3><p>Phát hình ảnh của máy thuê tới Moonlight. Cần host agent thật.</p></div></div>
+<div><button class="btn" type="button" disabled>Mở Moonlight / ghép cặp</button><p class="reason">Chưa khả dụng: cần host agent và Sunshine thật; bản mẫu không giả desktop và không mở ứng dụng nào.</p></div>
+<div><button class="btn ghost" type="button" disabled>Kết thúc phiên</button><p class="reason">Chưa khả dụng khi chưa có phiên.</p></div></section>
+<div class="stack">
+<section class="card" aria-labelledby="th"><h2 id="th" style="font-size:1.4rem">Thời gian và escrow</h2>
+<table class="money"><tbody><tr><td>Gói</td><td class="num">15 phút</td></tr><tr><td>PCP khoá trong escrow</td><td class="num">20 PCP</td></tr><tr><td>Trạng thái escrow</td><td><span class="chip unknown">Mẫu: chờ nạp</span></td></tr></tbody></table>
+<p class="reason">Bộ đếm thời gian chỉ xuất hiện khi phiên thật bắt đầu; không hiển thị số giả.</p></section>
+<section class="card" aria-labelledby="ws"><h2 id="ws" style="font-size:1.4rem">Workspace</h2><p style="margin:0">Trạng thái: <span class="chip">NotEnabled</span></p><p class="reason">Lưu project theo checkpoint (tối đa 100 MiB, 3 checkpoint) làm ở mốc sau.</p></section>
+<section class="card" aria-labelledby="sc"><h2 id="sc" style="font-size:1.4rem">Gặp sự cố?</h2><p style="margin:0">Nút khiếu nại sẽ nằm tách riêng, cách xa nút chính, khi phiên thật tồn tại.</p></section>
+</div></div></section>
+</main>
+<footer class="site-footer"><div class="wrap">
+<p><strong>Cloud PC Marketplace</strong> — bản mẫu thiết kế, tên làm việc tạm thời. Toàn bộ máy, giá và cam kết host là dữ liệu minh hoạ lấy từ fixture của dự án.</p>
+<p>PCP là token thử trên mạng thử, không có giá trị tiền thật, không mua/bán/rút. Chưa có điều khoản thương mại.</p>
+<p><a href="index.html">Giới thiệu</a> · <a href="machines.html">Tìm máy</a></p>
+</div></footer>
+<script src="app.js" defer></script>
+</body>
+</html>

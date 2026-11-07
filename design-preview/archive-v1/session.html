@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phiên thuê — Bản mẫu thiết kế</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Bỏ qua điều hướng</a>
+<div class="notice" role="note"><strong>BẢN MẪU THIẾT KẾ.</strong> Dữ liệu minh hoạ, không phải máy thật. Không có trạng thái online, hiệu năng hay đánh giá. PCP là token thử, không có giá trị tiền thật.</div>
+<header class="top"><div class="top-in">
+<a class="brand" href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Cloud PC Marketplace</a>
+<nav class="nav" aria-label="Chính">
+<a href="machines.html">Tìm máy</a>
+<a href="session.html" aria-current="page">Phiên thuê</a>
+<a href="#" aria-disabled="true">Ví PCP</a>
+<a href="#" aria-disabled="true">Workspace</a>
+<a href="#" aria-disabled="true">Dành cho host</a>
+</nav>
+<span class="role">Vai trò: Khách (mẫu)</span>
+</div></header>
+<main id="main">
+<h1>Phiên thuê</h1>
+<p class="lead">Trang này mô phỏng bố cục. Không có phiên, máy hay desktop thật; trạng thái bên dưới chỉ để minh hoạ cách hiển thị.</p>
+<section class="card status" aria-labelledby="tt"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><h2 id="tt" style="margin:0">Máy dựng phim 4K · Host demo A</h2><span class="chip sample">Trạng thái minh hoạ</span></div>
+<div><p class="field-label" id="sl">Trạng thái remote (mỗi trạng thái hiển thị riêng, không gộp thành “thành công”)</p>
+<ol class="states" aria-labelledby="sl"><li>Preparing</li><li aria-current="true">Ready</li><li>Connecting</li><li>Active</li><li>Disconnected</li><li>Expired</li><li>Revoking</li><li>CleanupFailed</li></ol>
+<p class="reason">Đang đánh dấu “Ready” làm ví dụ trình bày; không phản ánh máy thật.</p></div></section>
+<div class="cols" style="margin-top:16px">
+<section class="card stack" aria-labelledby="kn"><h2 id="kn">Kết nối</h2>
+<div class="screen" role="img" aria-label="Vùng chờ hiển thị desktop từ xa"><span>Vùng desktop từ xa sẽ hiện ở đây<br>sau khi có host agent và Sunshine (M4).</span></div>
+<div><button class="btn" type="button" disabled>Mở Moonlight / ghép cặp</button>
+<p class="reason">Chưa khả dụng: cần host agent và Sunshine thật; bản mẫu không giả desktop.</p></div>
+<div><button class="btn ghost" type="button" disabled>Kết thúc phiên</button><p class="reason">Chưa khả dụng khi chưa có phiên.</p></div></section>
+<div class="stack">
+<section class="card" aria-labelledby="th"><h2 id="th">Thời gian và escrow</h2>
+<table class="money"><tbody><tr><td>Gói</td><td class="num">15 phút</td></tr><tr><td>PCP khoá trong escrow</td><td class="num">20 PCP</td></tr><tr><td>Trạng thái escrow</td><td><span class="chip info">Mẫu: chờ nạp</span></td></tr></tbody></table>
+<p class="reason">Bộ đếm thời gian chỉ xuất hiện khi phiên thật bắt đầu; không hiển thị số giả.</p></section>
+<section class="card" aria-labelledby="ws"><h2 id="ws">Workspace</h2>
+<p style="margin:0">Trạng thái: <span class="chip">NotEnabled</span></p>
+<p class="reason">Lưu project theo checkpoint (tối đa 100 MiB, 3 checkpoint) làm ở mốc M5.</p></section>
+<section class="card" aria-labelledby="sc"><h2 id="sc">Gặp sự cố?</h2>
+<p style="margin:0">Nút “Mở tranh chấp” sẽ nằm tách riêng, cách xa nút chính, khi phiên thật tồn tại.</p></section>
+</div></div>
+</main>
+</body>
+</html>

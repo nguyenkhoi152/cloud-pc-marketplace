@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520" role="img" aria-labelledby="hero-t hero-d">
+  <title id="hero-t">Máy tính từ xa trên đám mây</title>
+  <desc id="hero-d">Minh hoạ một thùng máy tính cạnh đám mây; hai luồng chấm teal chạy xuống một laptop ở phía trước. Chỉ là hình minh hoạ, không phải ảnh chụp màn hình.</desc>
+  <defs>
+    <radialGradient id="h-glow" cx="50%" cy="45%" r="55%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".85"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="h-case" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#eef6fd"/><stop offset="1" stop-color="#cfe2f2"/>
+    </linearGradient>
+    <linearGradient id="h-side" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfe2f2"/><stop offset="1" stop-color="#b3cde4"/>
+    </linearGradient>
+    <linearGradient id="h-glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1f3a"/><stop offset="1" stop-color="#14456b"/>
+    </linearGradient>
+    <linearGradient id="h-shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".28"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="h-cloud" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dbeefc"/>
+    </linearGradient>
+    <linearGradient id="h-screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f766e"/><stop offset="1" stop-color="#1fc7b2"/>
+    </linearGradient>
+    <linearGradient id="h-lap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17304f"/><stop offset="1" stop-color="#0b1f3a"/>
+    </linearGradient>
+    <radialGradient id="h-gpu" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#5eead4" stop-opacity=".9"/><stop offset="1" stop-color="#5eead4" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="h-soft" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#0b1f3a" flood-opacity=".18"/>
+    </filter>
+  </defs>
+
+  <g class="h-glow"><ellipse cx="330" cy="260" rx="290" ry="230" fill="url(#h-glow)"/></g>
+  <ellipse cx="340" cy="478" rx="230" ry="18" fill="#0b1f3a" opacity=".10"/>
+
+  <!-- Lớp 1: mây sau -->
+  <g class="h-cloud-back" filter="url(#h-soft)">
+    <path d="M110 255c-40 0-70-25-70-58 0-30 26-54 58-56 9-36 42-62 82-62 36 0 66 19 78 47 7-2 14-3 22-3 36 0 64 26 64 56 0 33-30 76-70 76z" fill="url(#h-cloud)"/>
+    <path d="M110 255c-40 0-70-25-70-58 0-6 1-11 3-16 20 22 56 30 98 30 60 0 110-14 150-40 3 6 4 12 4 18 0 33-30 76-70 76z" fill="#cfe6f8" opacity=".55"/>
+  </g>
+
+  <!-- Lớp 2: thùng máy -->
+  <g class="h-pc" filter="url(#h-soft)">
+    <rect x="388" y="52" width="196" height="396" rx="26" fill="url(#h-side)"/>
+    <rect x="378" y="44" width="196" height="396" rx="26" fill="url(#h-case)" stroke="#bdd6ea" stroke-width="2"/>
+    <rect x="398" y="68" width="156" height="262" rx="14" fill="url(#h-glass)"/>
+    <path d="M398 82a14 14 0 0 1 14-14h60L398 200z" fill="url(#h-shine)"/>
+    <!-- bo mạch gợi ý -->
+    <g stroke="#2a6a93" stroke-width="2" fill="none" opacity=".7">
+      <path d="M414 296h36M414 306h58M520 296h20M500 306h40"/>
+    </g>
+    <!-- quạt -->
+    <g class="h-fan-wrap">
+      <circle cx="476" cy="122" r="38" fill="url(#h-gpu)" opacity=".55"/>
+      <g class="h-fan" fill="none" stroke="#2dd4bf" stroke-width="3" stroke-linecap="round">
+        <circle cx="476" cy="122" r="34" stroke-opacity=".9"/>
+        <path d="M476 90v64M444 122h64M453 99l46 46M499 99l-46 46" stroke-opacity=".55"/>
+        <circle cx="476" cy="122" r="7" fill="#2dd4bf"/>
+      </g>
+      <circle cx="476" cy="222" r="38" fill="url(#h-gpu)" opacity=".55"/>
+      <g class="h-fan" fill="none" stroke="#2dd4bf" stroke-width="3" stroke-linecap="round">
+        <circle cx="476" cy="222" r="34" stroke-opacity=".9"/>
+        <path d="M476 190v64M444 222h64M453 199l46 46M499 199l-46 46" stroke-opacity=".55"/>
+        <circle cx="476" cy="222" r="7" fill="#2dd4bf"/>
+      </g>
+    </g>
+    <rect x="418" y="268" width="116" height="10" rx="5" fill="#5eead4" opacity=".9"/>
+    <!-- mặt trước -->
+    <circle cx="476" cy="368" r="11" fill="#0f766e"/><circle cx="476" cy="368" r="5" fill="#99f6e4"/>
+    <g stroke="#b4cde3" stroke-width="3" stroke-linecap="round"><path d="M420 400h112M420 411h112"/></g>
+    <rect x="404" y="438" width="28" height="9" rx="4" fill="#8fb4d3"/><rect x="520" y="438" width="28" height="9" rx="4" fill="#8fb4d3"/>
+  </g>
+
+  <!-- Lớp 3: luồng kết nối từ máy xuống laptop -->
+  <g class="h-stream" fill="none" stroke-linecap="round">
+    <path class="h-flow" d="M392 330C340 350 300 372 252 404" stroke="#14b8a6" stroke-width="5" stroke-dasharray="1 15"/>
+    <path class="h-flow h-flow-2" d="M200 232C196 280 190 330 186 372" stroke="#0f766e" stroke-width="4" stroke-dasharray="1 14"/>
+    <path d="M392 330C340 350 300 372 252 404" stroke="#14b8a6" stroke-width="1.5" stroke-opacity=".25"/>
+    <path d="M200 232C196 280 190 330 186 372" stroke="#0f766e" stroke-width="1.5" stroke-opacity=".25"/>
+  </g>
+
+  <!-- Lớp 4: laptop -->
+  <g class="h-laptop" filter="url(#h-soft)">
+    <rect x="70" y="372" width="232" height="124" rx="12" fill="url(#h-lap)"/>
+    <rect x="82" y="384" width="208" height="100" rx="6" fill="url(#h-screen)"/>
+    <rect x="82" y="384" width="208" height="16" rx="6" fill="#0b1f3a" opacity=".25"/>
+    <circle cx="94" cy="392" r="3" fill="#fff" opacity=".8"/><circle cx="104" cy="392" r="3" fill="#fff" opacity=".6"/><circle cx="114" cy="392" r="3" fill="#fff" opacity=".4"/>
+    <rect x="98" y="412" width="110" height="9" rx="4.5" fill="#fff" opacity=".9"/>
+    <rect x="98" y="430" width="76" height="9" rx="4.5" fill="#fff" opacity=".55"/>
+    <rect x="98" y="448" width="94" height="9" rx="4.5" fill="#fff" opacity=".4"/>
+    <path d="M214 440l36-22v44z" fill="#fff" opacity=".85"/>
+    <path d="M56 500h260l-14 16H70z" fill="#c4dcef"/><rect x="150" y="500" width="72" height="5" rx="2.5" fill="#9fc0dc"/>
+  </g>
+
+  <!-- Lớp 5: mây trước -->
+  <g class="h-cloud-front">
+    <g transform="translate(-300 78)"><path d="M470 34c-24 0-40-14-40-33 0-2 0-3 1-5 12-3 24 0 33 5 5-7 14-12 24-12 17 0 29 12 29 26 0 12-14 19-31 19z" fill="#fff" opacity=".95"/></g>
+  </g>
+</svg>
