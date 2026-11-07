@@ -70,4 +70,5 @@ contracts/deployments/local.json
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/ui-ux-pro-max/
+!.claude/skills/speckit-*/
 .claude/settings.local.json
