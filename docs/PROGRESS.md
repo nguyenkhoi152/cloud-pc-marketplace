@@ -82,7 +82,66 @@ Writer: Claude. Git: chưa là repo.
 - Mock/preview: web vẫn dùng fixture; ABI mới chỉ xuất ra file.
 - Process còn chạy: không.
 
+## Bản mẫu UI "Sky" (design-preview) — 07/11/2026
+
+Writer: Claude. Git: các file mới chưa commit.
+
+- Quy trình Spec Kit đã chạy: constitution 1.1.0, `specs/001-sky-prototype/` (spec, plan, research, data-model, contracts, quickstart, tasks, checklist) và phân tích nhất quán (không CRITICAL; các điểm HIGH/MEDIUM đã sửa trong tài liệu).
+- Triển khai: `design-preview/` gồm trang giới thiệu, tìm máy (lọc + so sánh), chi tiết máy, phiên thuê; SVG hero tự vẽ; bản cũ ở `archive-v1/`. Không sửa `web/`, `db/`, `contracts/`, backend.
+- Kiểm tra: Edge headless 390/768/1440 cho 4 trang — không tràn ngang, 0 lỗi console; lọc/so sánh/menu/FAQ chạy; chạy được khi tắt JS; reduced-motion tắt animation. Chi tiết và danh sách chưa kiểm chứng: `design-preview/README.md`.
+- Chưa kiểm chứng: thiết bị thật, Firefox/Safari, chế độ tối, trình đọc màn hình. Ảnh bạn nhắc chưa có trong hội thoại nên dùng ảnh khảo sát cục bộ.
+- Mock còn lại: toàn bộ dữ liệu là fixture; mọi hành động cần backend khoá kèm lý do.
+- Vòng hoàn thiện hình ảnh/chuyển động (07/11): sửa lỗi lọc để lại ô trống và nội dung phiên thuê gây hiểu nhầm; hero SVG nhiều lớp; hiện khi cuộn, hover/nhấn, lọc/so sánh/menu/FAQ mượt, nhịp 120/200/320ms; reduced-motion; không thêm thư viện (đã đánh giá Motion for React). Kiểm tra bằng thao tác thật qua Edge headless; xem `design-preview/README.md`. Chưa kiểm chứng: thiết bị thật, trình duyệt khác, hiệu năng có GPU.
+- Bước tiếp: chờ chủ dự án duyệt bản mẫu; sau đó mới chuyển sang `web/` (Next.js/Tailwind).
+
+### Frontend desktop Companion (UI để duyệt) — 08/11/2026
+
+Writer: Claude. Git: chưa commit. Spec Kit: `specs/002-desktop-companion-ui/` (spec, plan có danh mục màn hình/sơ đồ điều hướng/bảng trạng thái, tasks).
+
+- Tạo workspace `desktop/` (`@cpm/desktop`; thêm vào `workspaces` và scripts gốc `dev:desktop`, `build:desktop`, lint/typecheck/test): React 19 + TS 6 + Vite 8 + Tailwind 4, primitives kiểu shadcn (Radix), Lucide, Motion, zustand. Không sửa `web/`, `design-preview/`, `db/`, `contracts/`.
+- Đã làm đủ các màn trong phạm vi: auth mô phỏng, chuyển chế độ (không cấp quyền host), thuê (khám phá/lọc/so sánh/chi tiết/xác nhận/phiên đầy đủ/viewer minh họa/workspace/lịch sử), cho thuê (7 bước thiết lập, lịch tuần + ngoại lệ có validation, gửi duyệt/chờ/từ chối, dashboard, phiên, thu nhập, sự cố, chạy nền/dừng), số dư tách thu nhập host, thông báo, hỗ trợ, cài đặt. Bộ chọn 8 kịch bản demo; fixtures tập trung + lớp dịch vụ mock.
+- Kiểm tra: typecheck, lint, build đạt; vitest 24/24 (logic domain + smoke render mọi màn/phase). **Chưa kiểm tra bằng trình duyệt**: Playwright CLI không có trên máy (không có bản global; chạy qua `npx` bị chặn quyền) nên chưa kiểm layout 3 kích thước, tràn ngang, console, bàn phím, ảnh chụp. Cần chạy kiểm tra này trước khi coi UI là đã duyệt.
+- Mock: toàn bộ (auth, PCP, cài đặt, duyệt host, Selkies viewer, cleanup, giờ demo cố định). Chưa: Tauri/Rust, backend, WSL/Docker/Selkies thật, code-splitting.
+- Chạy: `npm run dev -w @cpm/desktop` → http://127.0.0.1:5174 (process do Claude khởi động, cổng 5174). Chi tiết: `desktop/README.md`.
+- Bước tiếp: duyệt UI bằng mắt; chạy Playwright khi có công cụ; sửa theo góp ý; sau đó mới tích hợp backend/Tauri.
+
+### Sửa frontend theo review Codex — 08/11/2026
+
+Writer: Claude. Nguồn: `docs/DESKTOP_UI_REVIEW_2026-11-08.md`.
+
+- **Bằng chứng Codex đã chạy** (Edge qua Playwright): 7 màn × 3 kích thước, hai hành trình, viewer/fullscreen/reconnect, dialog, kịch bản cleanup/lưu lỗi, reduced-motion; Vitest 24/24. Review ghi 3 findings P2.
+- **Đã sửa**: (1) quyết toán theo đặc tả hiện hành — kết thúc sớm trả cả gói, chuẩn bị lỗi hoàn đủ; sửa logic, nội dung UI, fixtures, test; không đổi contract/đặc tả tiền. (2) Lịch tuần không còn co cột ở 1024px (bố cục 2 hàng, preview xuống dưới < 1280px, ô giờ rộng hơn). (3) `RadioGroup` có roving tabindex và phím mũi tên/Home/End cho bộ chuyển chế độ, bộ chọn demo, `Segmented`, các nhóm ở checkout.
+- **Kiểm tra Claude đã chạy**: typecheck, lint, vitest 27/27 (thêm test quyết toán đã sửa và 3 test bàn phím RadioGroup bằng jsdom; thêm devDependency `jsdom` vào `@cpm/desktop`). Claude vẫn không có Playwright trong môi trường của mình.
+- **Chưa xác minh**: layout lịch 1024px và bàn phím sau sửa trên trình duyệt thật — cần Codex chạy lại; audit bàn phím toàn app, screen reader, trình duyệt khác, Tauri/WebView2.
+- Process: dev server 5174 (khởi động trước đó) vẫn chạy; không khởi động thêm. Chưa commit/push/deploy.
+
+### Sửa focus bộ chuyển chế độ — 08/11/2026
+
+Writer: Claude. Nguồn: phần tái kiểm tra đầu `docs/DESKTOP_UI_REVIEW_2026-11-08.md`.
+
+- **Codex đã xác minh trên Edge**: finding tiền (kết thúc sớm giữ/tính 80, hoàn 0) và lịch 1024px (cột thanh giờ 356/330/442 px) đã đạt; radio thời lượng ở checkout hoạt động. Còn P2: đổi chế độ bằng ArrowRight làm `AppShell` focus `main`.
+- **Đã sửa**: `RadioGroup` nhận `keepFocus` (gắn `data-keep-focus`); `AppShell` bỏ qua focus `main` khi `activeElement` nằm trong vùng đó; điều hướng khác và skip link giữ nguyên. Chỉ bộ chuyển chế độ dùng `keepFocus`.
+- **Kiểm tra Claude đã chạy**: typecheck, lint, build đạt; vitest 30/30, gồm `src/layout/modeFocus.test.tsx` (jsdom, AppShell + router hash + store thật): ArrowRight → ArrowLeft liên tiếp xác minh aria-checked, hash, `document.activeElement` và `hostApproval` không đổi; sidebar → focus `main`; skip link → `main`. Thử bỏ dòng bảo vệ thì test đỏ.
+- **Chưa xác minh**: hành vi này trên trình duyệt thật (cần Codex chạy lại); audit bàn phím toàn app, screen reader, Tauri/WebView2. Dev server 5174 giữ nguyên, không khởi động thêm. Chưa commit/push/deploy; chưa nối backend/Tauri.
+
 ## Việc còn lại và đầu vào cần từ chủ dự án
+
+### Codex xác minh bản sửa focus cuối — 08/11/2026, 14:53 GMT+7
+
+- **Đóng 3/3 findings review UI ban đầu** trong phạm vi kiểm tra, không phải chứng nhận toàn bộ app hoàn thiện.
+- Edge: ArrowRight -> ArrowLeft liên tiếp không refocus giữ đúng focus/radio/route; Home/End và lặp vòng cũng đạt. Sidebar và skip link vẫn đưa focus về main. Click đổi mode giữ focus, không tự cấp quyền host; không console/page error.
+- Chạy lại Vitest: 30/30 PASS. Không chạy lại typecheck/lint/build ở lượt cuối; có kết quả Codex PASS ở lần trước và báo cáo Claude PASS sau sửa focus.
+- Ảnh và bằng chứng mới nhất ở đầu `docs/DESKTOP_UI_REVIEW_2026-11-08.md`. Các finding còn mở trong mục review trước phía dưới đã được đóng bởi mục này.
+- Bước tiếp: chủ dự án duyệt UI/workflow và lấy phản hồi người thử. Chưa tự triển khai backend/Tauri. Chưa commit/push/deploy; Vite 5174 giữ nguyên. Codex chỉ sửa tài liệu review/tiến độ.
+
+### Codex tái kiểm tra desktop sau sửa — 08/11/2026
+
+- Đọc source và thử lại bằng Edge/Playwright; không sửa source app. Chi tiết mới nhất ở đầu `docs/DESKTOP_UI_REVIEW_2026-11-08.md`.
+- Codex chạy lại: typecheck, lint, build PASS; Vitest 27/27 PASS. Build vẫn cảnh báo JS chunk 700.99 kB (gzip 214.76 kB), chưa tối ưu chia tải.
+- Đóng 2 findings: kết thúc sớm tính cả gói (trình duyệt: 80 PCP giữ, tính 80, hoàn 0); lịch host 1024/1280/1440 không tràn, thanh giờ có chiều rộng và ô giờ đọc được.
+- Finding bàn phím còn P2: ArrowRight đổi mode nhưng route effect ở AppShell lấy focus về main; ArrowLeft kế tiếp không đổi ngược được. Component RadioGroup và test Segmented riêng đã tốt hơn nhưng chưa kiểm tình huống điều hướng tích hợp.
+- Frontend hai vai trò và kịch bản demo đã có; toàn bộ auth/remote/host-install/PCP/workspace vẫn mô phỏng. Chưa có Tauri/backend/host-agent/Selkies thật. Chưa commit/push/deploy.
+- Bước tiếp: Claude sửa focus khi đổi mode và kiểm tích hợp; chủ dự án tiếp tục duyệt UI/workflow. Chưa tự chuyển mốc backend. Browser kiểm tra riêng đóng sau review; Vite 5174 của Claude được giữ nguyên.
 
 - **Auth/dữ liệu thật (M2 nối web):** tạo project Supabase miễn phí, đưa `SUPABASE_URL` và `SUPABASE_ANON_KEY` (service role chỉ đặt ở môi trường server riêng); hoặc cài Docker để chạy Supabase local.
 - **Deploy Fuji:** ví test riêng có AVAX Fuji (faucet), `FUJI_RPC_URL`, và 5 địa chỉ vai trò (operator, arbitrator, quote signer, issuer, treasury). Khoá riêng chỉ nhập ở môi trường riêng.
@@ -91,6 +150,13 @@ Writer: Claude. Git: chưa là repo.
 - **M5 hai host thật:** cần host thứ hai để chứng minh restore project; phần local filesystem có thể làm trước.
 
 ## Ghi mốc mới
+
+### Workflow sản phẩm bổ sung — 07/11/2026
+
+- Codex ghi `docs/PRODUCT_WORKFLOW.md`, sau đó sửa theo lời đính chính của chủ dự án: một app hai chế độ; host tự mở nhận thuê theo lịch (ví dụ mỗi tối), không phải renter đặt thuê định kỳ hoặc trả phụ phí giữ lịch.
+- Liên kết từ MVP và PRODUCT để phân biệt yêu cầu mới với core thuê ngay hiện tại.
+- Chỉ cập nhật thiết kế; chưa code UI/API/DB/agent/contract, chưa commit/push/deploy. Lịch điều khiển availability của host, không thêm thanh toán chuỗi hay auto-renew. Có brief/prompt UI app tại `docs/DESKTOP_APP_UX_BRIEF.md`.
+- Kiểm tra: đọc đối chiếu MVP/contract, kiểm tra diff và liên kết tài liệu. Không chạy build/test vì không thay code.
 
 ~~~text
 Ngày/mốc:
