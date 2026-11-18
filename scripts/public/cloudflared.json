@@ -1,0 +1,9 @@
+{
+  "_note": "Ghim phiên bản cloudflared. SHA-256 lấy từ phần mô tả CHÍNH THỨC của release (https://github.com/cloudflare/cloudflared/releases/tag/2026.10.7), trùng với digest GitHub API; không phải giá trị tự tính. Đổi phiên bản = đổi cả ba trường sau khi đối chiếu lại.",
+  "version": "2026.10.7",
+  "windowsAmd64": {
+    "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-windows-amd64.exe",
+    "sha256": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343",
+    "bytes": 55390512
+  }
+}
