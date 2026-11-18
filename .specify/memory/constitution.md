@@ -1,6 +1,7 @@
 <!--
 Sync Impact Report (tạm thời, xoá trước khi commit)
-- Version change: (mẫu trống) → 1.0.0
+- Version change: (mẫu trống) → 1.0.0 → 1.1.0 (MINOR: thêm ràng buộc phong cách giao diện, tài sản
+  bên thứ ba, thư viện hiệu ứng và quy tắc kiểm tra ảnh chụp theo yêu cầu chủ dự án)
 - Principles: thêm mới I–VI (không có nguyên tắc cũ để đổi tên)
 - Added sections: Core Principles, Ràng buộc kỹ thuật và an toàn, Quy trình và cổng chất lượng, Governance
 - Removed sections: không
@@ -97,6 +98,13 @@ Rationale: giữ tiến độ mà không vượt quyền hạn đã trao.
 - Giao diện: tiếng Việt, truy cập được (tương phản, focus, bàn phím, reduced motion), có bố cục
   mobile; bản mẫu thiết kế đặt trong `design-preview/`, và giao diện ứng dụng chính (`web/`) MUST NOT
   đổi theo bản mẫu cho tới khi chủ dự án duyệt bản mẫu đó.
+- Phong cách hiện hành (chủ dự án yêu cầu 2026-11-07): nền xanh trời sáng, chữ navy lớn, điểm nhấn
+  teal, header nổi, khoảng thở rộng. MUST NOT dùng dark dashboard toàn trang; khối tối chỉ ở vùng
+  nhỏ khi hỗ trợ nội dung. Hình minh hoạ MUST do dự án tự tạo hoặc có giấy phép rõ; MUST NOT dùng
+  logo, mascot, ảnh, font, văn bản hay số liệu độc quyền của dịch vụ khác. Thư viện hiệu ứng chỉ
+  thêm khi có lợi ích cụ thể và ghi lý do; mặc định dùng CSS và tôn trọng reduced motion.
+- Kiểm tra giao diện: ảnh chụp trình duyệt ở 390, 768 và 1440px, không tràn ngang; kiểm tra giả
+  lập viewport MUST NOT được báo là đã chạy trên thiết bị thật.
 
 ## Quy trình và cổng chất lượng
 
@@ -126,4 +134,4 @@ nguyên tắc; MINOR khi thêm nguyên tắc hoặc mở rộng đáng kể; PAT
 Tuân thủ: mỗi spec, plan và review MUST kiểm tra theo sáu nguyên tắc trên; vi phạm phải được nêu
 và biện minh rõ trong plan. Hướng dẫn vận hành hằng ngày dùng `AGENTS.md` và `START_HERE.md`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-07 | **Last Amended**: 2026-11-07
+**Version**: 1.1.0 | **Ratified**: 2026-11-07 | **Last Amended**: 2026-11-07

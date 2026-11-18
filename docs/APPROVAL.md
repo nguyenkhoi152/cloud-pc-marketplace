@@ -28,7 +28,7 @@ Không cần xác nhận lại từng thao tác thường lệ trong phạm vi n
 | Faucet | 1.000 PCP/ví demo, một lần, allowlist server, không tiền thật |
 | Blockchain | Contract test local trước; target Fuji 43113, AVAX trả gas |
 | Ví | Core/MetaMask hoặc ví EVM qua connector chuẩn; không tự viết lưu seed trong browser |
-| Streaming | Sunshine/Moonlight baseline native; adapter thật sau spike, preview/mock riêng |
+| Streaming | Selkies trong app Companion qua session gateway của host-agent (thay Sunshine/Moonlight, 08/11/2026); adapter thật sau spike, preview/mock riêng |
 | Guest | Môi trường sạch chuyên dụng; OS/GPU thực tế chốt khi có máy |
 | Storage | Project-only, quota 100 MiB gồm versions, tối đa 3 checkpoint, một writer |
 | Checkpoint | Tối đa 10 MiB/file, 500 file; giữ 7 ngày từ checkpoint cuối trong demo |

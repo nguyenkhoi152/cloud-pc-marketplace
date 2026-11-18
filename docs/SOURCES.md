@@ -21,7 +21,7 @@ Nghiên cứu trong phiên ngày07/11/2026, Asia/Saigon. Nguồn là dữ liệu
 
 [Sunshine](https://github.com/LizardByte/Sunshine), [Sunshine API](https://docs.lizardbyte.dev/projects/sunshine/latest/md_docs_2api.html), [Moonlight](https://moonlight-stream.org/), [Parsec technical](https://support.parsec.app/hc/en-us/articles/32361354307348-Overview), [Unity license FAQ](https://unity.com/products/parsec).
 
-[Selkies](https://docs.selkies.io/latest/), [network](https://docs.selkies.io/latest/firewall), [license](https://docs.selkies.io/latest/licensing), [DCV license](https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html).
+[Selkies](https://docs.selkies.io/latest/) (kiến trúc: /design; phát hành: https://github.com/selkies-project/selkies/releases/tag/2.0.0; Tauri: https://v2.tauri.app/start/prerequisites/), [network](https://docs.selkies.io/latest/firewall), [license](https://docs.selkies.io/latest/licensing), [DCV license](https://docs.aws.amazon.com/dcv/latest/adminguide/setting-up-license.html).
 
 Sunshine/Moonlight là baseline cần spike, chưa có benchmark project. Web UI Sunshine không đồng nghĩa browser player. Không kết luận một giải pháp nhanh nhất hoặc license nào tự cho phép mọi mô hình thuê.
 

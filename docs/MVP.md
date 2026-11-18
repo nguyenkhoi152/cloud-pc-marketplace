@@ -4,7 +4,7 @@ Nguồn phạm vi cho code local. Quyền tại [APPROVAL](APPROVAL.md); giá/th
 
 ## 1. Kết quả mục tiêu
 
-Host được duyệt đăng máy và giờ sẵn sàng; renter tìm máy, trả PCP thử vào escrow, dùng desktop thật qua Moonlight, tùy chọn checkpoint project rồi mở lại trên host khác. Hệ thống thu hồi quyền và chia/hoàn point đúng một lần.
+Host được duyệt đăng máy và giờ sẵn sàng; renter tìm máy, trả PCP thử vào escrow, dùng desktop thật qua Selkies trong app Companion, tùy chọn checkpoint project rồi mở lại trên host khác. Hệ thống thu hồi quyền và chia/hoàn point đúng một lần.
 
 ## 2. Core bắt buộc
 
@@ -17,7 +17,7 @@ Host được duyệt đăng máy và giờ sẵn sàng; renter tìm máy, trả
 | Reservation | Atomic lock, quote bất biến có hạn, không double booking |
 | Point | PCP thử có balance/allowance; label testnet; không mua/cash-out thật |
 | Escrow | Fund/activate/cancel/refund/accept/dispute/timeout/claim/withdraw theo CONTRACT_SPEC |
-| Remote | Adapter Sunshine/Moonlight, pairing theo phiên, watchdog/revoke/reconnect/reset |
+| Remote | Selkies trong app qua session gateway: grant theo phiên, watchdog/revoke/reconnect/reset |
 | Workspace | No-cloud hoặc project cloud; version, last-saved, restore và quyền tenant |
 | Policy | Hiện policy version trước xác nhận; incident/appeal cơ bản, không slash tự động |
 | Recovery | Refresh/crash/retry không mất state hoặc tạo side effect trùng |
@@ -35,6 +35,8 @@ Tiền: Available/Reserved/Spent/Refunded/Earned/Withdrawable. Remote: Preparing
 Demo 15 phút/20 PCP/10% fee. Chỉ mở khi confirmed Funded + Active, guest sẵn sàng và đúng renter. startedAt lấy từ block activate; chờ xác nhận/grant nằm trong gói, có đường dispute nếu không dùng được.
 
 Chưa auto-renew, chưa tính tiền từng giây, chưa đặt lịch tương lai. Hủy trước activation hoàn đủ; kết thúc sớm và accept trả cả gói, UI phải nói rõ trước ký. Incident không tự là dispute on-chain.
+
+Yêu cầu sản phẩm bổ sung 07/11: một app hai chế độ và host tự mở nhận thuê theo lịch lặp, ghi tại [PRODUCT_WORKFLOW](PRODUCT_WORKFLOW.md). Đây là mở rộng đang thiết kế, chưa có trong code. Không phải renter đặt trước chuỗi phiên hoặc trả phụ phí giữ lịch; khách vẫn thuê ngay khi máy đủ điều kiện. Lịch chỉ điều khiển availability, không tự bật nguồn PC hay cắt booking đã nhận.
 
 Giữ máy tới khi tiền terminal và access revoked/reset verified. Đây là giới hạn bảo thủ của MVP, có thể làm máy chờ lâu khi dispute; không tự bỏ lock để tăng doanh thu.
 

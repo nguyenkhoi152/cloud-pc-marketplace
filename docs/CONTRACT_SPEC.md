@@ -104,7 +104,7 @@ Role changes/config có events; funded booking giữ host/treasury/fee/deadlines
 
 Operator activate sau funding receipt và preflight guest/workspace. Chờ activate confirmed rồi mới grant. startedAt đã bắt đầu trước grant; đo overhead, incident/dispute nếu thất bại.
 
-Accept/dispute/terminal phát events để worker revoke sớm. EndAt luôn ngắt desktop dù chưa claim/settle. Contract không gọi Sunshine và không tự chạy timeout; UI/worker phải thực hiện transaction.
+Accept/dispute/terminal phát events để worker revoke sớm. EndAt luôn ngắt desktop dù chưa claim/settle. Contract không gọi Selkies/gateway và không tự chạy timeout; UI/worker phải thực hiện transaction.
 
 Không giả vờ blockchain chứng minh desktop mượt hoặc file đã lưu.
 

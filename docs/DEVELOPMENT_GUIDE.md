@@ -6,7 +6,7 @@ Local bắt đầu theo START_HERE, không cần duyệt lại bộ draft. Đầ
 
 Kiểm tra folder/code/Git/Node/npm/Docker và tài nguyên được cấp. Ghi chính xác phiên bản, không bịa công cụ. Chưa có PC thì chuẩn bị spike và hỏi cấu hình/máy ở bước remote; tiếp tục M1/M2/M3.
 
-Khi có máy, thử Sunshine/Moonlight qua hai mạng, guest sạch, grant/revoke/reconnect/watchdog/reset, đo pipeline. Không tự thay OS/mở router/firewall hoặc dùng desktop cá nhân.
+Khi có máy, thử Selkies trong app (WebView2) qua gateway, hai mạng, guest sạch, grant/revoke/reconnect/watchdog/reset, đo pipeline. Không tự thay OS/mở router/firewall hoặc dùng desktop cá nhân.
 
 ## M1 — bộ khung chạy local
 

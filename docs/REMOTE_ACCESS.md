@@ -1,67 +1,72 @@
-# Remote desktop và host agent 1.0
+# Remote desktop và host agent 1.1
 
-Baseline Sunshine/Moonlight native; không chờ quyết định lại Guacamole để làm code local. Máy/OS/driver thật vẫn cần khảo sát trước cài.
+**Cập nhật 08/11/2026 (feature 003)**: baseline đổi từ Sunshine/Moonlight sang **Selkies xem trong app Companion**, qua **session gateway** của host-agent. Bản 1.0 (Sunshine/Moonlight) chỉ còn là lịch sử; các bất biến quyền/thu hồi/watchdog giữ nguyên. Chưa có host thật: mọi mục “spike” dưới đây là **chưa thử**.
 
 ## 1. Phạm vi
 
-Một guest sạch/máy chuyên dụng, một renter mỗi máy. Host agent mỏng điều phối Sunshine, health và workspace; không tự viết codec hoặc ứng dụng host đa nền tảng hoàn chỉnh.
+Một guest sạch/máy chuyên dụng, một renter mỗi máy. Host agent mỏng điều phối môi trường guest, health, gateway và workspace; không tự viết codec.
 
-Sunshine truyền desktop, không tự tạo isolation. Không dùng desktop cá nhân, shared folder/home/account của host hoặc route LAN. Không coi virtual monitor hay tài khoản OS phụ là thay thế VM isolation cho mã không tin cậy.
+Selkies truyền desktop Linux; nó không tự tạo isolation. Không dùng desktop cá nhân, shared folder/home/account của host hoặc route LAN. WSL/Docker/VM không phải chứng nhận cô lập đủ cho marketplace công khai và không bảo vệ renter trước host có quyền quản trị: bản demo thật chỉ dành cho host được duyệt và người thử tin cậy trên máy thử riêng.
 
-Guest có GPU thật hay software rendering phải đo; không hứa Windows VM passthrough trên mọi máy. Nếu chưa có thiết bị, viết adapter/test và ghi integration chưa kiểm tra.
+**Ràng buộc đã đối chiếu từ tài liệu Selkies (docs.selkies.io, release 2.0.0)**: host của Selkies là Linux (Windows/macOS “planned”); tài liệu **không nêu** WSL2/Docker Desktop. Vì vậy “host Windows + Linux trong WSL2/Docker” là giả thuyết phải thử; phương án thay thế: Linux VM (Hyper-V) hoặc máy Linux thử. Docs site đang nhãn phiên bản 2.2.1 còn trang phát hành 2.0.0 nêu image `ghcr.io/selkies-project/selkies/desktop:2.0.0-ubuntu26.04`: **chốt phiên bản khi có host**, không đoán.
+
+**Cập nhật 12/11/2026 — host Windows**: hướng dẫn, nguồn đã đọc và bảng bằng chứng nằm ở [HOST_WINDOWS_WSL](HOST_WINDOWS_WSL.md). Tóm tắt: Selkies/NVIDIA không nêu WSL2 hay NVENC trong WSL2; OctaSpace cho node Windows chạy trong WSL (chỉ từ bản tóm tắt tìm kiếm, chưa tự đọc được trang). Đường đã chạy thật là guest Linux trong VM (agent chạy **trong guest**, app điều khiển bằng lệnh cố định); đường WSL2 mới biên dịch và kiểm đơn vị, **chưa chạy** vì máy dev chưa cài WSL.
+
+GPU thật hay encode phần mềm phải đo (Selkies hỗ trợ NVENC/VA-API và fallback phần mềm; docs nêu 60 fps 1080p phần mềm là khả thi nhưng không nêu cấu hình). Không hứa passthrough hoặc mọi GPU/game Windows.
 
 ## 2. Interfaces
 
-health(machine), prepare(booking), grant(booking,renter,endAt), inspect(booking), revoke(booking), reset(machine), verifyReset(machine).
+health(machine), prepare(booking), grant(booking,renter,endAt), inspect(booking), revoke(booking), reset(machine), verifyReset(machine) — giữ chữ ký `RemoteSessionProvider`.
 
-Mỗi action có key booking/action/version; retry phải idempotent. Unknown không thành Success. Agent chỉ chạy lệnh chuẩn đã cấu hình sẵn cho guest cụ thể, không nhận arbitrary shell, path, host hoặc port từ renter.
+Mỗi action có key booking/action/version; retry idempotent. Unknown không thành Success. Agent chỉ chạy lệnh chuẩn đã cấu hình cho guest cụ thể, không nhận arbitrary shell, path, URL, host hoặc port từ renter.
 
-## 3. Enrollment và mạng
+## 3. Session gateway (quyết định D3)
 
-Admin duyệt thiết bị rồi cấp enrollment một lần có expiry; identity/credential riêng cho máy, thu hồi được. Heartbeat có counter/nonce/time và TLS; machineId tự khai không đủ.
+Selkies chỉ lắng nghe nội bộ (loopback/mạng container). Renter không nhận URL/mật khẩu Selkies mà đi qua gateway trong agent:
 
-Agent kết nối control plane outbound theo khả năng mạng, không tự mở public port hoặc tắt firewall. Route streaming phải tương thích Sunshine/Moonlight; network riêng chỉ cho guest/ports của booking, không full mesh/LAN.
+- Grant theo booking: token ngẫu nhiên, TTL ngắn, chỉ lưu băm; gắn renter, booking, `endAt`; dùng được cho một viewer tại một thời điểm (MVP: một client/booking).
+- Proxy HTTP + WebSocket tới đúng một upstream cố định theo cấu hình guest; không nhận đích từ client.
+- Revoke: đóng **mọi kết nối đang mở**, vô hiệu mọi grant (đã dùng và chưa dùng), từ chối reconnect.
+- Watchdog `endAt` chạy trong agent bằng đồng hồ đơn điệu, độc lập với control plane/web/worker; mất control plane không cấp grant mới.
+- Lý do tách: docs Selkies không nêu credential theo phiên hay revoke đã kiểm chứng; không dựa vào chúng để thu hồi. Nếu sau này Selkies có cơ chế token theo phiên đã kiểm chứng, gateway vẫn là lớp thực thi `endAt`/revoke.
 
-WebRTC TURN không tự áp dụng vào Moonlight. Nếu cần relay, dùng đường tương thích và benchmark. Không hứa direct connection mọi mạng CGNAT. P2P có thể lộ IP; privacy mode relay chỉ công bố sau khi làm và đo.
+Trạng thái: gateway cùng test (upstream giả) ở `host-agent/` — **không phải bằng chứng với Selkies thật**.
 
-## 4. Pairing theo booking
+## 4. Enrollment và mạng
 
-Chỉ confirmed Funded + Active, đúng renter, guest Ready và chưa end/dispute mới cho pair/grant. Browser không được credential quản trị Sunshine.
+Admin duyệt thiết bị rồi cấp enrollment một lần có expiry; credential riêng cho máy, thu hồi được. Heartbeat có counter/nonce/time và TLS; machineId tự khai không đủ.
 
-Renter thực hiện pairing client qua portal được auth, TTL ngắn; bind client identity/fingerprint nếu API bản dùng hỗ trợ và kiểm tra khớp pending request. Không approve mọi PIN/client đang chờ.
+Agent kết nối control plane outbound, không tự mở public port, không tắt firewall, không đổi router/OS. Mặc định thử: **cùng LAN** trước (một cổng TCP của gateway). Khác mạng/NAT: cần relay/tunnel do chủ dự án chọn và cung cấp; băng thông/chi phí phải minh bạch; không hứa kết nối mọi mạng miễn phí. WebSocket mode không cần STUN/TURN; WebRTC mode cần UDP rộng hoặc TURN, chỉ dùng nếu đo cho thấy cần.
 
-Chỉ một client/booking trong MVP; mở tab/reconnect không tạo environment mới hoặc tự cấp thêm thời gian. Renter không được endpoint trực tiếp có mật khẩu tĩnh để bypass session control.
+Mạng chỉ cấp đường tới môi trường thuê, không vào LAN host.
 
-## 5. Thu hồi thực sự
+## 5. Cấp phiên theo booking
 
-Unpair hoặc token expiry không mặc định đóng stream đang mở. Pin Sunshine version và kiểm tra API/hành vi:
+Chỉ confirmed Funded + Active (chain), đúng renter, guest Ready, chưa end/dispute mới cấp grant. `startedAt` đã chạy từ lúc activate (xem CONTRACT_SPEC, Q3 trong spec 003). Viewer trong app lấy grant qua API (đúng renter), TTL ngắn; app không giữ credential quản trị nào. Một client/booking; reconnect trong hạn không tạo environment mới hay thêm thời gian.
 
-1. Dừng active stream/instance Sunshine chuyên của guest đó bằng cơ chế được hỗ trợ.
-2. Thu hồi pair/credential/route thuộc booking.
-3. Chặn reconnect cả client đang dùng và link chưa dùng.
-4. Kết thúc tiến trình khách/reset guest khi sync recovery đã kết thúc.
-5. Inspect và kiểm tra lại từ client; Unknown thì máy vẫn unavailable.
+## 6. Thu hồi thực sự
 
-Vì một guest chỉ một renter, có thể dừng streamer chuyên của guest nếu API chưa hỗ trợ revoke đủ. Không dừng desktop/OS cá nhân của host hoặc dịch vụ khách khác. Không expose Sunshine admin API cho Internet.
+Token expiry không mặc định đóng stream đang mở; gateway phải chủ động:
 
-## 6. Watchdog
+1. Đóng mọi kết nối viewer đang mở của booking.
+2. Vô hiệu grant/credential/route thuộc booking; chặn reconnect của client cũ và link chưa dùng.
+3. Dừng/kết thúc tiến trình khách hoặc reset guest sau khi recovery sync kết thúc.
+4. Inspect và kiểm tra lại từ phía client; Unknown thì máy vẫn unavailable.
 
-EndAt lấy từ chain; local watchdog trên môi trường host phải dừng quyền tương tác đúng hạn dù browser/web/worker trung tâm chết. Dùng kiểm tra clock/monotonic phù hợp, không để đổi client clock kéo dài phiên.
+Không dừng desktop/OS cá nhân của host hay dịch vụ khác. Không expose cổng quản trị của Selkies/agent ra Internet.
 
-Accept/dispute/terminal yêu cầu ngắt sớm; mục tiêu kiểm tra revoke <=10 giây trong điều kiện demo, chưa là SLA. Mất control plane không cho grant mới; đang có grant chỉ tồn tại tới hạn tối đa đã nhận.
+## 7. Watchdog
 
-Cloud recovery-only không mở lại desktop; tối đa effectiveEndAt+600 giây theo CLOUD_WORKSPACES, chỉ append staging đã cho phép. Kết thúc sớm dùng thời điểm kết thúc thực tế, không kéo dài tới endAt cũ.
+EndAt lấy từ chain, đã gửi cho agent khi grant; watchdog cục bộ ngắt quyền tương tác đúng hạn dù browser/web/worker chết, không để đổi clock client kéo dài phiên. Accept/dispute/terminal yêu cầu ngắt sớm; mục tiêu kiểm tra revoke ≤10 giây trong điều kiện demo (chưa là SLA).
 
-## 7. Health và cam kết
+Cloud recovery-only không mở lại desktop; tối đa effectiveEndAt+600 giây theo CLOUD_WORKSPACES. Kết thúc sớm dùng thời điểm kết thúc thực tế.
 
-Host window >=4h; heartbeat mục tiêu 10 giây, Suspect sau 30 giây, Incident sau 90 giây. Các giá trị phục vụ phát hiện, không bằng chứng tự động host vi phạm.
+## 8. Health và cam kết
 
-Đối chiếu probe nền tảng/gateway/client, ghi nguyên nhân chưa biết; không auto-slash. Chặn booking mới nếu health cũ, guest lỗi hoặc không đủ window phủ funding/activation/duration/recovery.
+Heartbeat mục tiêu 10 giây, Suspect sau 30 giây, Incident sau 90 giây (phục vụ phát hiện, không là bằng chứng host vi phạm; không auto-slash). Cam kết `host_commitments` ≥4h giữ nguyên; lịch availability của host là lớp riêng (xem Q1 trong spec 003). Chặn booking mới nếu health cũ, guest lỗi hoặc cửa sổ không phủ funding/activation/duration/recovery.
 
-## 8. Spike cần làm khi có thiết bị
+## 9. Spike cần làm khi có thiết bị (CHƯA thử)
 
-Hai mạng khác nhau, gõ/chạy ứng dụng thật, đo chuẩn bị/FPS/encode/decode/network; grant đúng renter; revoke cắt stream; client cũ không reconnect; watchdog khi worker tắt; reset phiên sau; không route/file host.
+Viewer Selkies **trong WebView2 của app** (không mở trình duyệt ngoài): video, audio, bàn phím (gồm Keyboard Lock), khóa chuột, toàn màn hình, clipboard, reconnect, ngắt phiên, chặn reconnect sau revoke. Docs Selkies nói Keyboard Lock chỉ ở trình duyệt Chromium; WebView2 dựa Chromium nhưng phải kiểm thực tế. Đo chuẩn bị/FPS/encode/decode/mạng, hai mạng khác nhau, gõ/chạy ứng dụng thật, watchdog khi worker tắt, reset sau phiên, không route/file host.
 
-Khởi đầu 1080p/60fps/H.264 khoảng 15Mbps để thử, xác minh hardware encode/decode. Không báo đạt chỉ từ setting UI; không xếp hạng “mượt nhất” chưa đo.
-
-Ghi evidence/phiên bản/điều kiện; không credential hoặc dữ liệu nhạy cảm. Chỉ link remote/password chia tay không đạt marketplace integration.
+Khởi điểm thử 1080p/60fps/H.264; xác minh hardware encode/decode. Không báo đạt từ setting UI; không xếp hạng “mượt nhất” chưa đo. Nếu WebView2 không đáp ứng: báo bằng chứng, phương án thay (webview con/cửa sổ Tauri riêng), không âm thầm đổi trải nghiệm. Ghi evidence/phiên bản/điều kiện; không credential hay dữ liệu nhạy cảm.

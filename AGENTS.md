@@ -20,7 +20,7 @@ Phân định: APPROVAL ghi phạm vi/quyết định; MVP phạm vi; CONTRACT_S
 
 ## Sản phẩm và mặc định
 
-Marketplace host được duyệt, thuê tức thời, một máy/một booking chưa hoàn tất cleanup và tiền. Mặc định demo: PCP ERC-20 chuyển hạn chế qua escrow, Fuji, 15 phút/20 PCP/10% fee; Sunshine/Moonlight; project workspace.
+Marketplace host được duyệt, thuê tức thời, một máy/một booking chưa hoàn tất cleanup và tiền. Mặc định demo: PCP ERC-20 chuyển hạn chế qua escrow, Fuji, 15 phút/20 PCP/10% fee; app Companion + Selkies qua session gateway (thay Sunshine/Moonlight từ 08/11/2026); project workspace.
 
 PCP chỉ thử nghiệm. AI tư vấn chỉ đọc catalog ở mốc sau. Host bond/cash-out/mainnet/full OS migration chưa trong core MVP. Không thêm NFT/staking/token đầu cơ, tự viết codec hoặc mở host vô danh.
 

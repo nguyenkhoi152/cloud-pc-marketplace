@@ -40,7 +40,7 @@ Pause new funding không chặn exits. Không lấy DB balance làm nguồn chu�
 
 Không seed/private key/password/access token/connection URL nhạy cảm trong Git/log/ảnh/câu trả lời. .env.example placeholder; .env thật ignore; kiểm tra cả build output.
 
-Keys issuer/quote/operator/arbitrator, Supabase service/secret, S3 và Sunshine admin ở server/host secret store, không NEXT_PUBLIC. Không tự tạo ví tiền thật hoặc copy wallet code SenpAI.
+Keys issuer/quote/operator/arbitrator, Supabase service/secret, S3, credential Selkies và khóa gateway/agent ở server/host secret store, không NEXT_PUBLIC. Không tự tạo ví tiền thật hoặc copy wallet code SenpAI.
 
 Nếu dùng local test accounts, không in private key thành output bàn giao; tránh lệnh node simulator tự dump keys ra log công khai. Khóa thử được biết rộng không được dùng cho tài nguyên thật.
 
@@ -61,3 +61,23 @@ Worker mất RPC không tự bảo đảm host có lỗi. Watchdog local kết t
 ## 9. Trước công khai/kinh doanh
 
 Rà soát license Windows/ứng dụng/streamer, terms/provider access, retention/backup, hạ tầng/keys, audit tiền và mô hình payout. Chuẩn bị code local không đồng nghĩa đủ điều kiện thu tiền/công bố SLA.
+
+## 10. Bề mặt lệnh của app host và khoá thử công khai (12/11/2026)
+
+- **Lệnh native của app (chế độ Cho thuê)**: UI chỉ gọi được 16 lệnh cố định (từ 12/11 thêm: tunnel ×3, cài WSL giúp ×2, chạy nền ×1) (`desktop/src-tauri/src/host.rs`). Không có lệnh nhận chuỗi shell, đường dẫn hay URL tuỳ ý; `wsl.exe`/`ssh.exe` gọi bằng đường dẫn tuyệt đối trong System32 và đối số dạng mảng (WSL dùng `--exec`, không qua shell của Windows). Tham số được kiểm dạng ở Rust **và** lần nữa trong `host-agent/guest/cpm-guest.sh`; cấu hình agent và mã ghi danh đi qua stdin, không bao giờ `source`/`eval`. Backend `ssh-dev` chỉ đọc từ tệp do script ghi, UI không đặt được. Người thuê và nội dung do host phục vụ không có đường nào gọi các lệnh này: kiểm bằng `scripts/vm/iframe-ipc-check.mjs` (kết quả ở PROGRESS).
+- **Quyền**: app không tự cài WSL, không tự bật tính năng Windows, không sửa tường lửa/router, không khởi động lại máy. Ngoại lệ DUY NHẤT (12/11, theo yêu cầu "giống OctaSpace"): nút **Cài WSL giúp tôi** chạy đúng một lệnh cố định `wsl --install --no-distribution` qua hộp thoại UAC của Windows và chỉ khi người dùng bấm; từ chối UAC thì không có gì được cài; không nhận tham số từ UI; chưa kiểm trên máy thật. Bước cài thành phần chạy bằng root **của guest** (`wsl -u root`), không phải quyền quản trị Windows.
+- **Guest**: Selkies chỉ publish ở `127.0.0.1` trong guest; gateway chỉ cấp phiên theo token; agent chỉ gọi RA NGOÀI. Credential thiết bị chỉ nằm trong guest (`~/.cpm-host/data`, chế độ 0600); app không giữ credential và không hiện mã ghi danh. WSL2/Docker không phải chứng nhận cô lập và không bảo vệ khách khỏi chủ máy có quyền quản trị.
+- **Khoá thử công khai (Hardhat)**: 20 khoá mặc định của Hardhat ai cũng biết. `loadServerConfig` và worker **từ chối khởi động** nếu quote signer/operator là một trong số đó mà `RPC_URL` không phải `http://127.0.0.1|localhost`; ví giả lập trong app chỉ ký khi RPC là loopback **và** nút tự nhận là Hardhat (`hardhat_metadata` có `instanceId` + `web3_clientVersion` bắt đầu `HardhatNetwork/`), kiểm lại mỗi lần ký — một cổng loopback chuyển tiếp tới mạng thật bị từ chối.
+- **Thu hồi thiết bị**: `POST /api/admin/devices/revoke` (chỉ admin, quyền kiểm ở hàm DB); credential cũ bị từ chối ngay ở heartbeat/kênh lệnh.
+
+## 11. Bản thử công khai: tunnel, vòi testnet, ví thử trong app (12/11/2026)
+
+Áp dụng khi chạy `start-demo.ps1 -Chain fuji -Tunnel` và bản cài `-Profile tester`. Đây là mức bảo vệ cho **đợt thử có người tổ chức và người thử tự nguyện**, không phải cho dịch vụ công khai.
+
+- **Mở Internet**: máy tổ chức chạy `cloudflared` (bản ghim + SHA-256 trong `scripts/public/cloudflared.json`, đối chiếu với mô tả release chính thức) chỉ kết nối RA. Tunnel trỏ vào `scripts/public/api-proxy.mjs`, KHÔNG trỏ vào Next: chỉ `/api/*` được chuyển tiếp, `/api/admin/*` bị chặn từ Internet, thân ≤ 1 MiB, 300 yêu cầu/phút/khách, hạn chờ upstream 60 giây (có test). Web chạy bản production (`next build` + `next start`), không phải `next dev`. Cloudflare là bên trung gian thấy được lưu lượng. Tắt máy/`stop-demo.ps1` là đóng lối vào.
+- **Mã kết nối**: app chỉ nhận địa chỉ `https://*.trycloudflare.com` (hoặc loopback) vì app gửi phiên Supabase tới đó; danh sách này đối chiếu tự động với `connect-src` trong `tauri.conf.json` (test). Một mã độc hại vẫn nhận được phiên đăng nhập của người dán nó: người tổ chức phải gửi mã qua kênh tin cậy.
+- **Vòi testnet** (`POST /api/faucet`): server tự lấy địa chỉ ví đã liên kết (client không chọn), mint PCP một lần/ví, nhỏ giọt gas một lần/24 giờ **theo ví và theo tài khoản**, 4 yêu cầu/10 phút/tài khoản (đếm cả yêu cầu lỗi), khoá cố vấn theo ví chống đua. Khoá vòi là khoá `issuer` (chỉ quyền mint PCP thử + AVAX testnet), `FAUCET_PRIVATE_KEY` bị từ chối nếu là khoá Hardhat công khai. Rủi ro còn lại: ai đăng ký được nhiều tài khoản thì rút được nhiều gas testnet; chấp nhận được vì là testnet và ví vòi chỉ nạp ngân sách nhỏ.
+- **Khoá**: sinh bởi `scripts/fuji/fuji.mjs gen` ở `C:\cpm-demo\fuji\keys.json`, từ chối thư mục trong repo/OneDrive, không in khoá riêng; `server.env` cũng bí mật. Khoá nằm trong biến môi trường của tiến trình node khi chạy; không có bản sao trong repo hay `chain.env.sh`.
+- **Ví thử trong app (Fuji)**: khoá sinh trong app, lưu `localStorage` của WebView (không mã hoá; mất khi xoá dữ liệu app; chỉ dùng cho testnet). KHÔNG có đường nào dùng khoá Hardhat công khai hay `hardhat_*`. Mỗi lần ký/gửi/đọc, RPC phải trả đúng `chainId` mà máy chủ công bố; RPC chỉ được thuộc danh sách (`api.avax-test.network`, `avalanche-fuji-c-chain-rpc.publicnode.com`). **Ví giả lập cũ giữ nguyên chốt chặn loopback + nhận diện Hardhat**; hai loại ví tách khỏi nhau (`kind`), UI gắn nhãn khác nhau.
+- **Host qua tunnel**: cổng xem của host (`127.0.0.1:18095`) được tunnel chỉ khi host tick đồng ý và bấm bắt đầu; tunnel đóng khi dừng/thoát/lỗi (có test trình tự, kể cả đóng tunnel khi agent không chạy được). Không có token xem hợp lệ thì gateway từ chối (401); cookie `SameSite=None; Secure` trên https. **Chưa kiểm** WebView2 chấp nhận cookie bên thứ ba từ tên miền tunnel.
+- **Chưa làm / rủi ro biết trước**: bộ cài chưa ký số; máy chủ API chạy trên PC của tổ chức (không HA, không WAF); không giới hạn tần suất theo tài khoản ngoài vòi; log của Next/API chạy trên máy tổ chức có thể chứa dữ liệu yêu cầu; tunnel nhanh không có cam kết dịch vụ.

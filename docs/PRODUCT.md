@@ -24,6 +24,8 @@ Host bond/payout/giá VND cần quy trình riêng; chưa triển khai hoặc đ�
 
 ## Kiểm chứng
 
+Workflow mở rộng theo yêu cầu chủ dự án: một app hai chế độ; host đăng máy tự động theo lịch lặp để khách thuê ngay. Xem [PRODUCT_WORKFLOW](PRODUCT_WORKFLOW.md). Không phải renter thuê định kỳ hoặc phụ phí giữ lịch. Chưa triển khai app hay scheduler.
+
 Phỏng vấn khoảng10 renter và3 host; ghi nhu cầu/app/quy mô/thời gian/ngân sách/dữ liệu nhạy cảm/khả dụng. Không dựng số liệu hoặc đối tác.
 
 Đo setup/latency/FPS/drop/reconnect/revoke/reset/sync/restore, chi phí bandwidth và support. “Mượt nhất/rẻ nhất” chỉ khi có so sánh hợp lệ.

@@ -57,7 +57,7 @@ Project save hostA → end/revoke/reset → hostB restore đúng. Hai máy local
 
 ## E2E configured
 
-Host đăng/duyệt/window → renter quote/approve/fund PCP Fuji → activate → Moonlight thật → checkpoint/end/accept → revoke/reset → credit/withdraw → receipt.
+Host đăng/duyệt/window → renter quote/approve/fund PCP Fuji → activate → Selkies thật trong app → checkpoint/end/accept → revoke/reset → credit/withdraw → receipt.
 
 Booking khác thử refund trước start; local thử dispute/split/timeout, Fuji thử nhánh khả thi có receipt. Cloud compatibility qua hai host. Script/tests pass không thay bằng chứng hardware.
 

@@ -2,26 +2,30 @@
 
 Đây là đặc tả để code theo mốc local; không phải chứng nhận hệ thống đã chạy.
 
+> **Cập nhật 08/11/2026 (feature 003)**: hướng chính là **app Companion hai chế độ** (Tauri 2 bọc `desktop/`) và streaming **Selkies** qua *session gateway* của host-agent. Web chủ yếu giới thiệu/tải app. Các mô tả Sunshine/Moonlight/web-checkout bên dưới đã được thay tại chỗ; xem `specs/003-end-to-end-integration/` cho bảng đối chiếu và migration path.
+
 ## 1. Stack và repo
 
 | Thành phần | Lựa chọn |
 | --- | --- |
-| Web/API | Next.js App Router, TypeScript, Tailwind |
+| App | Tauri 2 + `desktop/` (React/Vite); một tài khoản, hai chế độ Thuê/Cho thuê |
+| Web/API | Next.js App Router, TypeScript, Tailwind: trang giới thiệu/tải app + route handler API |
 | Auth/DB | Supabase Auth, PostgreSQL, migrations và RLS |
 | Ví/chain | Connector chuẩn Core/MetaMask; viem/wagmi tương thích |
 | Contracts | Solidity, OpenZeppelin, Hardhat 3; PCP + RentalEscrow không upgrade |
 | Worker | Node/TypeScript chạy thường trực, outbox Postgres và reconciliation |
-| Remote | Sunshine trong guest, Moonlight native phía khách; host agent giới hạn lệnh |
+| Remote | Selkies (desktop Linux trong guest) xem trong app qua session gateway của host-agent; agent chỉ nhận lệnh cố định. Transport thử trước: WebSocket (1 cổng TCP); WebRTC chỉ khi spike cần |
 | Storage | WorkspaceStore: local filesystem cho dev/test, S3-compatible cho cloud thật |
 | Runtime | Node LTS được dependency hỗ trợ, mặc định Node 24 LTS khi khả dụng |
 
-Agent kiểm tra tài liệu chính thức/phiên bản trước scaffold, pin package manager, lockfile, compiler và Sunshine tag. Không bịa version đang cài. Không bắt người dùng cài lại toàn bộ môi trường nếu bản sẵn có tương thích.
+Agent kiểm tra tài liệu chính thức/phiên bản trước scaffold, pin package manager, lockfile, compiler và phiên bản Selkies (docs 2.2.1 vs release 2.0.0 cần chốt khi có host). Không bịa version đang cài. Không bắt người dùng cài lại toàn bộ môi trường nếu bản sẵn có tương thích.
 
 ~~~text
-web/                   UI, route handlers, server auth
+desktop/               app Companion (UI) + src-tauri (vỏ native)
+web/                   giới thiệu/tải app, route handlers API, server auth
 contracts/             PCP, escrow, tests, deploy/export scripts
 worker/                jobs, chain indexer, session reconciliation
-host-agent/            enrollment, health, restricted remote/sync adapter
+host-agent/            enrollment, health, session gateway (grant/revoke/watchdog), lệnh giới hạn
 packages/shared/       schemas, enums, IDs, pricing/constants
 supabase/migrations/   schema, RLS, reservation RPC, outbox
 infra/                 cấu hình mẫu khi cần, không secrets
@@ -34,22 +38,23 @@ Dùng npm workspaces nếu phù hợp môi trường. Chỉ tạo folder khi có
 
 ~~~mermaid
 flowchart LR
-    U[Khách] --> W[Web marketplace]
+    U[Khách] --> W[App Companion + API]
     H[Host] --> W
     W --> DB[(Auth và PostgreSQL)]
     U --> E[PCP và RentalEscrow]
     K[Worker] --> E
     K --> DB
     K <-->|Lệnh giới hạn và trạng thái| A[Host Agent]
-    A --> D[Guest sạch và Sunshine]
-    U --> M[Moonlight]
-    M <-->|Video audio và input| D
+    A --> G[Session gateway]
+    G --> D[Guest sạch và Selkies]
+    U -->|Viewer trong app| G
+    G <-->|Video audio và input| D
     A <-->|Grant theo phiên| S[Workspace broker]
     S --> O[(Private object storage)]
     S --> DB
 ~~~
 
-Control plane quản lý auth/booking/tiền/quyền. Streaming plane truyền video/input giữa client và guest. Web serverless không giữ stream hoặc timer dài; blockchain không xử lý frame, file hoặc PII.
+Control plane quản lý auth/booking/tiền/quyền. Streaming plane truyền video/input giữa app và guest qua gateway; Selkies không mở thẳng cho renter. Web serverless không giữ stream hoặc timer dài; blockchain không xử lý frame, file hoặc PII.
 
 ## 3. Interfaces phải có
 
@@ -63,7 +68,9 @@ RecommendationProvider: query catalog theo constraints, giải thích từ dữ 
 
 ## 4. Luồng cấp phiên
 
-Auth + wallet proof → atomic reservation → signed quote → renter approve/fund PCP → confirmed receipt/state → guest và workspace chuẩn bị → operator activate → confirmed Active → pairing/grant cho renter.
+Auth + wallet proof → atomic reservation → signed quote → renter approve/fund PCP → confirmed receipt/state → guest và workspace chuẩn bị (access `ready`) → operator activate → confirmed Active → cấp grant theo booking cho gateway/viewer.
+
+Ánh xạ UI↔thực tế (để không thu tiền hoặc cấp quyền sai lúc): “Đang chuẩn bị” của UI = booking `funded` + access `preparing`; “Sẵn sàng” = `funded` + access `ready` **chưa** `active`, chưa cấp grant; chỉ chuyển “Đang dùng” khi chain `Active` đã confirmed và grant đã cấp. Hủy ở “Sẵn sàng” chưa activation theo contract (hoàn đủ); sau activation, kết thúc sớm/accept trả cả gói.
 
 Nếu grant lỗi sau activate, tạo incident và hướng dẫn dispute; không sửa lịch sử thành chưa trả. UI hiển thị thời gian endAt từ chain.
 
@@ -83,7 +90,7 @@ EndAt/accept/dispute/terminal → watchdog/revoke active stream và reconnect �
 
 ## 6. Môi trường
 
-Preview: fixture có nhãn; không fake login/receipt/stream/Saved; không gọi adapters production.
+Preview: `VITE_APP_MODE=preview`, fixture có nhãn; không fake login/receipt/stream/Saved; không gọi adapters production. Live: `VITE_APP_MODE=live`, chỉ API thật, **không fallback mock**.
 
 Local integration: contract simulator, DB/Auth local khi công cụ đủ và storage filesystem chỉ dữ liệu dev. Nếu chưa chạy được DB, ghi SQL/RLS integration chưa kiểm tra; không dùng mock để báo auth thật.
 
