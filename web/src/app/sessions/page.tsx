@@ -16,7 +16,7 @@ export default function SessionsPage() {
         </ul>
       </Card>
       <div className="mt-6">
-        <DisabledAction label="Mở Moonlight / ghép cặp" reason="cần host agent và Sunshine thật (M4); preview không giả desktop." />
+        <DisabledAction label="Mở viewer trong app" reason="cần app Companion, host agent và Selkies thật; preview không giả desktop." />
       </div>
     </>
   );
