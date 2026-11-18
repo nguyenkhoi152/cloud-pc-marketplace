@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "types": ["vite/client", "node"] },
+  "include": ["./**/*.ts", "../src/api/**/*.ts", "../src/mock/scenarios.ts", "../src/domain/types.ts", "../vitest.smoke.config.ts"]
+}

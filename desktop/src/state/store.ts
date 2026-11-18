@@ -17,7 +17,12 @@ import type { Account, HostApproval, HostConfig, Machine, Mode, Wallet } from ".
 import { addTransaction, releaseHeld } from "../domain/wallet";
 import { ACCOUNT, DEFAULT_HOST_CONFIG, INSTALL_COMPONENTS, WALLET } from "../mock/fixtures";
 import { ServiceError, type ScenarioId } from "../mock/scenarios";
-import { service, setServiceScenario } from "../mock/service";
+import { getLiveApi, service } from "../api";
+import { isLive as isLiveMode } from "../api/env";
+import { navigate } from "../app/router";
+import { readSavedMode, safeLocalStorage, saveMode, startupRoute } from "../domain/startup";
+import type { LiveAccount } from "../api/live";
+import { setServiceScenario } from "../mock/service";
 
 export interface Toast {
   id: number;
@@ -78,6 +83,13 @@ interface AppState {
 
   // thao tác
   signIn: (name?: string, email?: string) => void;
+  /** Live: áp tài khoản thật (đã đăng nhập Supabase) vào store. */
+  applyLiveAccount: (a: LiveAccount) => void;
+  /** Live: khôi phục phiên đã lưu khi mở app. */
+  bootstrapLive: () => Promise<void>;
+  /** Live: đọc lại tên/trạng thái duyệt host từ máy chủ. */
+  refreshAccount: () => Promise<void>;
+  liveBooting: boolean;
   signOut: () => void;
   setMode: (m: Mode) => void;
   setScenario: (s: ScenarioId) => void;
@@ -127,9 +139,10 @@ const initialHostSetup = (): HostSetup => ({
   config: structuredClone(DEFAULT_HOST_CONFIG),
 });
 
+const BLANK_ACCOUNT: Account = { name: "", email: "", mode: "rent", hostApproval: "none" };
 const initial = () => ({
   authed: false,
-  account: { ...ACCOUNT },
+  account: isLiveMode() ? { ...BLANK_ACCOUNT } : { ...ACCOUNT },
   scenario: "normal" as ScenarioId,
   online: true,
   settings: { reduceMotion: false, hostBackground: true, notifyEmail: true, notifyDesktop: true },
@@ -299,8 +312,52 @@ export const useAppStore = create<AppState>((set, get) => {
     toasts: [],
 
     signIn: (name, email) => set((s) => ({ authed: true, account: { ...s.account, name: name?.trim() || s.account.name, email: email?.trim() || s.account.email } })),
-    signOut: () => set({ authed: false }),
-    setMode: (m) => set((s) => ({ account: switchMode(s.account, m) })),
+    applyLiveAccount: (a) => set((s) => ({ authed: true, account: { ...s.account, name: a.name, email: a.email, hostApproval: a.hostApproval } })),
+    liveBooting: isLiveMode(),
+    bootstrapLive: async () => {
+      if (!isLiveMode()) return;
+      try {
+        const a = await getLiveApi().auth.restore();
+        if (a) {
+          get().applyLiveAccount(a);
+          // Mở app từ Start Menu: URL không hash ⇒ router coi là /welcome. Người đã đăng nhập phải vào thẳng trang chủ của chế độ lần trước
+          // (liên kết sâu/tải lại giữa chừng được giữ nguyên).
+          const mode = readSavedMode(safeLocalStorage());
+          const to = startupRoute(window.location.hash, mode);
+          if (to) {
+            get().setMode(mode);
+            navigate(to, { replace: true });
+          }
+        }
+      } catch (e) {
+        toast(err(e), "error");
+      } finally {
+        set({ liveBooting: false });
+      }
+    },
+    refreshAccount: async () => {
+      if (!isLiveMode()) return;
+      try {
+        get().applyLiveAccount(await getLiveApi().account());
+      } catch (e) {
+        toast(err(e), "error");
+      }
+    },
+    signOut: () => {
+      if (isLiveMode()) {
+        // Đăng xuất thật: xoá phiên ở máy trước, UI chỉ về trạng thái chưa đăng nhập khi thành công.
+        void getLiveApi().auth.signOut().then(
+          () => set({ authed: false, account: { ...BLANK_ACCOUNT } }),
+          (e) => toast(err(e), "error"),
+        );
+        return;
+      }
+      set({ authed: false });
+    },
+    setMode: (m) => {
+      set((s) => ({ account: switchMode(s.account, m) }));
+      saveMode(safeLocalStorage(), m);
+    },
     setScenario: (id) => {
       const prev = get().scenario;
       setServiceScenario(id);

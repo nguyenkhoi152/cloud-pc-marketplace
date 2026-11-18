@@ -1,6 +1,8 @@
 import { ArrowRight, MailCheck, MonitorSmartphone, Server } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, navigate } from "@/app/router";
+import { getLiveApi } from "@/api";
+import { isLive } from "@/api/env";
 import { useAppStore } from "@/state/store";
 import { Banner } from "@/ui/feedback";
 import { Button } from "@/ui/button";
@@ -25,7 +27,7 @@ function AuthLayout({ children, title, subtitle }: { children: ReactNode; title:
               <li>Desktop Linux trong app qua Selkies là hướng dự kiến, còn cần thử nghiệm trên máy thật.</li>
             </ul>
           </div>
-          <p className="text-xs text-sky/80">Bản xem trước giao diện. Không có tài khoản, thanh toán hay kết nối thật.</p>
+          <p className="text-xs text-sky/80">{isLive() ? "Môi trường dev: tài khoản và danh mục máy là dữ liệu thật trên Supabase dev; thanh toán PCP, stream, workspace chưa nối." : "Bản xem trước giao diện. Không có tài khoản, thanh toán hay kết nối thật."}</p>
         </aside>
         <main className="flex items-center justify-center overflow-auto p-8">
           <div className="w-full max-w-[420px]">
@@ -35,7 +37,7 @@ function AuthLayout({ children, title, subtitle }: { children: ReactNode; title:
           </div>
         </main>
       </div>
-      <div className="fixed right-4 top-10"><DemoPanel /></div>
+      {!isLive() && <div className="fixed right-4 top-10"><DemoPanel /></div>}
       <ToastRegion />
     </div>
   );
@@ -48,40 +50,66 @@ export function Welcome() {
       <div className="space-y-3">
         <Button variant="primary" size="lg" className="w-full" onClick={() => navigate("/login")}>Đăng nhập</Button>
         <Button variant="secondary" size="lg" className="w-full" onClick={() => navigate("/register")}>Tạo tài khoản</Button>
-        <Button variant="ghost" className="w-full" onClick={() => { signIn(); navigate("/choose-mode"); }}>Vào nhanh với tài khoản demo <ArrowRight className="h-4 w-4" aria-hidden /></Button>
+        {!isLive() && <Button variant="ghost" className="w-full" onClick={() => { signIn(); navigate("/choose-mode"); }}>Vào nhanh với tài khoản demo <ArrowRight className="h-4 w-4" aria-hidden /></Button>}
       </div>
-      <Banner tone="warn" className="mt-6" title="Đây là mô phỏng">
-        Đăng nhập và đăng ký chỉ minh họa luồng. Không dữ liệu nào được gửi đi hay lưu lại.
-      </Banner>
+      {isLive() ? (
+        <Banner tone="info" className="mt-6" title="Đăng nhập thật (môi trường dev)">
+          Tài khoản được tạo trên project Supabase dev. Đừng dùng mật khẩu bạn đang dùng ở nơi khác.
+        </Banner>
+      ) : (
+        <Banner tone="warn" className="mt-6" title="Đây là mô phỏng">
+          Đăng nhập và đăng ký chỉ minh họa luồng. Không dữ liệu nào được gửi đi hay lưu lại.
+        </Banner>
+      )}
     </AuthLayout>
   );
 }
 
 export function Login() {
   const signIn = useAppStore((s) => s.signIn);
-  const [email, setEmail] = useState("minhanh@example.test");
+  const applyLive = useAppStore((s) => s.applyLiveAccount);
+  const live = isLive();
+  const [email, setEmail] = useState(live ? "" : "minhanh@example.test");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState<{ email?: string; pw?: string }>({});
-  const submit = (e: FormEvent) => {
+  const [busy, setBusy] = useState(false);
+  const [fail, setFail] = useState("");
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const x: typeof err = {};
     if (!/^\S+@\S+\.\S+$/.test(email)) x.email = "Nhập email đúng định dạng.";
-    if (pw.length < 1) x.pw = "Nhập mật khẩu (bất kỳ — đây là mô phỏng).";
+    if (pw.length < 1) x.pw = live ? "Nhập mật khẩu." : "Nhập mật khẩu (bất kỳ — đây là mô phỏng).";
     setErr(x);
     if (Object.keys(x).length) return;
-    signIn(undefined, email);
-    navigate("/choose-mode");
+    if (!live) {
+      signIn(undefined, email);
+      navigate("/choose-mode");
+      return;
+    }
+    setBusy(true);
+    setFail("");
+    try {
+      const api = getLiveApi();
+      await api.auth.signIn(email.trim(), pw);
+      applyLive(await api.account());
+      navigate("/choose-mode");
+    } catch (ex) {
+      setFail((ex as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
-    <AuthLayout title="Đăng nhập" subtitle="Dùng email bất kỳ và mật khẩu bất kỳ để xem thử.">
+    <AuthLayout title="Đăng nhập" subtitle={live ? "Dùng tài khoản đã tạo trên môi trường dev." : "Dùng email bất kỳ và mật khẩu bất kỳ để xem thử."}>
       <form onSubmit={submit} className="space-y-4" noValidate>
+        {fail && <Banner tone="danger" title="Không đăng nhập được">{fail}</Banner>}
         <Field label="Email" htmlFor="email" error={err.email}>
           <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!err.email} />
         </Field>
         <Field label="Mật khẩu" htmlFor="pw" error={err.pw}>
           <Input id="pw" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} aria-invalid={!!err.pw} />
         </Field>
-        <Button type="submit" variant="primary" size="lg" className="w-full">Đăng nhập</Button>
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? "Đang đăng nhập…" : "Đăng nhập"}</Button>
       </form>
       <div className="mt-4 flex justify-between text-sm">
         <Link to="/recover" className="rounded font-semibold text-teal-dark hover:underline">Quên mật khẩu?</Link>
@@ -93,9 +121,14 @@ export function Login() {
 
 export function Register() {
   const signIn = useAppStore((s) => s.signIn);
+  const applyLive = useAppStore((s) => s.applyLiveAccount);
+  const live = isLive();
   const [f, setF] = useState({ name: "", email: "", pw: "", agree: false });
   const [err, setErr] = useState<Record<string, string>>({});
-  const submit = (e: FormEvent) => {
+  const [busy, setBusy] = useState(false);
+  const [fail, setFail] = useState("");
+  const [needConfirm, setNeedConfirm] = useState(false);
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const x: Record<string, string> = {};
     if (f.name.trim().length < 2) x.name = "Nhập tên hiển thị (ít nhất 2 ký tự).";
@@ -104,12 +137,36 @@ export function Register() {
     if (!f.agree) x.agree = "Cần đồng ý để tiếp tục.";
     setErr(x);
     if (Object.keys(x).length) return;
-    signIn(f.name, f.email);
-    navigate("/choose-mode");
+    if (!live) {
+      signIn(f.name, f.email);
+      navigate("/choose-mode");
+      return;
+    }
+    setBusy(true);
+    setFail("");
+    try {
+      const api = getLiveApi();
+      const r = await api.auth.signUp(f.email.trim(), f.pw, f.name.trim());
+      if (!r.confirmed) return setNeedConfirm(true);
+      applyLive(await api.account());
+      navigate("/choose-mode");
+    } catch (ex) {
+      setFail((ex as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
+  if (needConfirm)
+    return (
+      <AuthLayout title="Kiểm tra email" subtitle="Dự án đang bật xác nhận email.">
+        <Banner tone="info" title="Đã tạo tài khoản">Mở email xác nhận rồi quay lại đăng nhập. Ở môi trường dev có thể tắt bước xác nhận email trong cài đặt Authentication.</Banner>
+        <Button variant="primary" className="mt-4 w-full" onClick={() => navigate("/login")}>Đến đăng nhập</Button>
+      </AuthLayout>
+    );
   return (
     <AuthLayout title="Tạo tài khoản" subtitle="Một tài khoản dùng cho cả thuê máy và cho thuê máy.">
       <form onSubmit={submit} className="space-y-4" noValidate>
+        {fail && <Banner tone="danger" title="Không tạo được tài khoản">{fail}</Banner>}
         <Field label="Tên hiển thị" htmlFor="name" error={err.name}>
           <Input id="name" autoComplete="name" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} aria-invalid={!!err.name} />
         </Field>
@@ -122,11 +179,11 @@ export function Register() {
         <div>
           <label className="flex cursor-pointer items-start gap-2 text-sm">
             <input type="checkbox" checked={f.agree} onChange={(e) => setF({ ...f, agree: e.target.checked })} className="mt-1 h-4 w-4 accent-teal" aria-invalid={!!err.agree} />
-            <span>Tôi hiểu đây là bản xem trước và đồng ý với điều khoản mẫu.</span>
+            <span>{live ? "Tôi hiểu đây là môi trường dev thử nghiệm, không có thanh toán thật." : "Tôi hiểu đây là bản xem trước và đồng ý với điều khoản mẫu."}</span>
           </label>
           {err.agree && <p role="alert" className="mt-1 text-xs font-semibold text-danger">{err.agree}</p>}
         </div>
-        <Button type="submit" variant="primary" size="lg" className="w-full">Tạo tài khoản</Button>
+        <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? "Đang tạo…" : "Tạo tài khoản"}</Button>
       </form>
       <p className="mt-4 text-sm">Đã có tài khoản? <Link to="/login" className="rounded font-semibold text-teal-dark hover:underline">Đăng nhập</Link></p>
     </AuthLayout>
@@ -137,18 +194,25 @@ export function Recover() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState("");
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!/^\S+@\S+\.\S+$/.test(email)) return setErr("Nhập email đúng định dạng.");
     setErr("");
+    if (isLive()) {
+      try {
+        await getLiveApi().auth.recover(email.trim());
+      } catch (ex) {
+        return setErr((ex as Error).message);
+      }
+    }
     setSent(true);
   };
   return (
     <AuthLayout title="Khôi phục mật khẩu" subtitle="Nhập email để nhận liên kết đặt lại mật khẩu.">
       {sent ? (
         <div className="space-y-4">
-          <Banner tone="ok" title="Đã gửi (mô phỏng)">
-            <MailCheck className="mr-1 inline h-4 w-4" aria-hidden />Sẽ không có email thật nào được gửi trong bản xem trước.
+          <Banner tone="ok" title={isLive() ? "Đã gửi yêu cầu" : "Đã gửi (mô phỏng)"}>
+            <MailCheck className="mr-1 inline h-4 w-4" aria-hidden />{isLive() ? "Nếu email tồn tại, liên kết đặt lại sẽ được gửi. Cần cấu hình URL chuyển hướng trong Supabase để hoàn tất đổi mật khẩu trong app (chưa làm)." : "Sẽ không có email thật nào được gửi trong bản xem trước."}
           </Banner>
           <Button variant="primary" className="w-full" onClick={() => navigate("/login")}>Quay lại đăng nhập</Button>
         </div>

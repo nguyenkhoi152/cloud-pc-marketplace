@@ -6,7 +6,7 @@ import { hostMachineState, receiveGate } from "@/domain/access";
 import { isTerminal } from "@/domain/session";
 import { isInsideOfferWindow, upcomingWindows } from "@/domain/schedule";
 import { HOST_PROFILES } from "@/mock/fixtures";
-import { service } from "@/mock/service";
+import { service } from "@/api";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Badge, DemoTag } from "@/ui/badge";

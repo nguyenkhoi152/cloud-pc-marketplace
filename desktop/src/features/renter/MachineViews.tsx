@@ -3,7 +3,7 @@ import { navigate } from "@/app/router";
 import { addDays, DEMO_DATE, formatDateVi, formatDuration, TIMEZONE_LABEL } from "@/domain/clock";
 import { currentWindow, maxBookableMinutes } from "@/domain/pricing";
 import type { Machine } from "@/domain/types";
-import { service } from "@/mock/service";
+import { service } from "@/api";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Badge, DemoTag } from "@/ui/badge";

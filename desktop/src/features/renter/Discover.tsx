@@ -4,7 +4,8 @@ import { Link, navigate } from "@/app/router";
 import { filterMachines } from "@/domain/filters";
 import type { Category, Machine } from "@/domain/types";
 import { LOCATIONS } from "@/mock/fixtures";
-import { service } from "@/mock/service";
+import { service } from "@/api";
+import { isLive } from "@/api/env";
 import { useFilters } from "@/state/filtersStore";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
@@ -24,6 +25,9 @@ export function Discover() {
   const toggle = useAppStore((s) => s.toggleCompare);
   const toast = useAppStore((s) => s.toast);
   const state = useAsync(() => service.listMachines());
+  const live = isLive();
+  // Live: vị trí lấy từ dữ liệu thật (không dùng danh sách mẫu).
+  const locations = useMemo(() => (live && state.status === "ready" ? [...new Set(state.data.map((m) => m.location))].sort() : LOCATIONS), [live, state]);
 
   const list = useMemo(() => (state.status === "ready" ? filterMachines(state.data, filters) : []), [state, filters]);
   const dirty = filters.query || filters.maxPrice !== null || filters.minRam || filters.minVram || filters.location !== "all" || filters.workspaceOnly || filters.rentableNow;
@@ -35,12 +39,15 @@ export function Discover() {
         subtitle={<>Chọn theo nhu cầu rồi lọc theo cấu hình, giá và khung giờ. Mọi máy, giá, trạng thái online và ứng dụng đều là <DemoTag /> .</>}
       />
       <Tabs
-        value={filters.category as Category}
-        onValueChange={(v) => set({ category: v })}
-        items={(Object.keys(CATEGORY_LABEL) as Category[]).map((c) => {
-          const Icon = TAB_ICON[c];
-          return { value: c, label: <><Icon className="h-4 w-4" aria-hidden />{CATEGORY_LABEL[c]}</> };
-        })}
+        value={filters.category}
+        onValueChange={(v) => set({ category: v as typeof filters.category })}
+        items={[
+          ...(live ? [{ value: "all", label: <>Tất cả</> }] : []),
+          ...(Object.keys(CATEGORY_LABEL) as Category[]).map((c) => {
+            const Icon = TAB_ICON[c];
+            return { value: c, label: <><Icon className="h-4 w-4" aria-hidden />{CATEGORY_LABEL[c]}</> };
+          }),
+        ]}
       />
 
       <form role="search" aria-label="Lọc danh sách máy" onSubmit={(e) => e.preventDefault()} className="mt-4 grid grid-cols-[minmax(180px,1.6fr)_repeat(4,minmax(96px,1fr))] items-end gap-3">
@@ -68,7 +75,7 @@ export function Discover() {
         <label className="text-xs font-semibold text-ink-soft">Vị trí host
           <Select value={filters.location} onChange={(e) => set({ location: e.target.value })} className="mt-1 font-normal">
             <option value="all">Mọi nơi</option>
-            {LOCATIONS.map((l) => <option key={l}>{l}</option>)}
+            {locations.map((l) => <option key={l}>{l}</option>)}
           </Select>
         </label>
       </form>
@@ -76,7 +83,7 @@ export function Discover() {
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-5">
           <Checkbox checked={filters.workspaceOnly} onChange={(v) => set({ workspaceOnly: v })} label="Hỗ trợ lưu workspace" />
-          <Checkbox checked={filters.rentableNow} onChange={(v) => set({ rentableNow: v })} label="Thuê được ngay bây giờ" />
+          {!live && <Checkbox checked={filters.rentableNow} onChange={(v) => set({ rentableNow: v })} label="Thuê được ngay bây giờ" />}
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs font-semibold text-ink-soft">
@@ -85,7 +92,7 @@ export function Discover() {
               <option value="price">Giá thấp → cao</option>
               <option value="ram">RAM cao → thấp</option>
               <option value="vram">VRAM cao → thấp</option>
-              <option value="window">Thời gian thuê được dài nhất</option>
+              {!live && <option value="window">Thời gian thuê được dài nhất</option>}
             </Select>
           </label>
           {dirty ? <Button variant="ghost" size="sm" onClick={() => reset()}><X className="h-3.5 w-3.5" aria-hidden /> Xóa lọc</Button> : null}
@@ -93,7 +100,7 @@ export function Discover() {
       </div>
 
       <p className="mt-3 text-sm text-ink-soft" aria-live="polite">
-        {state.status === "ready" ? <>Hiển thị <b className="num text-ink">{list.length}</b> / {state.data.length} máy trong danh mục <b>{CATEGORY_LABEL[filters.category as Category]}</b>. Tích ô “So sánh” ở 2–3 máy để xem cạnh nhau.</> : " "}
+        {state.status === "ready" ? <>Hiển thị <b className="num text-ink">{list.length}</b> / {state.data.length} máy trong danh mục <b>{filters.category === "all" ? "Tất cả" : CATEGORY_LABEL[filters.category as Category]}</b>. Tích ô “So sánh” ở 2–3 máy để xem cạnh nhau.</> : " "}
       </p>
 
       <div className="mt-2">
@@ -101,7 +108,7 @@ export function Discover() {
           state={state}
           skeleton={<SkeletonRows rows={5} />}
           isEmpty={(d) => d.length === 0}
-          empty={<EmptyState icon={Cpu} title="Chưa có máy nào được đăng">Trong kịch bản này, danh sách máy đang trống. Khi có host được duyệt, máy sẽ hiện ở đây.</EmptyState>}
+          empty={<EmptyState icon={Cpu} title="Chưa có máy nào được đăng">{live ? "Chưa có máy nào được admin duyệt." : "Trong kịch bản này, danh sách máy đang trống."} Khi có host được duyệt, máy sẽ hiện ở đây.</EmptyState>}
         >
           {() =>
             list.length === 0 ? (

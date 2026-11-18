@@ -12,6 +12,8 @@ export function MachineStateBadge({ state }: { state: MachineState }) {
       return <Badge tone="neutral">Offline</Badge>;
     case "blocked":
       return <Badge tone="warn">Đang xử lý sự cố</Badge>;
+    case "unverified":
+      return <Badge tone="neutral">Chưa xác minh online</Badge>;
   }
 }
 

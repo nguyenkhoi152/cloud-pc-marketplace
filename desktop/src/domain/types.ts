@@ -27,7 +27,8 @@ export interface OfferWindow {
   end: string; // HH:mm
 }
 
-export type MachineState = "available" | "busy" | "offline" | "blocked";
+/** `unverified` = chế độ live: danh mục công khai chưa có heartbeat/lịch; máy chủ quyết định khi giữ máy. */
+export type MachineState = "available" | "busy" | "offline" | "blocked" | "unverified";
 
 export interface Machine {
   id: string;

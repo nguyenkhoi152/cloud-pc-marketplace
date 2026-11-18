@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, navigate } from "@/app/router";
 import { formatDuration } from "@/domain/clock";
 import type { HistoryItem, Workspace } from "@/domain/types";
-import { service } from "@/mock/service";
+import { service } from "@/api";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Badge } from "@/ui/badge";

@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock, Info, Minus, XCircle, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { isLive } from "@/api/env";
 
 export type Tone = "ok" | "warn" | "danger" | "info" | "neutral" | "teal";
 
@@ -25,6 +26,6 @@ export function Badge({ tone = "neutral", icon = true, children, className }: { 
   );
 }
 
-export function DemoTag({ children = "Dữ liệu mô phỏng" }: { children?: ReactNode }) {
+export function DemoTag({ children = isLive() ? "Cấu hình do host tự khai" : "Dữ liệu mô phỏng" }: { children?: ReactNode }) {
   return <span className="rounded border border-warn-line bg-warn-bg px-1.5 py-px text-[11px] font-semibold text-warn">{children}</span>;
 }

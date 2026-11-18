@@ -7,7 +7,7 @@ import { quote } from "@/domain/pricing";
 import { totalWeeklyMinutes, upcomingWindows } from "@/domain/schedule";
 import { cn } from "@/lib/utils";
 import { HOST_PROFILES, INSTALL_COMPONENTS } from "@/mock/fixtures";
-import { service } from "@/mock/service";
+import { service } from "@/api";
 import { useAppStore } from "@/state/store";
 import type { Verdict } from "@/domain/compat";
 import type { CheckItem } from "@/domain/compat";

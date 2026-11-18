@@ -27,6 +27,29 @@ src/features/  auth, common, renter, host
 ```
 Quy tắc: component không import fixtures; đọc dữ liệu qua `useAsync(service.*)`, thao tác qua store.
 
+## Chế độ preview và live
+
+`VITE_APP_MODE=preview` (mặc định, khi không có `desktop/.env.local`): toàn bộ dữ liệu mẫu có nhãn. `VITE_APP_MODE=live`: nối Supabase dev thật cho **đăng nhập, danh mục máy, đăng máy/cam kết/lịch (host), giữ máy (booking `reserved`)**; mọi mục khác hiện “Chưa nối dữ liệu thật” (không rơi về dữ liệu mẫu). Cấu hình sai ở chế độ live → màn lỗi cấu hình. Hướng dẫn: `docs/SUPABASE_DEV_SETUP.md` mục 9. Kiểm tra: `npm run check:env` (gốc repo) và `npm run smoke:supabase`.
+
+## Vỏ native Tauri
+
+`src-tauri/` là vỏ Tauri 2 tối thiểu (cửa sổ 1280×800, CSP chặt: `connect-src` cho Supabase + localhost, `font-src` chỉ nội bộ, `frame-src` chỉ localhost cho spike viewer; font Be Vietnam Pro đóng gói cục bộ qua `@fontsource`, không gọi Google Fonts). **Đã build được trên máy dev (09/11/2026)** sau khi cài VS Build Tools 2022 + rustup (rustc/cargo 1.99.1, toolchain stable-msvc). Build (đặt thư mục build Rust ngoài OneDrive, đường dẫn ASCII):
+
+```powershell
+# Cách khuyến nghị: script đặt đúng biến, đóng gói agent rồi build (và cài với -Install)
+powershell -ExecutionPolicy Bypass -File scripts\vm\build-demo-app.ps1            # chỉ build
+powershell -ExecutionPolicy Bypass -File scripts\vm\build-demo-app.ps1 -Install   # build + cài cho người dùng hiện tại (/S, không admin)
+
+# Thủ công
+$env:Path = "$env:USERPROFILE\.cargo\bin;" + $env:Path
+$env:CARGO_TARGET_DIR = "C:\cpm-tauri-target"      # ngoài OneDrive, đường dẫn ASCII
+npm run tauri -w @cpm/desktop -- build               # beforeBuildCommand tự đóng gói agent; bộ cài: C:\cpm-tauri-target\release\bundle\nsis\
+```
+
+Lớp native (`src-tauri/src/host.rs`) có 10 lệnh cố định cho chế độ Cho thuê (kiểm tra WSL2/guest, cài, ghi danh, bắt đầu/dừng agent); xem `docs/HOST_WINDOWS_WSL.md`. Agent và script guest được nhúng vào app lúc build (`include_bytes!`), nên phải đóng gói agent (`npm run bundle -w @cpm/host-agent`; script build và `beforeBuildCommand` làm sẵn) trước khi biên dịch Rust. Test Rust: `cargo test --release --lib` trong `desktop/src-tauri`.
+
+Vite đọc `desktop/.env.local` lúc build nên bản cài mang cấu hình live (chỉ key publishable). Khi app chạy trong Tauri origin là `http://tauri.localhost`: nếu dùng API server (`VITE_API_BASE_URL`) thì phải thêm origin này vào `ALLOWED_ORIGINS` của server và thêm domain API https vào `connect-src` trong `tauri.conf.json`. **Đã kiểm**: exe chạy, cửa sổ mở, giao diện live render, fetch tới Supabase qua CSP 200, font nạp cục bộ, không lỗi console (CDP/WebView2). Đã cài trên máy này (09/11) và kiểm live 28/28 trong app đã cài; viewer Selkies trong iframe đã kiểm (xem `docs/PROGRESS.md`). **Chưa**: ký số (installer chưa ký → SmartScreen cảnh báo), cập nhật tự động, command native, Selkies trong WebView2, trình cài trên máy khác.
+
 ## Cách xem
 1. Mở `/#/welcome` → “Vào nhanh với tài khoản demo” → chọn chế độ.
 2. **Hành trình khách**: Thuê máy → Khám phá (tab Game/Đồ họa/Lập trình, lọc, so sánh) → Chi tiết → Thuê máy này → Xác nhận → chuẩn bị (≈4 s) → Vào phiên → viewer minh họa (dùng “Tua nhanh”, “Mô phỏng mất kết nối”) → Kết thúc → lưu workspace → dọn dẹp → hoàn tất → Lịch sử/Số dư.

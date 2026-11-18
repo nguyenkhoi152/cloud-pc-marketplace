@@ -6,18 +6,28 @@ import { Link, navigate } from "@/app/router";
 import { formatClock } from "@/domain/clock";
 import { isTerminal } from "@/domain/session";
 import { cn } from "@/lib/utils";
+import { isLive } from "@/api/env";
+import { describeEnv } from "@/domain/envLabels";
+import { envFacts } from "@/api/envFacts";
 import { SCENARIOS } from "@/mock/scenarios";
 import { useAppStore } from "@/state/store";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { RadioGroup } from "@/ui/radio";
 import { Money } from "@/ui/page";
-import { COMMON_NAV, HOST_NAV, RENT_NAV, isActive, type NavItem } from "./nav";
+import { COMMON_NAV, HOST_NAV, LIVE_NAV, RENT_NAV, isActive, type NavItem } from "./nav";
 
 /* ---------- Dải thông báo demo ---------- */
 export function DemoBanner() {
   const scenario = useAppStore((s) => s.scenario);
   const label = SCENARIOS.find((s) => s.id === scenario)?.label;
+  if (isLive())
+    return (
+      <Link to="/about" data-testid="env-banner" className="flex min-h-7 shrink-0 items-center justify-center gap-2 border-b border-warn-line bg-warn-bg px-4 py-1 text-center text-xs font-semibold text-warn hover:underline" aria-label="Bản demo. Xem phần nào thật, phần nào giả lập">
+        <FlaskConical className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        {describeEnv(envFacts()).banner}
+      </Link>
+    );
   return (
     <div className="flex h-7 shrink-0 items-center justify-center gap-2 border-b border-warn-line bg-warn-bg px-4 text-xs font-semibold text-warn">
       <FlaskConical className="h-3.5 w-3.5" aria-hidden />
@@ -111,11 +121,11 @@ export function TopBar() {
     <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-5">
       <ModeSwitch />
       <div className="flex items-center gap-3">
-        <Link to="/wallet" className="hidden rounded-md px-2 py-1 text-right text-xs leading-tight hover:bg-subtle sm:block" aria-label="Xem số dư và giao dịch">
+        {!isLive() && <Link to="/wallet" className="hidden rounded-md px-2 py-1 text-right text-xs leading-tight hover:bg-subtle sm:block" aria-label="Xem số dư và giao dịch">
           <span className="block text-ink-faint">{mode === "rent" ? "Số dư để thuê" : "Thu nhập host đã ghi nhận"}</span>
           <Money value={mode === "rent" ? wallet.usable : wallet.hostSettled} className="text-sm" />
-        </Link>
-        <DemoPanel />
+        </Link>}
+        {!isLive() && <DemoPanel />}
         <Popover.Root>
           <Popover.Trigger asChild>
             <Button variant="ghost" size="icon" aria-label={`Tài khoản của ${name}`}>
@@ -124,7 +134,7 @@ export function TopBar() {
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content align="end" sideOffset={6} className="z-50 w-56 rounded-lg border border-line bg-surface p-1.5 shadow-pop animate-pop-in">
-              <p className="px-2.5 py-1.5 text-xs text-ink-faint">Tài khoản mô phỏng</p>
+              <p className="px-2.5 py-1.5 text-xs text-ink-faint">{isLive() ? "Tài khoản dev (Supabase)" : "Tài khoản mô phỏng"}</p>
               <Popover.Close asChild>
                 <Link to="/account" className="flex h-9 items-center gap-2 rounded-md px-2.5 text-sm font-semibold hover:bg-subtle"><User className="h-4 w-4" aria-hidden /> Tài khoản</Link>
               </Popover.Close>
@@ -145,7 +155,7 @@ function NavLink({ item, path, badge }: { item: NavItem; path: string; badge?: s
   return (
     <Link to={item.to} aria-current={active ? "page" : undefined} className={cn("flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-semibold transition-colors duration-150", active ? "bg-teal-tint text-teal-dark" : "text-ink-soft hover:bg-sky/60 hover:text-ink")}>
       <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
-      <span className="truncate">{item.label}</span>
+      <span className="truncate">{isLive() ? (item.liveLabel ?? item.label) : item.label}</span>
       {badge && <span className="num ml-auto rounded-full bg-navy px-1.5 text-[11px] font-bold leading-5 text-white">{badge}</span>}
     </Link>
   );
@@ -158,8 +168,9 @@ export function Sidebar({ path }: { path: string }) {
   const hostSession = useAppStore((s) => s.hostSession);
   const blocked = useAppStore((s) => s.hostBlocked);
 
-  const rent = RENT_NAV.filter((i) => i.to !== "/rent/session" || (session && !(session.phase === "completed" && false)));
-  const host = HOST_NAV.filter((i) => (i.to === "/host/onboarding/intro" ? approval !== "approved" : true));
+  const live = isLive();
+  const rent = RENT_NAV.filter((i) => (live ? LIVE_NAV.has(i.to) : !i.liveOnly && (i.to !== "/rent/session" || !!session)));
+  const host = HOST_NAV.filter((i) => (live ? LIVE_NAV.has(i.to) : i.liveOnly ? false : i.to === "/host/onboarding/intro" ? approval !== "approved" : true));
 
   const badgeFor = (to: string) => {
     if (to === "/rent/session" && session) return isTerminal(session.phase) ? "!" : formatClock(session.remainingSec);
@@ -182,11 +193,11 @@ export function Sidebar({ path }: { path: string }) {
           <NavLink key={i.to} item={i} path={path} badge={badgeFor(i.to)} />
         ))}
         <p className="mt-4 px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Chung</p>
-        {COMMON_NAV.map((i) => (
+        {COMMON_NAV.filter((i) => !live || LIVE_NAV.has(i.to)).map((i) => (
           <NavLink key={i.to} item={i} path={path} />
         ))}
       </nav>
-      <p className="border-t border-line p-3 text-[11px] leading-snug text-ink-faint">Phiên bản xem trước · không kết nối dịch vụ thật</p>
+      <p className="border-t border-line p-3 text-[11px] leading-snug text-ink-faint">{isLive() ? "Bản demo · dữ liệu dev, PCP không có giá trị tiền" : "Phiên bản xem trước · không kết nối dịch vụ thật"}</p>
     </aside>
   );
 }

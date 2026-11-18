@@ -3,7 +3,7 @@ import { useState } from "react";
 import { navigate } from "@/app/router";
 import { DEMO_MINUTES, formatDuration, formatHM, parseHM } from "@/domain/clock";
 import { currentWindow, DURATION_OPTIONS, DURATION_REASON_TEXT, checkDuration, maxBookableMinutes, quote } from "@/domain/pricing";
-import { service } from "@/mock/service";
+import { service } from "@/api";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Banner, Async, EmptyState } from "@/ui/feedback";

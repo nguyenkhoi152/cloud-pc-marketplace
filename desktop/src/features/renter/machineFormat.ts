@@ -8,6 +8,7 @@ export function rentability(m: Machine): { canRent: boolean; text: string; sub?:
   if (m.state === "offline") return { canRent: false, text: "Máy đang offline", sub: "Lịch không tự bật máy" };
   if (m.state === "busy") return { canRent: false, text: "Đang có phiên", sub: "Mở lại sau khi dọn dẹp xong" };
   if (m.state === "blocked") return { canRent: false, text: "Đang xử lý sự cố", sub: "Chưa nhận khách" };
+  if (m.state === "unverified") return { canRent: true, text: "Gói 15 phút", sub: "Máy chủ kiểm tra khi giữ máy" };
   const w = currentWindow(m);
   if (w) {
     const max = maxBookableMinutes(m);

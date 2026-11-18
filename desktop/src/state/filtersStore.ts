@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { DEFAULT_FILTERS, type MachineFilters } from "../domain/filters";
+import { isLive } from "../api/env";
+import { DEFAULT_FILTERS as BASE_FILTERS, type MachineFilters } from "../domain/filters";
+
+/** Live: mặc định xem tất cả danh mục (máy thật có thể không thuộc "Game"). */
+const DEFAULT_FILTERS: MachineFilters = isLive() ? { ...BASE_FILTERS, category: "all" } : BASE_FILTERS;
 
 interface FiltersState {
   filters: MachineFilters;

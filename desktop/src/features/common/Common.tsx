@@ -2,7 +2,10 @@ import { Bell, Coins, Mail, MessageSquareText, ShieldCheck } from "lucide-react"
 import { useState } from "react";
 import { navigate } from "@/app/router";
 import type { Transaction, TxKind } from "@/domain/types";
-import { service } from "@/mock/service";
+import { service } from "@/api";
+import { isLive } from "@/api/env";
+import { HostBackgroundRow } from "@/features/live/HostBackgroundRow";
+import { ServerConnection } from "@/features/live/ServerConnection";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Badge, DemoTag } from "@/ui/badge";
@@ -154,7 +157,8 @@ export function SettingsScreen() {
           <Row id="nd" title="Thông báo trên máy" desc="Hiện thông báo khi phiên bắt đầu/kết thúc, máy được duyệt hoặc có sự cố (mô phỏng)." value={s.notifyDesktop} onChange={(v) => up({ notifyDesktop: v })} />
           <Row id="ne" title="Thông báo qua email" desc="Không có email thật nào được gửi trong bản xem trước." value={s.notifyEmail} onChange={(v) => up({ notifyEmail: v })} />
         </Section>
-        <Section title="Cho thuê máy" className="py-4"><Row id="bg" title="Chạy nền khi đóng cửa sổ" desc="Giữ dịch vụ cung cấp máy chạy ở khay hệ thống. Đóng cửa sổ không phải là dừng cung cấp." value={s.hostBackground} onChange={(v) => up({ hostBackground: v })} /></Section>
+        <Section title="Cho thuê máy" className="py-4">{isLive() ? <HostBackgroundRow /> : <Row id="bg" title="Chạy nền khi đóng cửa sổ" desc="Giữ dịch vụ cung cấp máy chạy ở khay hệ thống. Đóng cửa sổ không phải là dừng cung cấp." value={s.hostBackground} onChange={(v) => up({ hostBackground: v })} />}</Section>
+        {isLive() && <ServerConnection />}
         <Section title="Dữ liệu demo" className="pt-4">
           <p className="mb-3 text-sm text-ink-soft">Đặt lại toàn bộ dữ liệu mô phỏng và kịch bản về mặc định.</p>
           <Button variant="danger-outline" onClick={reset}>Đặt lại dữ liệu demo</Button>

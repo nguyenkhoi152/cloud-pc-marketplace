@@ -27,7 +27,7 @@ export const SCENARIOS: ScenarioInfo[] = [
 
 export class ServiceError extends Error {
   constructor(
-    public code: "offline" | "server",
+    public code: "offline" | "server" | "unsupported" | "auth" | "rejected",
     message: string,
   ) {
     super(message);
