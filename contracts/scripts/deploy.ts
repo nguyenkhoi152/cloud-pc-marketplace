@@ -37,6 +37,8 @@ const issuer = role("ISSUER_ADDRESS", 3);
 const treasury = role("TREASURY_ADDRESS", 4);
 const config = { feeBps: 1000n, durationSeconds: 900n, graceSeconds: 600n, arbitrationSeconds: 86_400n };
 
+// Cận dưới khối deploy: worker chỉ quét sự kiện từ đây (RPC công khai giới hạn khoảng khối; quét từ 0 là không khả thi trên Fuji).
+const deployBlock = await publicClient.getBlockNumber();
 const pcp = await viem.deployContract("PCP", [admin, issuer]);
 const escrow = await viem.deployContract("RentalEscrow", [
   pcp.address, admin, operator, arbitrator, quoteSigner,
@@ -62,6 +64,7 @@ const manifest = {
   chainId,
   note: networkName === "fuji" ? "Fuji testnet — token thử, không có giá trị tiền thật" : "Mạng local mô phỏng — KHÔNG phải deployment thật",
   deployedAt: new Date().toISOString(),
+  deployBlock: deployBlock.toString(),
   contracts: {
     PCP: { address: pcp.address, source: "contracts/PCP.sol" },
     RentalEscrow: { address: escrow.address, source: build.sourceName, domain: { name: "CloudPCRentalEscrow", version: "1" } },

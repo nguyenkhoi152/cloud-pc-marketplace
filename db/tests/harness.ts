@@ -10,7 +10,7 @@ const migrationsDir = path.join(here, "../../supabase/migrations");
  * Shim tối thiểu mô phỏng Supabase: auth.users, auth.uid(), roles và default privileges.
  * Default privileges cố ý giống Supabase (cấp ALL cho anon/authenticated) để migration phải tự thu hồi.
  */
-const SHIM = `
+export const SHIM = `
 create schema auth;
 create table auth.users (id uuid primary key default gen_random_uuid(), email text);
 create role anon nologin;

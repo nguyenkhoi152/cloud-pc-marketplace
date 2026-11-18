@@ -188,6 +188,23 @@ describe("booking RLS", () => {
     expect(r.rows).toEqual([]);
   });
 
+  it("mọi hàm public: không PUBLIC/anon EXECUTE, authenticated chỉ đúng danh sách cho phép", async () => {
+    // Hàm mới tạo mà quên revoke sẽ mặc định cho PUBLIC gọi (xem migration schedule_devices mục 0).
+    const r = await db.query<{ fn: string; pub: boolean; anon: boolean; auth: boolean }>(`
+      select p.oid::regprocedure::text as fn,
+             (p.proacl is null or exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0 and a.privilege_type = 'EXECUTE')) as pub,
+             has_function_privilege('anon', p.oid, 'execute') as anon,
+             has_function_privilege('authenticated', p.oid, 'execute') as auth
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.prokind = 'f'`);
+    expect(r.rows.filter((x) => x.pub).map((x) => x.fn), "còn EXECUTE cho PUBLIC").toEqual([]);
+    expect(r.rows.filter((x) => x.anon).map((x) => x.fn), "anon gọi được hàm").toEqual([]);
+    const authenticated = r.rows.filter((x) => x.auth).map((x) => x.fn.replace(/^[a-z_]+\./, "").replace(/\(.*/, "")).sort();
+    expect(authenticated).toEqual(
+      ["booking_is_live", "is_admin", "is_approved_host", "my_machine_health", "reserve_machine", "review_host", "review_machine", "schedule_windows", "submit_machine_for_review"].sort(),
+    );
+  });
+
   it("user không đọc được profile/ví người khác", async () => {
     const a = await newUser(db, "a");
     const b = await newUser(db, "b");
