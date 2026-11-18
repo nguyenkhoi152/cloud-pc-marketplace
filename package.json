@@ -7,6 +7,8 @@
     "web",
     "db",
     "contracts",
+    "server",
+    "host-agent",
     "desktop"
   ],
   "engines": {
@@ -15,10 +17,12 @@
   "scripts": {
     "dev": "npm run dev -w web",
     "build": "npm run build -w web",
-    "lint": "npm run lint -w web && npm run lint -w @cpm/shared && npm run lint -w @cpm/db-tests && npm run lint -w @cpm/contracts && npm run lint -w @cpm/desktop",
-    "typecheck": "npm run typecheck -w @cpm/shared && npm run typecheck -w web && npm run typecheck -w @cpm/db-tests && npm run typecheck -w @cpm/contracts && npm run typecheck -w @cpm/desktop",
-    "test": "npm run test -w @cpm/shared && npm run test -w @cpm/db-tests && npm run test -w @cpm/contracts && npm run test -w @cpm/desktop",
+    "lint": "npm run lint -w web && npm run lint -w @cpm/shared && npm run lint -w @cpm/db-tests && npm run lint -w @cpm/contracts && npm run lint -w @cpm/desktop && npm run lint -w @cpm/host-agent && npm run lint -w @cpm/server",
+    "typecheck": "npm run typecheck -w @cpm/shared && npm run typecheck -w web && npm run typecheck -w @cpm/db-tests && npm run typecheck -w @cpm/contracts && npm run typecheck -w @cpm/desktop && npm run typecheck -w @cpm/host-agent && npm run typecheck -w @cpm/server",
+    "test": "npm run test -w @cpm/shared && npm run test -w @cpm/db-tests && npm run test -w @cpm/contracts && npm run test -w @cpm/desktop && npm run test -w @cpm/host-agent && npm run test -w @cpm/server",
     "dev:desktop": "npm run dev -w @cpm/desktop",
-    "build:desktop": "npm run build -w @cpm/desktop"
+    "build:desktop": "npm run build -w @cpm/desktop",
+    "check:env": "node scripts/check-env.mjs",
+    "smoke:supabase": "npm run smoke:supabase -w @cpm/desktop"
   }
 }

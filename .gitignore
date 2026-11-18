@@ -75,3 +75,11 @@ contracts/deployments/local.json
 
 # Ảnh kiểm tra bản mẫu (giữ cục bộ)
 design-preview/screenshots/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+
+# Manifest deploy cục bộ/Fuji (có địa chỉ), không commit
+contracts/deployments/
+
+# cloudflared dong goi kem ban tester (build-demo-app.ps1 -Profile tester chep vao day; khong commit tep nhi phan)
+desktop/src-tauri/bin/
