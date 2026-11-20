@@ -1,6 +1,6 @@
 # Sổ tay chạy demo Cloud PC Companion
 
-> **Lưu ý (19/11/2026):** các mục "chưa chạy lần nào", "chưa Fuji" và bảng thật/giả dưới đây ghi trạng thái ngày 12/11. Chế độ công khai (Fuji + tunnel) và host WSL2 **đã chạy thật trên một máy** từ 18/11, và có lệnh `scripts\public\start-all.ps1` dựng cả hệ thống. Trạng thái hiện hành: [README mục 3 và 4](../README.md#3-đã-kiểm-và-chưa-kiểm), [PROGRESS](PROGRESS.md).
+> **Lưu ý (19/11/2026):** các mục "chưa chạy lần nào", "chưa Fuji" và bảng thật/giả dưới đây ghi trạng thái ngày 12/11. Chế độ công khai (Fuji + tunnel) và host WSL2 **đã chạy thật trên một máy** từ 18/11, và có lệnh `scripts\public\start-all.ps1` dựng cả hệ thống. Trạng thái hiện hành: [README mục 6 và 7](../README.md#6-trạng-thái-xác-minh-và-giới-hạn), [PROGRESS](PROGRESS.md).
 
 Trạng thái 12/11/2026 (mục §2.7 và §2.8 là luồng hiện hành; các mục cũ hơn giữ để tra cứu). Tài liệu này nói **cái gì chạy thật, cái gì còn giả**, cách chạy từng phần và đầu vào còn thiếu để có vòng thuê thật trên hai máy. Installer NSIS (chưa ký) đã build **và cài trên máy dev** (09/11, xem `desktop/README.md`); bản đã cài qua bộ kiểm live 28/28; chưa thử trên máy khác.
 
