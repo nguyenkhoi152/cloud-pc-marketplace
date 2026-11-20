@@ -11,6 +11,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(root, "dist", "cpm-host-agent.cjs");
 mkdirSync(path.dirname(out), { recursive: true });
 await build({
+  // Cố định thư mục gốc: esbuild ghi đường dẫn module (tính theo thư mục đang chạy) vào comment của bundle. Không cố định thì build từ
+  // `desktop` (bộ cài) và từ `host-agent` (start-all) cho hai SHA-256 khác nhau dù cùng mã nguồn, và hai nơi cài đè lên nhau.
+  absWorkingDir: root,
   entryPoints: [path.join(root, "src", "cli.ts")],
   outfile: out,
   bundle: true,
