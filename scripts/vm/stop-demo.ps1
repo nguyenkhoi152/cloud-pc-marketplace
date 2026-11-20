@@ -21,7 +21,7 @@ if ($vmUp -and (Test-Path $backendFile) -and ((Get-Content $backendFile -Raw) -m
   if ($o -match 'stop_done=1') { Write-Host "agent trong guest da dung (guest duoc don)" } else { Write-Warning "khong xac nhan duoc viec dung agent trong guest" }
 }
 # 2. Tien trinh tren Windows.
-$pat = 'api-proxy|workerMain|run-worker|host-agent[\\/]src[\\/]main|next[\\/]dist|next dev|hardhat|vite|renter-session|app-session|host-flow|tsx.*main\.ts|scripts[\\/]vm[\\/]guest\.mjs'
+$pat = 'api-proxy|workerMain|run-worker|host-agent[\\/]src[\\/]main|next[\\/]dist|next dev|hardhat|vite|renter-session|app-session|host-flow|tsx.*main\.ts|scripts[\\/]vm[\\/]guest\.mjs|scripts[\\/]public[\\/]hold-agent\.mjs'
 $procs = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -notmatch 'Get-CimInstance' -and (($_.Name -match '^(node|cmd)\.exe$' -and $_.CommandLine -match $pat) -or ($_.Name -eq 'ssh.exe' -and $_.CommandLine -match 'cpm-guest\.sh run')) }
 foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }
 # Tunnel Cloudflare do start-demo -Tunnel bat (chi tien trinh cloudflared dat o C:\cpm-demo\bin).

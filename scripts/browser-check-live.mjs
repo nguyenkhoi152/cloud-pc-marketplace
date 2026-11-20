@@ -3,6 +3,8 @@
  * Kiểm app LIVE trong Edge headless qua CDP (không cần Playwright). Dùng tài khoản smoke đã có
  * (desktop/.env.smoke.local); KHÔNG tạo tài khoản/booking mới (đặt máy được thử trên máy đã bị giữ nên bị từ chối).
  * Không in email/mật khẩu/URL. Chạy: node scripts/browser-check-live.mjs [http://127.0.0.1:5176]
+ * ĐIỀU KIỆN: cần một máy `smoke-*` đang đăng và đã bị giữ. Ngày 20/11/2026 các máy smoke bị đình chỉ để không hiện cạnh máy thật, nên script
+ * sẽ ĐỎ ở mục Khám phá cho tới khi đăng lại một máy smoke (Quản trị → Máy → Đăng lại). KHÔNG đổi sang máy thật: bước "Giữ máy" sẽ tạo booking thật.
  */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -137,7 +139,8 @@ try {
   await waitFor('!document.body.innerText.includes("Đang tải")', "tải xong danh mục", 20000);
   await sleep(600);
   t = await text();
-  check("Khám phá: có ≥1 máy thật (smoke-*) và nhãn 'Chưa xác minh online'", /smoke-\d+/.test(t) && t.includes("Chưa xác minh online"));
+  // Nhãn trạng thái là THẬT từ 20/11/2026 (heartbeat): "Đang online" | "Offline" | "Đang có phiên"; "Chưa xác minh online" chỉ còn khi DB chưa áp migration 20261120000002.
+  check("Khám phá: có ≥1 máy smoke-* và một nhãn trạng thái máy", /smoke-\d+/.test(t) && /Đang online|Offline|Đang có phiên|Chưa xác minh online/.test(t));
   check("Khám phá: không có ví mẫu/kịch bản demo/nhãn 'Dữ liệu mô phỏng'", !t.includes("Số dư để thuê") && !t.includes("Demo:") && !t.includes("Dữ liệu mô phỏng"));
   await shot("04-discover");
 
@@ -203,11 +206,11 @@ try {
   await login("HOST");
   await clickText("Cho thuê máy", "button");
   await waitFor('location.hash === "#/host" || location.hash.startsWith("#/host")', "vào chế độ host");
-  await waitText("Host đã được duyệt", 20000);
+  await waitText("Bạn đã là host", 20000); // trước 20/11/2026: "Host đã được duyệt" (admin duyệt); nay host tự đăng ký
   await waitFor('document.body.innerText.includes("Cam kết")', "tải panel máy", 20000);
   await sleep(1500);
   t = await text();
-  check("Host: trạng thái đã duyệt + máy smoke với trạng thái 'Đã duyệt'", t.includes("Host đã được duyệt") && /smoke-\d+/.test(t) && t.includes("Đã duyệt"));
+  check("Host: trạng thái host + máy smoke đã đăng (nhãn 'Đã đăng'; trước 20/11 là 'Đã duyệt')", t.includes("Bạn đã là host") && /smoke-\d+/.test(t) && (t.includes("Đã đăng") || t.includes("Đã duyệt")));
   check("Host: cam kết, lịch Thứ Hai 19:00–23:00, sức khỏe 'chưa có thiết bị'", t.includes("Cam kết") && t.includes("Thứ Hai 19:00–23:00") && t.includes("Chưa có thiết bị"));
   check("Host: mục chưa nối bị ẩn khỏi sidebar (Thu nhập, Sự cố…)", !(await ev(`!![...document.querySelectorAll("nav a")].find((a) => a.innerText.includes("Thu nhập"))`)));
   await shot("11-host");

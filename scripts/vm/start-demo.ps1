@@ -116,7 +116,7 @@ if ($Tunnel) {
   Step "Bat proxy hep (chi /api/*, cong 3100) va tunnel Cloudflare (chi ket noi RA, khong mo cong)"
   Start-Process cmd -ArgumentList '/c', "node scripts\public\api-proxy.mjs --listen 3100 --target http://127.0.0.1:3000 > `"$logs\proxy.log`" 2>&1" -WorkingDirectory $repo -WindowStyle Hidden
   Remove-Item -Force "$logs\tunnel.log" -ErrorAction SilentlyContinue
-  Start-Process -FilePath $cf -ArgumentList 'tunnel', '--url', 'http://127.0.0.1:3100', '--no-autoupdate' -RedirectStandardError "$logs\tunnel.log" -RedirectStandardOutput "$logs\tunnel.out.log" -WindowStyle Hidden
+  Start-Process -FilePath $cf -ArgumentList 'tunnel', '--url', 'http://127.0.0.1:3100', '--no-autoupdate', '--protocol', 'http2' -RedirectStandardError "$logs\tunnel.log" -RedirectStandardOutput "$logs\tunnel.out.log" -WindowStyle Hidden
   # Bo qua api.trycloudflare.com (noi cloudflared xin tunnel; xuat hien trong thong bao loi).
   $urlRe = 'https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com'
   WaitUntil "tunnel Cloudflare co URL" { (Get-Content "$logs\tunnel.log" -Raw -ErrorAction SilentlyContinue) -match 'https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com' } 90
@@ -184,7 +184,9 @@ if ($Agent -eq "script") {
 Write-Host ""
 if ($publicUrl) {
   Write-Host ""
-  Write-Host "MA KET NOI cho nguoi thu (dan vao app: Cai dat > Ket noi may chu): $publicUrl"
+  Write-Host "LIEN KET KET NOI (gui cho nguoi thu; bam trong trinh duyet de mo app): $publicUrl/api/connect"
+  Write-Host "MA KET NOI (neu lien ket khong mo duoc app: dan vao app Cai dat > Ket noi may chu): $publicUrl"
+  Write-Host "  CHU Y: mo rieng dia chi goc (khong co /api/connect) tren trinh duyet se bao 404, do la binh thuong."
   Write-Host "  Doi moi lan chay lai script nay. Giu may bat va script nay chay suot dot thu. Da ghi: $DemoDir\public-api-url.txt"
 }
 Write-Host "MAY CHU DEMO SAN SANG ($(if ($Chain -eq 'fuji') { 'chuoi Fuji testnet' } else { 'chuoi Hardhat cuc bo' }) + API :3000 + worker). Nhat ky: $logs. Dung tat ca: scripts\vm\stop-demo.ps1"
