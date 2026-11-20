@@ -1,0 +1,44 @@
+{
+  "network": "fuji",
+  "chainId": 43113,
+  "note": "Fuji testnet — token thử, không có giá trị tiền thật",
+  "deployedAt": "2026-11-17T07:40:47.778Z",
+  "deployBlock": "61220946",
+  "contracts": {
+    "PCP": {
+      "address": "0x9040f984ea24661d8e57f140b4ce96dac6af513e",
+      "source": "contracts/PCP.sol"
+    },
+    "RentalEscrow": {
+      "address": "0x280697a0ba53aeea1b1cb3c15eb2c04461a243e1",
+      "source": "contracts/RentalEscrow.sol",
+      "domain": {
+        "name": "CloudPCRentalEscrow",
+        "version": "1"
+      }
+    }
+  },
+  "configureEscrowTx": "0x0f50f7fdc48e8ed092de94d4cc31ac31a777ce28e8c59b46d66c429efd5a5280",
+  "roles": {
+    "admin": "0x5ea46bed5249ea11edaa4bbc389854870a76d6a2",
+    "operator": "0x384D38BD2d656B714460BAA0180C11d54af10D46",
+    "arbitrator": "0xfE2852313c41875FFB59f067565F0911AF7b4cEc",
+    "quoteSigner": "0xD2D0e33b7bcd8a190B9E4afC925cdc4b05560D24",
+    "issuer": "0x4BFfeB1Cb1B9FB25Ae9e0a4747D33Bc319684012",
+    "treasury": "0x8f006D933EF8670569fBF8E6398446eF671b9ace"
+  },
+  "config": {
+    "feeBps": "1000",
+    "durationSeconds": "900",
+    "graceSeconds": "600",
+    "arbitrationSeconds": "86400"
+  },
+  "compiler": {
+    "solc": "0.8.28",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "viaIR": true
+  }
+}

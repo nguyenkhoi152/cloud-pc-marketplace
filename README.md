@@ -123,7 +123,7 @@ npm test
 
 Lần chạy đầu cần Internet để Hardhat tải trình biên dịch solc 0.8.28; PostgreSQL 18 cho test `db` đi kèm devDependency `embedded-postgres` nên đã có sau `npm install`. Bài E2E dùng chuỗi, guest/Selkies và operator **giả có nhãn**, không chạm Fuji.
 
-Lệnh riêng lẻ: `npm run typecheck`, `npm run lint`, `npm run build:desktop`, `npm test -w @cpm/contracts`, `npm run compile -w @cpm/contracts`. Test Rust của lớp native: `cargo test --release --lib` trong `desktop/src-tauri` (cần Rust).
+Lệnh riêng lẻ: `npm run typecheck`, `npm run lint`, `npm run build:desktop`, `npm test -w @cpm/contracts`, `npm run compile -w @cpm/contracts`. Test Rust của lớp native (cần Rust): **dựng agent trước**, vì `host-agent/dist/` không nằm trong Git mà `host.rs` nhúng tệp từ đó lúc biên dịch: `npm run bundle:agent -w @cpm/desktop`, rồi `cargo test --release --lib` trong `desktop/src-tauri`.
 
 **Biên dịch và deploy contract cục bộ (không cần ví, không tốn gì):** `cd contracts && npx hardhat run scripts/deploy.ts` deploy lên mạng mô phỏng trong tiến trình và ghi manifest cục bộ.
 

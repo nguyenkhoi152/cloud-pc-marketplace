@@ -78,8 +78,11 @@ design-preview/screenshots/
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
 
-# Manifest deploy cục bộ/Fuji (có địa chỉ), không commit
-contracts/deployments/
+# Manifest deploy cục bộ (địa chỉ của chuỗi mô phỏng), không commit.
+# Riêng fuji.json chỉ có dữ liệu công khai trên Fuji (địa chỉ, mã giao dịch, số cấu hình; README đã trích hết) nên được theo dõi:
+# test màn Giới thiệu đối chiếu lời với các số này và phải chạy được trên bản clone mới.
+contracts/deployments/*
+!contracts/deployments/fuji.json
 
 # cloudflared dong goi kem ban tester (build-demo-app.ps1 -Profile tester chep vao day; khong commit tep nhi phan)
 desktop/src-tauri/bin/

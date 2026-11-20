@@ -1,0 +1,4 @@
+# Script chạy trong bản Linux (WSL2) của máy host: luôn kết thúc dòng LF.
+# desktop/src-tauri/src/host.rs nhúng host-agent/guest/cpm-guest.sh bằng include_str!; nếu checkout trên Windows đổi sang CRLF
+# thì bản Linux của host chạy lỗi ("\r: command not found").
+*.sh text eol=lf
