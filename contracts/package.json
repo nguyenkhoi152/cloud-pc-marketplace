@@ -6,7 +6,7 @@
   "scripts": {
     "compile": "hardhat build",
     "test": "hardhat test nodejs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "hardhat build && tsc --noEmit",
     "lint": "eslint test scripts hardhat.config.ts"
   },
   "dependencies": {

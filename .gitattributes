@@ -1,4 +1,9 @@
-# Script chạy trong bản Linux (WSL2) của máy host: luôn kết thúc dòng LF.
-# desktop/src-tauri/src/host.rs nhúng host-agent/guest/cpm-guest.sh bằng include_str!; nếu checkout trên Windows đổi sang CRLF
-# thì bản Linux của host chạy lỗi ("\r: command not found").
+# Các loại tệp mà NỘI DUNG BYTE phải giống nhau trên mọi máy: luôn kết thúc dòng LF, kể cả khi clone trên Windows (core.autocrlf=true).
+#
+# *.sh  : script chạy trong bản Linux (WSL2) của máy host. desktop/src-tauri/src/host.rs nhúng host-agent/guest/cpm-guest.sh bằng
+#         include_str!; CRLF làm bản Linux của host lỗi ("\r: command not found").
+# *.sql : migration. scripts/db-run.mjs chỉ áp dụng tệp có đúng SHA-256 đã duyệt; CRLF đổi hash và bài kiểm tra áp migration đỏ.
+# *.sol : mã nguồn hợp đồng. CRLF đổi mã băm nguồn trong metadata nên bytecode biên dịch lệch hợp đồng đã deploy khi kiểm chứng.
 *.sh text eol=lf
+*.sql text eol=lf
+*.sol text eol=lf
