@@ -57,6 +57,12 @@ describe("tiền: chuỗi đơn vị nhỏ nhất, không number", () => {
     expect(m).toMatchObject({ cores: 0, ramGb: 0, categories: ["game"], gpu: null, state: "unverified", location: "Chưa khai" });
     expect(mapMachine({ id: "m2", name: "x", declared_specs: null, price_units: "1", created_at: "x" }).categories).toEqual(["dev"]);
   });
+  it("mapMachine: mô tả, vị trí và tên host để trống (rỗng hoặc toàn khoảng trắng) thì dùng chữ mặc định, thẻ máy không bị trống", () => {
+    const m = mapMachine({ id: "m3", name: "Máy", declared_specs: { summary: "   ", location: "", hostAlias: " " }, price_units: "1", created_at: "x" });
+    expect(m.summary).toMatch(/^Chủ máy chưa viết mô tả\./);
+    expect(m).toMatchObject({ location: "Chưa khai", hostAlias: "Host" });
+    expect(mapMachine({ id: "m4", name: "Máy", declared_specs: { summary: "  Máy học tập  " }, price_units: "1", created_at: "x" }).summary).toBe("Máy học tập");
+  });
 });
 
 describe("mapError", () => {

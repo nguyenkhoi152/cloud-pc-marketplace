@@ -105,6 +105,8 @@ export interface DeclaredSpecs {
 const CATS: Category[] = ["game", "graphics", "dev"];
 const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : d);
 const str = (v: unknown, d = "") => (typeof v === "string" ? v.slice(0, 200) : d);
+/** Như `str` nhưng chuỗi rỗng hoặc toàn khoảng trắng cũng dùng giá trị mặc định (chủ máy để trống ô mô tả/vị trí). */
+const strOr = (v: unknown, d: string) => str(v).trim() || d;
 
 export interface PublicMachineRow {
   id: string;
@@ -131,9 +133,9 @@ export function mapMachine(r: PublicMachineRow): Machine {
   return {
     id: r.id,
     name: r.name,
-    hostAlias: str(s.hostAlias, "Host"),
+    hostAlias: strOr(s.hostAlias, "Host"),
     categories: categories.length ? categories : ["dev"],
-    location: str(s.location, "Chưa khai"),
+    location: strOr(s.location, "Chưa khai"),
     cpu: str(s.cpu, ""),
     cores: num(s.cores),
     ramGb: num(s.ramGb),
@@ -147,7 +149,7 @@ export function mapMachine(r: PublicMachineRow): Machine {
     state: stateOfAvailability(r.availability),
     apps: [],
     windows: [],
-    summary: str(s.summary, "Chủ máy chưa viết mô tả. Cấu hình do app của chủ máy đọc từ máy, chưa được hệ thống xác minh."),
+    summary: strOr(s.summary, "Chủ máy chưa viết mô tả. Cấu hình do app của chủ máy đọc từ máy, chưa được hệ thống xác minh."),
   };
 }
 export const priceUnitsOf = (m: PublicMachineRow) => moneyStr(m.price_units);

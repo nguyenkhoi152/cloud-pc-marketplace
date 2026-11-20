@@ -100,7 +100,8 @@ body {
  * Khi bật "Giảm chuyển động" (hệ điều hành hoặc cài đặt trong app), các khối bên dưới đưa mọi thứ về trạng thái cuối ngay.
  */
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.enter { animation: rise 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(min(var(--i, 0), 8) * 45ms); }
+/* fill-mode "backwards" (không phải "both"): sau khi chạy xong phần tử trở về style thường, nên :hover của .lift vẫn nhấc được thẻ. */
+.enter { animation: rise 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(min(var(--i, 0), 8) * 45ms); }
 .lift { transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 160ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 160ms; }
 .lift:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgb(11 31 58 / 0.06), 0 8px 20px rgb(11 31 58 / 0.1); }
 .pulse-dot { animation: pulse-soft 2s ease-in-out infinite; }

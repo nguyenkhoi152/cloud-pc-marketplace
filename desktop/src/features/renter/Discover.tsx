@@ -1,22 +1,21 @@
-import { ArrowUpDown, Cpu, FolderCheck, GitCompareArrows, Gamepad2, Palette, Search, Terminal, X } from "lucide-react";
+import { ArrowUpDown, Cpu, GitCompareArrows, Gamepad2, Palette, Search, Terminal, X } from "lucide-react";
 import { useMemo } from "react";
-import { Link, navigate } from "@/app/router";
+import { navigate } from "@/app/router";
 import { filterMachines } from "@/domain/filters";
 import type { Category, Machine } from "@/domain/types";
 import { LOCATIONS } from "@/mock/fixtures";
 import { service } from "@/api";
 import { isLive } from "@/api/env";
-import { stagger } from "@/lib/utils";
 import { useFilters } from "@/state/filtersStore";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Button } from "@/ui/button";
 import { Checkbox, Input, Select, Tabs } from "@/ui/controls";
-import { Async, EmptyState, SkeletonRows } from "@/ui/feedback";
+import { Async, EmptyState } from "@/ui/feedback";
 import { PageHeader } from "@/ui/page";
-import { MachineStateBadge } from "@/ui/status";
-import { Badge, DemoTag } from "@/ui/badge";
-import { CATEGORY_LABEL, rentability } from "./machineFormat";
+import { MachineCard } from "./MachineCard";
+import { DemoTag } from "@/ui/badge";
+import { CATEGORY_LABEL } from "./machineFormat";
 
 const TAB_ICON: Record<Category, typeof Gamepad2> = { game: Gamepad2, graphics: Palette, dev: Terminal };
 
@@ -107,7 +106,7 @@ export function Discover() {
       <div className="mt-2">
         <Async
           state={state}
-          skeleton={<SkeletonRows rows={5} />}
+          skeleton={<SkeletonCards />}
           isEmpty={(d) => d.length === 0}
           empty={<EmptyState icon={Cpu} title="Chưa có máy nào được đăng">{live ? "Chưa có máy nào được đăng." : "Trong kịch bản này, danh sách máy đang trống."} Khi có host đăng máy, máy sẽ hiện ở đây.</EmptyState>}
         >
@@ -117,7 +116,7 @@ export function Discover() {
                 Thử nới giá, VRAM hoặc đổi sang danh mục khác.
               </EmptyState>
             ) : (
-              <MachineTable machines={list} compare={compare} onToggle={(id) => { if (!toggle(id)) toast("Chỉ so sánh tối đa 3 máy cùng lúc.", "warn"); }} />
+              <MachineGrid machines={list} compare={compare} onToggle={(id) => { if (!toggle(id)) toast("Chỉ so sánh tối đa 3 máy cùng lúc.", "warn"); }} />
             )
           }
         </Async>
@@ -136,47 +135,24 @@ export function Discover() {
   );
 }
 
-function MachineTable({ machines, compare, onToggle }: { machines: Machine[]; compare: string[]; onToggle: (id: string) => void }) {
+/** Lưới thẻ máy: tự chia cột theo bề rộng (≥ 300px mỗi thẻ). */
+function MachineGrid({ machines, compare, onToggle }: { machines: Machine[]; compare: string[]; onToggle: (id: string) => void }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(11_31_58/0.05)]">
-      <table className="w-full table-fixed border-collapse text-left text-sm">
-        <caption className="sr-only">{isLive() ? "Danh sách máy cho thuê" : "Danh sách máy cho thuê (dữ liệu mô phỏng)"}</caption>
-        <thead className="border-b border-line bg-subtle text-xs text-ink-faint">
-          <tr>
-            <th scope="col" className="w-[84px] px-3 py-2 font-semibold">So sánh</th>
-            <th scope="col" className="px-3 py-2 font-semibold">Máy</th>
-            <th scope="col" className="w-[24%] px-3 py-2 font-semibold">Cấu hình</th>
-            <th scope="col" className="w-[104px] px-3 py-2 text-right font-semibold">Giá / 15′</th>
-            <th scope="col" className="w-[21%] px-3 py-2 font-semibold">Khung giờ thuê</th>
-            <th scope="col" className="w-[116px] px-3 py-2 font-semibold">Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody>
-          {machines.map((m, i) => {
-            const r = rentability(m);
-            return (
-              <tr key={m.id} style={stagger(i)} className="enter border-b border-line transition-colors last:border-0 hover:bg-teal-tint/30">
-                <td className="px-3 py-3 align-top">
-                  <Checkbox checked={compare.includes(m.id)} onChange={() => onToggle(m.id)} label={<span className="sr-only">So sánh {m.name}</span>} />
-                </td>
-                <td className="px-3 py-3 align-top">
-                  <Link to={`/rent/machine/${m.id}`} className="rounded font-bold text-ink hover:text-teal-dark hover:underline">{m.name}</Link>
-                  <p className="text-xs text-ink-faint">{m.hostAlias} · {m.location}</p>
-                  <p className="mt-1">{m.workspace ? <Badge tone="teal" icon={FolderCheck}>Lưu workspace</Badge> : <span className="text-xs text-ink-faint">Không lưu workspace</span>}</p>
-                </td>
-                <td className="px-3 py-3 align-top text-xs leading-5">
-                  <p className="num">{m.cores} nhân · {m.ramGb} GB RAM</p>
-                  <p className="num">{m.gpu ? `${m.gpu.replace("NVIDIA ", "").replace("AMD ", "")} · ${m.vramGb} GB` : "Không GPU"}</p>
-                </td>
-                <td className="px-3 py-3 text-right align-top"><span className="num text-base font-bold">{m.pricePer15}</span><span className="block text-[11px] text-ink-faint">{isLive() ? "PCP" : "PCP thử"}</span></td>
-                <td className="px-3 py-3 align-top text-xs leading-5"><p className="font-semibold">{r.text}</p>{r.sub && <p className="text-ink-faint">{r.sub}</p>}</td>
-                <td className="px-3 py-3 align-top"><MachineStateBadge state={m.state} /></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <ul className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4" aria-label={isLive() ? "Danh sách máy cho thuê" : "Danh sách máy cho thuê (dữ liệu mô phỏng)"}>
+      {machines.map((m, i) => (
+        <li key={m.id} className="min-w-0">
+          <MachineCard m={m} index={i} compared={compare.includes(m.id)} onToggle={onToggle} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
+/** Khung chờ dạng thẻ (cùng bố cục lưới) trong lúc tải danh sách. */
+function SkeletonCards() {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4" aria-hidden>
+      {[0, 1, 2].map((i) => <div key={i} className="pulse-dot h-80 rounded-xl bg-sky/60" />)}
+    </div>
+  );
+}
