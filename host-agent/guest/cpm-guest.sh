@@ -43,7 +43,7 @@ agent_pid() {
 }
 
 do_probe() {
-  local api="${1:-}" v
+  local api="${1:-}" v m
   say "probe_version=$CPM_GUEST_VERSION"
   # shellcheck disable=SC1091
   say "os_id=$( (. /etc/os-release 2>/dev/null && printf '%s' "${ID:-}") || true)"
@@ -55,6 +55,8 @@ do_probe() {
   say "user=$(id -un 2>/dev/null || true)"
   if id -nG 2>/dev/null | tr ' ' '\n' | grep -qx docker; then say "in_docker_group=1"; else say "in_docker_group=0"; fi
   say "cpu_count=$(nproc 2>/dev/null || true)"
+  # Tên CPU để hiển thị cho người thuê (chỉ đọc; thiếu thì để trống).
+  say "cpu_model=$(awk -F': *' '/^model name/ {print $2; exit}' /proc/cpuinfo 2>/dev/null | tr -cd 'A-Za-z0-9 ._()@/-' | head -c 80)"
   say "mem_total_mb=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || true)"
   say "disk_free_gb=$(df -Pk "${HOME:-/}" 2>/dev/null | awk 'NR==2 {printf "%d", $4/1048576}' || true)"
 
@@ -90,6 +92,14 @@ do_probe() {
     if have "$smi" || [ -x "$smi" ]; then v="$("$smi" --query-gpu=name --format=csv,noheader 2>/dev/null | head -n1 | tr -cd 'A-Za-z0-9 ._()/-' | head -c 80)"; [ -n "$v" ] && break; fi
   done
   say "gpu_nvidia=$v"
+  # VRAM (MiB) của GPU vừa đọc được tên; không có tên thì không đoán.
+  m=""
+  if [ -n "$v" ]; then
+    for smi in nvidia-smi /usr/lib/wsl/lib/nvidia-smi; do
+      if have "$smi" || [ -x "$smi" ]; then m="$("$smi" --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -n1 | tr -cd '0-9' | head -c 7)"; [ -n "$m" ] && break; fi
+    done
+  fi
+  say "gpu_vram_mb=$m"
 
   if [ -n "$api" ] && safe_arg "$api" && have node; then
     if CPM_API="$api" node -e 'fetch(process.env.CPM_API + "/health", { signal: AbortSignal.timeout(6000) }).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))' 2>/dev/null; then say "api_reachable=1"; else say "api_reachable=0"; fi
