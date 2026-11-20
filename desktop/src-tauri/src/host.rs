@@ -811,7 +811,8 @@ pub fn is_tunnel_url(s: &str) -> bool {
 
 fn tunnel_args(port: u16) -> Vec<String> {
     // Quick tunnel: không cần tài khoản/giấy chứng nhận; chỉ mở kết nối RA tới Cloudflare. Không tự cập nhật (phiên bản được ghim khi build).
-    vec!["tunnel".into(), "--url".into(), format!("http://127.0.0.1:{}", port), "--no-autoupdate".into()]
+    // `--protocol http2` (TCP): nhiều mạng (nhà, cơ quan, trường) chặn UDP ra ngoài; giao thức mặc định (QUIC/UDP) khi đó không bao giờ nhận được địa chỉ công khai.
+    vec!["tunnel".into(), "--url".into(), format!("http://127.0.0.1:{}", port), "--no-autoupdate".into(), "--protocol".into(), "http2".into()]
 }
 
 /// cloudflared đi kèm bộ cài (đặt cạnh tệp thực thi của app; build-demo-app.ps1 kiểm SHA-256 theo bản ghim trước khi đóng gói).
@@ -911,7 +912,7 @@ mod tests {
 
     #[test]
     fn tunnel_command_is_fixed_outbound_only_and_points_at_the_loopback_gateway() {
-        assert_eq!(tunnel_args(18095), ["tunnel", "--url", "http://127.0.0.1:18095", "--no-autoupdate"]);
+        assert_eq!(tunnel_args(18095), ["tunnel", "--url", "http://127.0.0.1:18095", "--no-autoupdate", "--protocol", "http2"]);
     }
 
     #[test]

@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Cloud PC Companion (bản thử)",
+        "title": "Cloud PC Companion",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,
@@ -24,6 +24,15 @@
       "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://*.supabase.co wss://*.supabase.co http://127.0.0.1:* http://localhost:* https://*.trycloudflare.com https://api.avax-test.network https://avalanche-fuji-c-chain-rpc.publicnode.com; frame-src http://127.0.0.1:* http://localhost:* https:"
     },
     "withGlobalTauri": true
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "cloudpc"
+        ]
+      }
+    }
   },
   "bundle": {
     "active": true,

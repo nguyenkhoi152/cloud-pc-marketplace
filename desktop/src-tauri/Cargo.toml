@@ -14,5 +14,8 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
+# Liên kết kết nối: cloudpc://connect?server=… (bộ cài đăng ký scheme; bấm liên kết khi app đang mở thì chuyển vào app đó, không mở bản thứ hai).
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
