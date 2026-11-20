@@ -1,5 +1,7 @@
 # Hướng dẫn thử Fuji (chưa chạy lần nào)
 
+> **Lưu ý (19/11/2026): đây là tài liệu lịch sử, ghi trạng thái tại ngày 09/11 và 12/11.** Hợp đồng **đã deploy lên Fuji** (17/11) và vòng thuê đã chạy thật trên một máy. Địa chỉ và trạng thái hiện hành: [README mục 2 và 3](../README.md#2-avalanche-fuji-địa-chỉ-và-cách-kiểm-chứng), [PROGRESS](PROGRESS.md).
+
 > **Cập nhật 12/11/2026:** các bước 1–3 bên dưới đã có công cụ: `node scripts/fuji/fuji.mjs gen` (sinh khoá vai trò ở `C:\cpm-demo\fuji\keys.json`, ngoài repo/OneDrive, không in khoá riêng), `status` (chỉ đọc: chainId, số dư, ngân sách ước lượng) và `deploy` (deploy + ghi `deployBlock` + `server.env`). Đã sinh khoá và in địa chỉ cần nạp; **chưa nạp AVAX, chưa deploy**. RPC: ví trong app dùng `api.avax-test.network` (giới hạn 100 khối cho `eth_getLogs`), server dùng publicnode (50.000 khối) — đo ngày 12/11. Quy trình cho đợt thử với người khác: [TESTER_GUIDE](TESTER_GUIDE.md).
 
 Trạng thái 09/11/2026. **Chưa có ví thử, RPC, AVAX Fuji hay contract đã deploy.** Mọi lệnh dưới đây chưa được chạy với dữ liệu thật. Chỉ dùng Fuji testnet (chain 43113), token thử, không mainnet, không tiền thật. Không broadcast gì khi chưa có sự đồng ý của chủ dự án cho bước đó.

@@ -1,5 +1,7 @@
 # Host Windows: app + guest Linux (WSL2) cho Selkies
 
+> **Lưu ý (19/11/2026):** bảng bằng chứng bên dưới ghi trạng thái ngày 12/11, khi máy dev **chưa cài WSL**. Từ 18/11 agent đã chạy trong WSL2 (Ubuntu-24.04) và chạy trọn một phiên thuê trên Fuji; xem [PROGRESS](PROGRESS.md) mục "Hiện trạng 18/11/2026" và [README mục 3](../README.md#3-đã-kiểm-và-chưa-kiểm). Các dòng "Chưa chạy thật (chưa có WSL)" trong bảng đã cũ.
+
 Trạng thái 12/11/2026. Đây là hướng dẫn và bảng bằng chứng cho luồng **Cho thuê máy trên Windows 11** của app Cloud PC Companion. Linux cài trực tiếp vẫn là phương án bổ sung (cùng agent và script guest, không cần app).
 
 ## 1. Thiết kế

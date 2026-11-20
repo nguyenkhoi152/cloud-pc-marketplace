@@ -1,5 +1,7 @@
 # Sổ tay chạy demo Cloud PC Companion
 
+> **Lưu ý (19/11/2026):** các mục "chưa chạy lần nào", "chưa Fuji" và bảng thật/giả dưới đây ghi trạng thái ngày 12/11. Chế độ công khai (Fuji + tunnel) và host WSL2 **đã chạy thật trên một máy** từ 18/11, và có lệnh `scripts\public\start-all.ps1` dựng cả hệ thống. Trạng thái hiện hành: [README mục 3 và 4](../README.md#3-đã-kiểm-và-chưa-kiểm), [PROGRESS](PROGRESS.md).
+
 Trạng thái 12/11/2026 (mục §2.7 và §2.8 là luồng hiện hành; các mục cũ hơn giữ để tra cứu). Tài liệu này nói **cái gì chạy thật, cái gì còn giả**, cách chạy từng phần và đầu vào còn thiếu để có vòng thuê thật trên hai máy. Installer NSIS (chưa ký) đã build **và cài trên máy dev** (09/11, xem `desktop/README.md`); bản đã cài qua bộ kiểm live 28/28; chưa thử trên máy khác.
 
 ## 1. Chạy gì được ngay (không cần hạ tầng ngoài)
@@ -77,7 +79,7 @@ powershell -NoProfile -File scripts\vm\build-demo-app.ps1 -Profile tester   # b�
 powershell -NoProfile -File scripts\vm\start-demo.ps1 -Chain fuji -Tunnel -Guest wsl   # máy chủ công khai; in MÃ KẾT NỐI
 ```
 
-`-Chain fuji` không bật chuỗi Hardhat, đọc `C:\cpm-demo\fuji\server.env`, chạy web bản production; `-Tunnel` bật proxy hẹp (cổng 3100, chỉ `/api/*`) và Cloudflare quick tunnel, in địa chỉ `https://….trycloudflare.com` (đổi mỗi lần chạy). `stop-demo.ps1` tắt cả hai. Người thử làm theo [TESTER_GUIDE](TESTER_GUIDE.md); duyệt host/máy và cấp mã ghi danh bằng `npx tsx scripts/public/admin.mts`. Thật/giả: ví thử + Fuji **thật** (testnet) nhưng chưa chạy lần nào; stream qua tunnel và WSL2 **chưa thử**.
+`-Chain fuji` không bật chuỗi Hardhat, đọc `C:\cpm-demo\fuji\server.env`, chạy web bản production; `-Tunnel` bật proxy hẹp (cổng 3100, chỉ `/api/*`) và Cloudflare quick tunnel, in địa chỉ `https://….trycloudflare.com` (đổi mỗi lần chạy). `stop-demo.ps1` tắt cả hai. Người thử làm theo [TESTER_GUIDE](TESTER_GUIDE.md); từ 20/11/2026 (sau khi áp migration `20261120000001`) host tự đăng ký, tự đăng máy và tự ghi danh trong app, không cần admin; `npx tsx scripts/public/admin.mts` còn dùng để đình chỉ (`suspend-machine`) và cho các lệnh làm tay cũ. Thật/giả: ví thử + Fuji **thật** (testnet) nhưng chưa chạy lần nào; stream qua tunnel và WSL2 **chưa thử**.
 
 ## 3. Thật / giả
 

@@ -1,5 +1,7 @@
 # Cloud PC Companion — frontend desktop (bản xem trước)
 
+> **Lưu ý (19/11/2026):** phần "toàn bộ là mô phỏng" dưới đây mô tả **chế độ preview** và trạng thái lúc viết (08/11). Chế độ `live` hiện nối Supabase, Fuji và host WSL2 thật. Trạng thái hiện hành: [README mục 3](../README.md#3-đã-kiểm-và-chưa-kiểm), [PROGRESS](../docs/PROGRESS.md).
+
 Một app cho cả người thuê và người cho thuê máy. **Toàn bộ là mô phỏng**: không backend, blockchain, ví, remote/Selkies, host-agent hay cloud thật. Bản chạy trong trình duyệt là preview giao diện app, không phải sản phẩm web. Frontend dùng lại khi đóng gói Tauri sau này (router hash, không SSR).
 
 ## Chạy
@@ -29,7 +31,7 @@ Quy tắc: component không import fixtures; đọc dữ liệu qua `useAsync(se
 
 ## Chế độ preview và live
 
-`VITE_APP_MODE=preview` (mặc định, khi không có `desktop/.env.local`): toàn bộ dữ liệu mẫu có nhãn. `VITE_APP_MODE=live`: nối Supabase dev thật cho **đăng nhập, danh mục máy, đăng máy/cam kết/lịch (host), giữ máy (booking `reserved`)**; mọi mục khác hiện “Chưa nối dữ liệu thật” (không rơi về dữ liệu mẫu). Cấu hình sai ở chế độ live → màn lỗi cấu hình. Hướng dẫn: `docs/SUPABASE_DEV_SETUP.md` mục 9. Kiểm tra: `npm run check:env` (gốc repo) và `npm run smoke:supabase`.
+`VITE_APP_MODE=preview` (mặc định, khi không có `desktop/.env.local`): toàn bộ dữ liệu mẫu có nhãn. `VITE_APP_MODE=live`: nối Supabase dev thật cho **đăng nhập, danh mục máy, đăng máy/cam kết/lịch (host), giữ máy (booking `reserved`)**; mọi mục khác hiện “Tính năng đang được hoàn thiện” (không rơi về dữ liệu mẫu). Cấu hình sai ở chế độ live → màn lỗi cấu hình. Hướng dẫn: `docs/SUPABASE_DEV_SETUP.md` mục 9. Kiểm tra: `npm run check:env` (gốc repo) và `npm run smoke:supabase`.
 
 ## Vỏ native Tauri
 

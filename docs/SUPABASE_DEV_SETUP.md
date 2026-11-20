@@ -1,5 +1,7 @@
 # Cấu hình Supabase dev và áp dụng migrations
 
+> **Lưu ý (19/11/2026):** các câu "chưa chạy lên database ngoài nào" và "5 migration" là trạng thái lúc viết (08/11). Hiện có **11 migration** trong `supabase/migrations/` (áp theo thứ tự tên file); 9 cái đầu đã áp lên project dev của nhóm. Cái thứ 10 `20261120000001_self_service_listing.sql` (bỏ admin duyệt host/máy/ghi danh) người dùng báo đã áp. Cái thứ 11 `20261120000002_admin_dashboard_availability.sql` (cột `availability` online thật cho danh mục công khai và hàm `admin_delete_machine` cho màn Quản trị) **chưa áp**: dán vào SQL Editor (chạy lặp lại được; app vẫn chạy trước khi áp, chỉ là nhãn online quay về "Chưa xác minh online" và nút Xóa báo lỗi) rồi chạy `supabase/verify/post_migration_checks.sql`, hàng **1–16** phải `true`. Chỗ dưới nói "1–14" là trạng thái trước các migration này. Các bước dưới vẫn đúng để dựng project của bạn; trạng thái hiện hành: [README mục 4C](../README.md#c-tự-dựng-toàn-bộ-hệ-thống-nâng-cao-không-bắt-buộc-để-chấm).
+
 Trạng thái: **hướng dẫn chuẩn bị, chưa chạy lên database ngoài nào** (08/11/2026). Chỉ dùng cho project **dev** do bạn tạo, không có dữ liệu thật. Không dán secret vào chat, Git, log hoặc ảnh chụp màn hình.
 
 Migrations đã kiểm tra trên PGlite và trên PostgreSQL 18 thật chạy cục bộ (nhiều connection). **Chưa kiểm trên Supabase thật** — các bước dưới đây chính là lần đầu tiên, nên dừng ở lỗi đầu tiên và gửi nguyên văn thông báo lỗi.
@@ -124,9 +126,9 @@ Lần đầu nó tạo 4 tài khoản test (email `cpm-smoke-…@example.com`, m
 
 **9.6 Chạy app ở chế độ live:** dừng dev server cũ (Vite chỉ đọc `.env` lúc khởi động), rồi:
 ```powershell
-npm run dev:desktop     # http://127.0.0.1:5174, banner xanh "MÔI TRƯỜNG DEV"
+npm run dev:desktop     # http://127.0.0.1:5174 (chế độ live: chip "Testnet" ở thanh trên)
 ```
-Đăng ký/đăng nhập thật, chọn Thuê máy → Khám phá (danh mục thật; nếu trống, chưa có máy nào được duyệt — smoke test hoặc chế độ Cho thuê sẽ tạo) → Giữ máy. Chế độ Cho thuê: đăng ký host → admin duyệt (qua smoke test hoặc RPC `review_host`) → đăng máy, cam kết, lịch.
+Đăng ký/đăng nhập thật, chọn Thuê máy → Khám phá (danh mục thật; nếu trống, chưa có máy nào được duyệt — smoke test hoặc chế độ Cho thuê sẽ tạo) → Giữ máy. Chế độ Cho thuê: đăng ký host (**tự động được duyệt** sau migration `20261120000001_self_service_listing.sql`; trước migration này thì phải chờ admin qua RPC `review_host`) → tạo máy → Quét & đăng máy (máy hiện ngay, không admin) → cam kết, lịch → ghi danh thiết bị.
 
 Nếu cấu hình sai khi `VITE_APP_MODE=live`, app hiện màn lỗi cấu hình và **không** rơi về dữ liệu mẫu.
 
