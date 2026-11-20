@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getDevWallet, getLiveApi, getServerApi, serverApiConfigured } from "@/api";
 import { linkWallet, type Eip1193 } from "@/api/wallet";
 import { formatUnits, splitFeeUnits, type DeclaredSpecs, type HostMachine, type HostMachineStatus, type LiveBooking } from "@/api/live";
-import { navigate } from "@/app/router";
+import { Link, navigate } from "@/app/router";
 import { ACCESS_STATE_LABEL, BOOKING_STATE_LABEL } from "@/domain/adminData";
 import { bookingPhase, formatRemaining } from "@/domain/bookingPhase";
 import { sessionSteps, type StepView } from "@/domain/sessionSteps";
@@ -657,6 +657,7 @@ export function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => 
           <p className="text-xs text-ink-faint">{formatUnits(m.priceUnits)} PCP / gói</p>
           {m.specs.summary && <p className="mt-1 text-sm text-ink-soft">{m.specs.summary}</p>}
           <p className="mt-1 text-xs text-ink-soft" data-testid="machine-specs">{specsSummary(m.specs) ?? "Cấu hình sẽ được đọc từ máy của bạn khi bạn bấm Quét & đăng máy."}</p>
+          {specsSummary(m.specs) && <p className="mt-0.5 text-xs text-ink-faint" data-testid="machine-share-hint">Số nhân và RAM là phần bạn chia sẻ cho khách. Đổi ở <Link to="/host/setup" className="rounded font-semibold text-teal-dark hover:underline">Thiết lập & chạy máy</Link>.</p>}
         </div>
         <div className="flex items-center gap-2">
           <Badge tone={st.tone}>{st.text}</Badge>

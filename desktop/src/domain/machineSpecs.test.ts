@@ -46,6 +46,22 @@ describe("specsFromProbe", () => {
     const r = specsFromProbe(probe({ cpu_count: "4", mem_total_mb: "7942" }), { ramGb: 64, cpus: 32 });
     expect(r).toMatchObject({ ok: true, specs: { cores: 4, ramGb: 8 } });
   });
+  it("dịch vụ đang chạy ⇒ lấy mức ĐANG ÁP DỤNG của container khách (ví dụ bật bằng script: 4 GB, 2 CPU), không phải mức chọn trong app", () => {
+    const r = specsFromProbe(probe({ cpu_count: "16", mem_total_mb: "31000", agent_running: "1", applied_memory_mb: "4096", applied_cpus: "2" }), { ramGb: 12, cpus: 8 });
+    expect(r).toMatchObject({ ok: true, specs: { cores: 2, ramGb: 4 } });
+  });
+  it("dịch vụ đang chạy mà cấu hình không có giới hạn ⇒ khách dùng toàn bộ, KHÔNG rơi về mức đã chọn (chưa áp dụng)", () => {
+    const r = specsFromProbe(probe({ cpu_count: "16", mem_total_mb: "31000", agent_running: "1" }), { ramGb: 8, cpus: 4 });
+    expect(r).toMatchObject({ ok: true, specs: { cores: 16, ramGb: 30 } });
+  });
+  it("dịch vụ chưa chạy ⇒ bỏ qua mức cấu hình cũ trong tệp, dùng mức chủ máy đã chọn", () => {
+    const r = specsFromProbe(probe({ cpu_count: "16", mem_total_mb: "31000", agent_running: "0", applied_memory_mb: "4096", applied_cpus: "2" }), { ramGb: 12, cpus: 8 });
+    expect(r).toMatchObject({ ok: true, specs: { cores: 8, ramGb: 12 } });
+  });
+  it("mức đang áp dụng lớn hơn máy có (cấu hình cũ từ máy khác) ⇒ không vượt phần bản Linux thấy", () => {
+    const r = specsFromProbe(probe({ cpu_count: "4", mem_total_mb: "7942", agent_running: "1", applied_memory_mb: "65536", applied_cpus: "32" }));
+    expect(r).toMatchObject({ ok: true, specs: { cores: 4, ramGb: 8 } });
+  });
   it("thấy thiết bị GPU nhưng không đọc được tên ⇒ ghi rõ chưa đọc được tên, không khẳng định không có GPU, không xếp Game/Đồ họa", () => {
     const r = specsFromProbe(probe({ gpu_dxg: "1" }));
     expect(r).toMatchObject({ ok: true, specs: { gpu: GPU_UNNAMED, vramGb: 0, categories: ["dev"] } });

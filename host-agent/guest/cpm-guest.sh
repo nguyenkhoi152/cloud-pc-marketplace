@@ -77,6 +77,9 @@ do_probe() {
   if have node; then say "node=$(node --version 2>/dev/null | tr -d 'v')"; else say "node="; fi
   if [ -f "$AGENT" ]; then say "agent_installed=1"; say "agent_sha256=$(sha256sum "$AGENT" 2>/dev/null | cut -d' ' -f1)"; else say "agent_installed=0"; say "agent_sha256="; fi
   if [ -f "$ENVF" ]; then say "configured=1"; else say "configured=0"; fi
+  # Mức RAM (MiB) và số CPU đang cấu hình cho container khách trong tệp cấu hình của agent; thiếu thì để trống (không đoán).
+  say "applied_memory_mb=$(sed -n 's/^GUEST_DOCKER_MEMORY_MB=\([0-9]\{1,7\}\)$/\1/p' "$ENVF" 2>/dev/null | tail -n1)"
+  say "applied_cpus=$(sed -n 's/^GUEST_DOCKER_CPUS=\([0-9]\{1,3\}\)$/\1/p' "$ENVF" 2>/dev/null | tail -n1)"
   if have node && [ -f "$AGENT" ]; then
     AGENT_DATA_DIR="$DATA" node "$AGENT" status 2>/dev/null | grep -E '^(enrolled|machine_id)=' || { say "enrolled=0"; say "machine_id="; }
   else

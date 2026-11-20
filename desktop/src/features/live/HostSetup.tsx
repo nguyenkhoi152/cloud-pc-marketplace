@@ -11,7 +11,7 @@ import { splitFeeUnits, type HostMachine, type LiveBooking } from "@/api/live";
 import { BOOKING_STATE_LABEL } from "@/domain/adminData";
 import { buildSteps, gpuNote, guestError, interpretWsl, interpretWslInstall, nextStep, parseProbe, RECOMMENDED_DISTRO, type GuestProbe, type Overview, type SetupStep, type StepStatus } from "@/domain/hostEnv";
 import { startHosting, stopHosting, type TunnelInfo } from "@/domain/hostStart";
-import { cpuChoices, limitWarning, loadLimits, ramChoicesGb, saveLimits, toLimitInput, type Limits } from "@/domain/hostLimits";
+import { loadLimits, saveLimits, toLimitInput, type Limits } from "@/domain/hostLimits";
 import { hostSessionLabel } from "@/domain/sessionSteps";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/ui/badge";
@@ -21,6 +21,7 @@ import { Banner } from "@/ui/feedback";
 import { KeyValue, PageHeader, Section } from "@/ui/page";
 import { Amount } from "./Amount";
 import { defaultScanDeps, syncOwnMachineSpecs } from "./machineScan";
+import { ShareLimits, limitsSummary } from "./ShareLimits";
 
 const SHARE_KEY = "cpm.hostShare.v1";
 const TZ = "Asia/Ho_Chi_Minh";
@@ -461,25 +462,7 @@ export function HostSetup() {
                     )}
                     {current && s.action === "start" && (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <div className="w-full space-y-2" data-testid="limits">
-                          <p className="text-sm font-semibold">Giới hạn tài nguyên cho khách</p>
-                          <div className="flex flex-wrap items-end gap-3">
-                            <Field label="RAM tối đa" htmlFor="hs-ram" hint={probe?.memTotalMb ? `Bản Linux có ${(probe.memTotalMb / 1024).toFixed(1)} GB` : "Chưa đọc được RAM"}>
-                              <Select id="hs-ram" value={limits.ramGb ?? ""} onChange={(e) => setLimits({ ...limits, ramGb: e.target.value ? Number(e.target.value) : null })} className="w-40">
-                                <option value="">Không giới hạn</option>
-                                {ramChoicesGb(probe?.memTotalMb ?? null).map((g) => <option key={g} value={g}>{g} GB</option>)}
-                              </Select>
-                            </Field>
-                            <Field label="CPU tối đa" htmlFor="hs-cpu" hint={probe?.cpuCount ? `Bản Linux có ${probe.cpuCount} CPU` : "Chưa đọc được số CPU"}>
-                              <Select id="hs-cpu" value={limits.cpus ?? ""} onChange={(e) => setLimits({ ...limits, cpus: e.target.value ? Number(e.target.value) : null })} className="w-40">
-                                <option value="">Không giới hạn</option>
-                                {cpuChoices(probe?.cpuCount ?? null).map((c) => <option key={c} value={c}>{c} CPU</option>)}
-                              </Select>
-                            </Field>
-                          </div>
-                          {limitWarning(limits) && <p className="text-xs text-warn">{limitWarning(limits)}</p>}
-                          <p className="text-xs text-ink-faint">Áp dụng cho khách ở lần bắt đầu tiếp theo (RAM tính cả bộ nhớ đệm swap). Chưa giới hạn được dung lượng đĩa.</p>
-                        </div>
+                        <p className="w-full text-sm text-ink-soft" data-testid="limits-summary">Mức chia sẻ cho khách: <b>{limitsSummary(limits)}</b>. Đổi ở mục <b>Chia sẻ cho khách</b> bên dưới.</p>
                         <div className="w-full space-y-2" data-testid="share-online">
                           <Checkbox checked={share} onChange={setShare} label="Cho phép người ở mạng khác thuê máy này (chia sẻ ra Internet)" />
                           {share && (
@@ -503,6 +486,8 @@ export function HostSetup() {
               })}
             </ol>
           </Section>
+
+          {ov.backend && probe?.ok && <ShareLimits probe={probe} limits={limits} onChange={setLimits} agentRunning={!!agentRunning} />}
 
           {(agentRunning || ov.agent.state === "exited") && (
             <Section title="Nhận thuê" bordered className="mt-4">

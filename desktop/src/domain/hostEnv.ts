@@ -144,6 +144,9 @@ export interface GuestProbe {
   agentInstalled: boolean;
   agentSha256: string;
   configured: boolean;
+  /** RAM (MiB) và số CPU đang cấu hình cho container khách trong tệp cấu hình của agent; null nếu không có khoá (= không giới hạn) hoặc bản quét cũ. */
+  appliedMemoryMb: number | null;
+  appliedCpus: number | null;
   enrolled: boolean;
   machineId: string | null;
   agentRunning: boolean;
@@ -185,6 +188,8 @@ export function parseProbe(c: Captured): GuestProbe {
     agentInstalled: kv.agent_installed === "1",
     agentSha256: kv.agent_sha256 ?? "",
     configured: kv.configured === "1",
+    appliedMemoryMb: int(kv.applied_memory_mb),
+    appliedCpus: int(kv.applied_cpus),
     enrolled: kv.enrolled === "1",
     machineId: /^[0-9a-f-]{36}$/.test(kv.machine_id ?? "") ? kv.machine_id! : null,
     agentRunning: kv.agent_running === "1",

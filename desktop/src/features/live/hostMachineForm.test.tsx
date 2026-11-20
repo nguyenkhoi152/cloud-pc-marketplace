@@ -50,6 +50,13 @@ describe("thẻ máy của chủ máy", () => {
     expect(h).toContain("Intel i7 · 16 nhân · 32 GB RAM · NVIDIA GeForce RTX 3070 · 8 GB VRAM · 412 GB ổ trống");
     expect(h).toContain("Đọc lại cấu hình");
     expect(h).not.toContain("Quét &amp; đăng máy</button>");
+    // Số nhân và RAM là phần chia sẻ: nói rõ và dẫn tới chỗ đổi (Thiết lập & chạy máy).
+    expect(h).toContain('data-testid="machine-share-hint"');
+    expect(h).toContain("Số nhân và RAM là phần bạn chia sẻ cho khách");
+    expect(h).toContain('href="#/host/setup"');
+  });
+  it("máy nháp chưa có cấu hình: chưa có gợi ý về phần chia sẻ (chưa có số nào để giải thích)", () => {
+    expect(renderToString(<MachinePanel m={machine()} onChange={() => {}} />)).not.toContain("machine-share-hint");
   });
   it("giá hiển thị đúng và không cần chủ máy nhập thông số", () => {
     const h = renderToString(<MachinePanel m={machine()} onChange={() => {}} />);

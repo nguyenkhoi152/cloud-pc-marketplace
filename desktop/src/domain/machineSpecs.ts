@@ -29,8 +29,10 @@ export type SpecsResult = { ok: true; specs: DetectedSpecs } | { ok: false; reas
 export const GPU_UNNAMED = "GPU (chưa đọc được tên)";
 
 /**
- * `share`: mức RAM/CPU chủ máy chọn chia sẻ cho khách (màn Cho thuê máy). Số nhân và RAM trên thẻ là PHẦN KHÁCH ĐƯỢC DÙNG:
- * có chọn (và hợp lệ với máy này) thì lấy mức đã chọn, không chọn thì lấy toàn bộ phần bản Linux thấy. CPU/GPU/VRAM/ổ đĩa là số đọc được.
+ * Số nhân và RAM trên thẻ là PHẦN KHÁCH ĐƯỢC DÙNG. Nguồn, theo thứ tự:
+ *  1. Dịch vụ cho thuê đang chạy: mức đã cấu hình cho container khách (`applied*`; không có khoá = không giới hạn = toàn bộ phần bản Linux thấy).
+ *  2. Chưa chạy: `share`, mức RAM/CPU chủ máy chọn (hợp lệ với máy này), sẽ áp dụng ở lần bắt đầu tới; không chọn thì toàn bộ phần bản Linux thấy.
+ * CPU/GPU/VRAM/ổ đĩa là số đọc được.
  */
 export function specsFromProbe(p: GuestProbe | null, share: Limits = { ramGb: null, cpus: null }): SpecsResult {
   if (!p || !p.ok) return { ok: false, reason: "chưa quét được máy" };
@@ -41,12 +43,18 @@ export function specsFromProbe(p: GuestProbe | null, share: Limits = { ramGb: nu
   const vramGb = named && p.gpuVramMb ? Math.max(1, Math.round(p.gpuVramMb / 1024)) : 0;
   const categories: Category[] = named && vramGb >= MIN_GPU_VRAM_GB ? ["game", "graphics", "dev"] : ["dev"];
   const limit = toLimitInput(share, p.memTotalMb, p.cpuCount);
+  // Khi dịch vụ cho thuê ĐANG CHẠY, mức đã cấu hình cho container khách là sự thật về phần khách được dùng (có thể khác mức đang chọn trong app,
+  // ví dụ bật bằng script); chưa chạy thì dùng mức chủ máy đã chọn (sẽ áp dụng ở lần bắt đầu tới). Không vượt quá phần bản Linux thấy.
+  // Đang chạy mà cấu hình không có khoá giới hạn nghĩa là khách được dùng toàn bộ: KHÔNG rơi về mức "đã chọn" (chưa áp dụng) để khỏi nói sai.
+  const running = p.agentRunning;
+  const cores = running ? Math.min(p.appliedCpus ?? p.cpuCount, p.cpuCount) : (limit.cpus ?? p.cpuCount);
+  const memMb = running ? Math.min(p.appliedMemoryMb ?? p.memTotalMb, p.memTotalMb) : (limit.memoryMb ?? p.memTotalMb);
   return {
     ok: true,
     specs: {
       cpu: p.cpuModel.trim(),
-      cores: limit.cpus ?? p.cpuCount,
-      ramGb: limit.memoryMb ? Math.max(1, Math.round(limit.memoryMb / 1024)) : Math.max(1, Math.round(p.memTotalMb / 1024)),
+      cores,
+      ramGb: Math.max(1, Math.round(memMb / 1024)),
       gpu,
       vramGb,
       storageGb: Math.max(0, p.diskFreeGb ?? 0),
