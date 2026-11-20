@@ -149,7 +149,7 @@ Máy chủ API, worker và máy cho thuê **chạy trên PC của nhóm**, nên 
 
 <!-- TODO(chủ repo): thêm liên kết video demo, slide, bộ cài (kèm SHA256SUMS.txt) và liên hệ đặt lịch thử. -->
 
-1. Cài `Cloud PC Companion_0.2.1_x64-setup.exe` (Windows 11): tải ở mục **Releases** của repo này, kèm `SHA256SUMS.txt`; hoặc nhóm gửi trực tiếp. Bộ cài **chưa ký số** (`Get-AuthenticodeSignature` báo `NotSigned`), nên tuỳ máy bạn sẽ gặp một trong hai:
+1. Cài `Cloud PC Companion_0.2.2_x64-setup.exe` (Windows 11): tải ở mục **Releases** của repo này, kèm `SHA256SUMS.txt`; hoặc nhóm gửi trực tiếp. Bộ cài **chưa ký số** (`Get-AuthenticodeSignature` báo `NotSigned`), nên tuỳ máy bạn sẽ gặp một trong hai:
    - **SmartScreen** ("Windows protected your PC"): đối chiếu SHA-256 trong `SHA256SUMS.txt` bằng `Get-FileHash <tệp> -Algorithm SHA256`, rồi chọn *More info → Run anyway*.
    - **Smart App Control** (thường bật sẵn trên máy Windows 11 mới cài): **chặn hẳn, không có nút bỏ qua và không cho phép riêng từng app**. Chỉ có cách tắt trong *Windows Security → App & browser control → Smart App Control settings → Off*. Trên bản Windows cũ, đã tắt thì **không bật lại được nếu không cài lại Windows** (bản mới hơn có thể bật lại). Nếu không muốn tắt, hãy dùng máy khác, xem mức A hoặc video.
 2. Bấm **liên kết kết nối** nhóm gửi (`https://….trycloudflare.com/api/connect`), chọn *Mở*, rồi **Kết nối** ở hộp xác nhận. Nếu không được, dán địa chỉ vào **Cài đặt → Kết nối máy chủ**. Chỉ dán địa chỉ từ người bạn tin: app gửi phiên đăng nhập của bạn tới đó.
