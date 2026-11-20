@@ -1,6 +1,6 @@
 -- Kiểm tra SAU KHI áp dụng migrations lên Supabase. CHỈ ĐỌC: một câu SELECT duy nhất, không ghi gì.
 -- Dán vào SQL Editor của project dev, chạy, gửi nguyên bảng kết quả (không chứa secret) cho writer/reviewer.
--- Hàng 1–9: kiểm migration 000001–000002; hàng 10–14: kiểm migration 000003–000006. Hàng 15–16 chỉ là thông tin.
+-- Hàng 1–9: kiểm migration 000001–000002; hàng 10–14: kiểm migration 000003–000006; hàng 15: kiểm migration 20261120000001 (tự đăng máy); hàng 16: kiểm migration 20261120000002 (dashboard admin, availability). Hàng 17–18 chỉ là thông tin.
 -- Cột `ok`: true nếu khớp kỳ vọng. Mọi dòng phải là true. Dòng `info` chỉ để ghi lại, không phải đạt/trượt.
 
 with
@@ -28,8 +28,8 @@ checks as (
                        or exists (select 1 from aclexplode(proacl) a where a.grantee = 0 and a.privilege_type = 'EXECUTE')
                        or has_function_privilege('anon', oid, 'execute')), 'không có')
   union all
-  select 3, 'hàm authenticated gọi được (9 hàm)',
-         'booking_is_live, is_admin, is_approved_host, my_machine_health, reserve_machine, review_host, review_machine, schedule_windows, submit_machine_for_review',
+  select 3, 'hàm authenticated gọi được (10 hàm)',
+         'admin_delete_machine, booking_is_live, is_admin, is_approved_host, my_machine_health, reserve_machine, review_host, review_machine, schedule_windows, submit_machine_for_review',
          (select names from auth_fns)
   union all
   select 4, 'quyền bảng nhạy cảm cho anon/authenticated', 'không có',
@@ -80,15 +80,28 @@ checks as (
                     where schemaname = 'public'
                       and (has_sequence_privilege('anon', 'public.' || quote_ident(sequencename), 'USAGE,SELECT,UPDATE')
                         or has_sequence_privilege('authenticated', 'public.' || quote_ident(sequencename), 'USAGE,SELECT,UPDATE'))), 'không có')
+  union all
+  select 15, 'migration 20261120000001 (tự đăng máy, không admin): host mặc định approved; bỏ trigger machines_spec_change; đăng máy tự duyệt; chủ máy tự ghi danh',
+         'approved; không có trigger; có publish_machine; chủ máy tự ghi danh',
+         coalesce((select replace(split_part(column_default, '::', 1), '''', '') from information_schema.columns
+                    where table_schema = 'public' and table_name = 'host_profiles' and column_name = 'status'), '?')
+         || '; ' || case when exists (select 1 from pg_trigger where not tgisinternal and tgname = 'machines_spec_change') then 'còn trigger' else 'không có trigger' end
+         || '; ' || case when pg_get_functiondef('public.submit_machine_for_review(uuid)'::regprocedure) like '%publish_machine%' then 'có publish_machine' else 'chưa tự đăng' end
+         || '; ' || case when pg_get_functiondef('public.create_enrollment(uuid,uuid,bytea,integer)'::regprocedure) like '%m.owner_id = p_admin%' then 'chủ máy tự ghi danh' else 'chỉ admin ghi danh' end
+  union all
+  select 16, 'migration 20261120000002 (dashboard admin): public_machines có cột availability; có hàm admin_delete_machine',
+         'availability; admin_delete_machine',
+         case when exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'public_machines' and column_name = 'availability') then 'availability' else 'thiếu cột availability' end
+         || '; ' || case when to_regprocedure('public.admin_delete_machine(uuid)') is not null then 'admin_delete_machine' else 'thiếu hàm admin_delete_machine' end
 )
 select o, name, expected, actual,
        case when name = 'seed contract_config / policy_versions' then actual ~ '^1 config; [1-9][0-9]* policy$'
             else actual = expected end as ok
   from checks
 union all
-select 15, 'info: phiên bản Postgres', '(ghi lại, cần >= 13)', version(), null
+select 17, 'info: phiên bản Postgres', '(ghi lại, cần >= 13)', version(), null
 union all
-select 16, 'info: số migration CLI đã ghi nhận', '(0 nếu dán vào SQL Editor)',
+select 18, 'info: số migration CLI đã ghi nhận', '(0 nếu dán vào SQL Editor)',
        case when to_regclass('supabase_migrations.schema_migrations') is null then '0 (không có bảng)'
             else (xpath('/row/c/text()', query_to_xml('select count(*) as c from supabase_migrations.schema_migrations', false, true, '')))[1]::text end, null
 order by 1;

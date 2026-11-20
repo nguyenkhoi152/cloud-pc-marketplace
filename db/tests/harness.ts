@@ -36,6 +36,20 @@ export async function createDb(): Promise<PGlite> {
   return db;
 }
 
+/** DB mới đã áp các migration TRƯỚC `boundary` (tên file); `applyRest` áp phần còn lại. Dùng để thử backfill dữ liệu cũ. */
+export async function createDbStagedAt(boundary: string): Promise<{ db: PGlite; applyRest: () => Promise<void> }> {
+  const db = new PGlite();
+  await db.exec(SHIM);
+  const files = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
+  for (const f of files.filter((x) => x < boundary)) await db.exec(readFileSync(path.join(migrationsDir, f), "utf8"));
+  return {
+    db,
+    applyRest: async () => {
+      for (const f of files.filter((x) => x >= boundary)) await db.exec(readFileSync(path.join(migrationsDir, f), "utf8"));
+    },
+  };
+}
+
 /** Chạy fn với role/JWT giả lập, luôn trả về superuser sau đó. */
 export async function as<T>(db: PGlite, ctx: Ctx, fn: () => Promise<T>): Promise<T> {
   const sub = typeof ctx === "object" ? ctx.user : "";

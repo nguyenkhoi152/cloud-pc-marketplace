@@ -1,6 +1,6 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { as, createDb, linkWallet, makeAdmin, makeApprovedHost, makeMachine, newUser, renterWithWallet, reserve } from "./harness";
+import { as, createDb, createDbStagedAt, linkWallet, makeAdmin, makeApprovedHost, makeMachine, newUser, renterWithWallet, reserve } from "./harness";
 
 let db: PGlite;
 beforeAll(async () => { db = await createDb(); }, 60_000);
@@ -13,9 +13,9 @@ describe("anon / dữ liệu công khai", () => {
     const host = await makeApprovedHost(db);
     const ok = await makeMachine(db, host);
     const draft = await makeMachine(db, host, { status: "draft" });
-    const pendingHost = await newUser(db, "ph");
-    await db.query("insert into public.host_profiles (user_id) values ($1)", [pendingHost]);
-    const hidden = await makeMachine(db, pendingHost);
+    const suspendedHost = await newUser(db, "ph");
+    await db.query("insert into public.host_profiles (user_id, status) values ($1, 'suspended')", [suspendedHost]);
+    const hidden = await makeMachine(db, suspendedHost);
 
     const rows = await as(db, "anon", async () => (await db.query<Record<string, unknown>>("select * from public.public_machines")).rows);
     const ids = rows.map((r) => r.id);
@@ -89,15 +89,8 @@ describe("host và phân quyền", () => {
     await as(db, { user: host }, () => db.query("insert into public.host_commitments (machine_id, starts_at, ends_at) values ($1, now(), now() + interval '4 hours')", [m]));
   });
 
-  it("sửa thông số máy đã duyệt đưa máy về review và biến khỏi danh sách công khai", async () => {
-    const host = await makeApprovedHost(db);
-    const m = await makeMachine(db, host);
-    await as(db, { user: host }, () => db.query(`update public.machines set declared_specs = '{"ramGb":128}' where id = $1`, [m]));
-    const s = await db.query<{ status: string }>("select status from public.machines where id = $1", [m]);
-    expect(s.rows[0]!.status).toBe("review");
-    const pub = await as(db, "anon", async () => (await db.query("select id from public.public_machines where id = $1", [m])).rows);
-    expect(pub).toHaveLength(0);
-  });
+  // (Đã bỏ test "sửa thông số đưa máy về review": migration 20261120000001 chủ ý bỏ hành vi đó vì không còn admin duyệt lại.
+  //  Test thay thế: "sửa thông số máy đã đăng KHÔNG đẩy máy về chờ duyệt" ở nhóm admin / role.)
 
   it("giá máy không âm, không 0, không vượt supply cap (kể cả host cập nhật)", async () => {
     const host = await makeApprovedHost(db);
@@ -125,21 +118,85 @@ describe("admin / role", () => {
     await expect(as(db, { user: u }, () => db.query("update public.host_profiles set status = 'approved' where user_id = $1", [u]))).rejects.toThrow(denied);
   });
 
-  it("admin duyệt host rồi máy; có audit; host mới tạo/submit được máy", async () => {
+  const GOOD_SPECS = JSON.stringify({ cores: 8, ramGb: 16, gpu: null, categories: ["dev"] });
+  const newHostMachine = async (u: string, key: string, specs = GOOD_SPECS) =>
+    as(db, { user: u }, async () =>
+      (await db.query<{ id: string }>("insert into public.machines (owner_id, machine_key, name, declared_specs, price_units) values ($1, $2, 'x', $3::jsonb, 10) returning id", [u, key, specs])).rows[0]!.id);
+
+  it("KHÔNG cần admin: host tự đăng ký là approved, tự đăng máy và máy hiện công khai; có audit cho admin", async () => {
     const admin = await makeAdmin(db);
     const u = await newUser(db, "newhost");
     await as(db, { user: u }, () => db.query("insert into public.host_profiles (user_id) values ($1)", [u]));
-    await as(db, { user: admin }, () => db.query("select public.review_host($1, 'approved')", [u]));
-    const m = await as(db, { user: u }, async () =>
-      (await db.query<{ id: string }>("insert into public.machines (owner_id, machine_key, name, price_units) values ($1, 'new-host-machine', 'x', 10) returning id", [u])).rows[0]!.id);
+    const hp = await db.query<{ status: string }>("select status from public.host_profiles where user_id = $1", [u]);
+    expect(hp.rows[0]!.status).toBe("approved");
+    const m = await newHostMachine(u, "new-host-machine");
+    expect((await db.query<{ status: string }>("select status from public.machines where id = $1", [m])).rows[0]!.status).toBe("draft");
     await as(db, { user: u }, () => db.query("select public.submit_machine_for_review($1)", [m]));
-    await as(db, { user: admin }, () => db.query("select public.review_machine($1, 'approved')", [m]));
-    const st = await db.query<{ status: string }>("select status from public.machines where id = $1", [m]);
-    expect(st.rows[0]!.status).toBe("approved");
-    const logs = await as(db, { user: admin }, async () => (await db.query("select action from public.audit_logs")).rows);
-    expect(logs.length).toBeGreaterThanOrEqual(2);
+    expect((await db.query<{ status: string }>("select status from public.machines where id = $1", [m])).rows[0]!.status).toBe("approved");
+    const pub = await as(db, "anon", async () => (await db.query("select id from public.public_machines where id = $1", [m])).rows);
+    expect(pub).toHaveLength(1);
+    const logs = await as(db, { user: admin }, async () => (await db.query<{ action: string }>("select action from public.audit_logs where resource = $1", ["machine:" + m])).rows);
+    expect(logs.map((l) => l.action)).toContain("publish_machine");
     const nonAdminLogs = await as(db, { user: u }, async () => (await db.query("select * from public.audit_logs")).rows);
     expect(nonAdminLogs).toHaveLength(0);
+  });
+
+  it("đăng máy chỉ nhận thông số hợp lệ (cores và ramGb là số >= 1); thiếu hoặc sai kiểu bị từ chối và máy giữ nguyên draft", async () => {
+    const u = await makeApprovedHost(db);
+    const cases: [string, string][] = [
+      ["bad-specs-empty-1", "{}"],
+      ["bad-specs-nocore-1", JSON.stringify({ ramGb: 16 })],
+      ["bad-specs-zero-ram", JSON.stringify({ cores: 4, ramGb: 0 })],
+      ["bad-specs-string-1", JSON.stringify({ cores: "8", ramGb: 16 })],
+      ["bad-specs-array-1", "[]"],
+    ];
+    for (const [key, specs] of cases) {
+      const m = await newHostMachine(u, key, specs);
+      await expect(as(db, { user: u }, () => db.query("select public.submit_machine_for_review($1)", [m])), key).rejects.toThrow(/invalid_request/);
+      expect((await db.query<{ status: string }>("select status from public.machines where id = $1", [m])).rows[0]!.status).toBe("draft");
+    }
+  });
+
+  it("không đăng hộ người khác; user không phải host không đăng được; máy bị admin đình chỉ không tự đăng lại được", async () => {
+    const admin = await makeAdmin(db);
+    const u = await makeApprovedHost(db);
+    const other = await makeApprovedHost(db);
+    const stranger = await newUser(db, "nohost");
+    const m = await newHostMachine(u, "owner-only-0001");
+    await expect(as(db, { user: other }, () => db.query("select public.submit_machine_for_review($1)", [m]))).rejects.toThrow(/unavailable/);
+    await expect(as(db, { user: stranger }, () => db.query("select public.submit_machine_for_review($1)", [m]))).rejects.toThrow(/forbidden/);
+    await as(db, { user: u }, () => db.query("select public.submit_machine_for_review($1)", [m]));
+    await as(db, { user: admin }, () => db.query("select public.review_machine($1, 'suspended')", [m]));
+    await expect(as(db, { user: u }, () => db.query("select public.submit_machine_for_review($1)", [m]))).rejects.toThrow(/unavailable/);
+    expect((await db.query<{ status: string }>("select status from public.machines where id = $1", [m])).rows[0]!.status).toBe("suspended");
+  });
+
+  it("sửa thông số máy đã đăng KHÔNG đẩy máy về chờ duyệt (không còn admin để duyệt lại)", async () => {
+    const u = await makeApprovedHost(db);
+    const m = await newHostMachine(u, "edit-specs-0001");
+    await as(db, { user: u }, () => db.query("select public.submit_machine_for_review($1)", [m]));
+    await as(db, { user: u }, () => db.query("update public.machines set declared_specs = $2::jsonb where id = $1", [m, JSON.stringify({ cores: 16, ramGb: 32 })]));
+    expect((await db.query<{ status: string }>("select status from public.machines where id = $1", [m])).rows[0]!.status).toBe("approved");
+  });
+
+  it("migration backfill: host pending và máy review có từ trước được đăng luôn", async () => {
+    const { db: old, applyRest } = await createDbStagedAt("20261120000001_self_service_listing.sql");
+    try {
+      // Dữ liệu theo luật cũ: host pending (default cũ), máy đang chờ duyệt, và một host bị đình chỉ phải GIỮ NGUYÊN.
+      const u = await newUser(old, "legacy");
+      await old.query("insert into public.host_profiles (user_id) values ($1)", [u]);
+      expect((await old.query<{ status: string }>("select status from public.host_profiles where user_id = $1", [u])).rows[0]!.status).toBe("pending");
+      const m = await makeMachine(old, u, { status: "review" });
+      const bad = await newUser(old, "banned");
+      await old.query("insert into public.host_profiles (user_id, status) values ($1, 'suspended')", [bad]);
+      await applyRest();
+      await applyRest(); // áp lần hai (dán hai lần ở SQL Editor) không được lỗi và không đổi kết quả
+      expect((await old.query<{ status: string }>("select status from public.host_profiles where user_id = $1", [u])).rows[0]!.status).toBe("approved");
+      expect((await old.query<{ status: string }>("select status from public.machines where id = $1", [m])).rows[0]!.status).toBe("approved");
+      expect((await old.query<{ status: string }>("select status from public.host_profiles where user_id = $1", [bad])).rows[0]!.status).toBe("suspended");
+    } finally {
+      await old.close();
+    }
   });
 
   it("host bị suspend không còn thuê được/hiển thị", async () => {
@@ -201,7 +258,7 @@ describe("booking RLS", () => {
     expect(r.rows.filter((x) => x.anon).map((x) => x.fn), "anon gọi được hàm").toEqual([]);
     const authenticated = r.rows.filter((x) => x.auth).map((x) => x.fn.replace(/^[a-z_]+\./, "").replace(/\(.*/, "")).sort();
     expect(authenticated).toEqual(
-      ["booking_is_live", "is_admin", "is_approved_host", "my_machine_health", "reserve_machine", "review_host", "review_machine", "schedule_windows", "submit_machine_for_review"].sort(),
+      ["admin_delete_machine", "booking_is_live", "is_admin", "is_approved_host", "my_machine_health", "reserve_machine", "review_host", "review_machine", "schedule_windows", "submit_machine_for_review"].sort(),
     );
   });
 

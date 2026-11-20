@@ -89,14 +89,38 @@ describe("enrollment và heartbeat thiết bị", () => {
   const redeem = (tok: string, cred: string) => sv(() => db.query("select public.redeem_enrollment($1,$2)", [sha(tok), sha(cred)]));
   const beat = (cred: string, n: number) => sv(() => db.query("select public.record_heartbeat($1,$2)", [sha(cred), n]));
 
-  it("chỉ admin tạo enrollment, máy phải approved, TTL trong giới hạn", async () => {
+  it("admin HOẶC chủ máy (host approved) tạo enrollment; người khác thì không; máy phải approved, TTL trong giới hạn", async () => {
     const { admin, host, m } = await setup();
-    await expect(enroll(host, m, "t1")).rejects.toThrow(/forbidden/);
+    const otherHost = await makeApprovedHost(db);
+    const plain = await newUser(db);
+    await expect(enroll(otherHost, m, "t1")).rejects.toThrow(/forbidden/); // host khác, không sở hữu máy
+    await expect(enroll(plain, m, "t1b")).rejects.toThrow(/forbidden/);
     await expect(enroll(admin, m, "t2", 10)).rejects.toThrow(/invalid_request/);
-    await expect(enroll(admin, m, "t3", 99999)).rejects.toThrow(/invalid_request/);
+    await expect(enroll(host, m, "t2b", 99999)).rejects.toThrow(/invalid_request/);
     const draft = await makeMachine(db, host, { status: "draft" });
     await expect(enroll(admin, draft, "t4")).rejects.toThrow(/unavailable/);
-    await enroll(admin, m, "t5");
+    await expect(enroll(host, draft, "t4b")).rejects.toThrow(/unavailable/); // chưa đăng thì chưa ghi danh được, kể cả chủ máy
+    await enroll(host, m, "t5"); // chủ máy: không cần admin
+    await db.query("update public.host_profiles set status = 'suspended' where user_id = $1", [host]);
+    await expect(enroll(host, m, "t6")).rejects.toThrow(/forbidden/); // host bị đình chỉ mất quyền tự ghi danh
+    await enroll(admin, m, "t7"); // admin vẫn làm được
+  });
+
+  it("chủ máy tự thu hồi thiết bị của MÁY MÌNH; người khác và host bị đình chỉ không thu hồi được; admin vẫn được", async () => {
+    const { admin, host, m } = await setup();
+    const otherHost = await makeApprovedHost(db);
+    const revoke = (who: string) => sv(() => db.query("select public.revoke_device($1,$2)", [who, m]));
+    await enroll(host, m, "tok-own");
+    await redeem("tok-own", "cred-own");
+    expect((await beat("cred-own", 1)).rows).toHaveLength(1);
+    await expect(revoke(otherHost)).rejects.toThrow(/forbidden/);
+    expect((await beat("cred-own", 2)).rows).toHaveLength(1); // bị chặn thì không thu hồi gì
+    await revoke(host);
+    await expect(beat("cred-own", 3)).rejects.toThrow(/invalid_heartbeat/);
+    await enroll(host, m, "tok-own-2"); // ghi danh lại sau khi thu hồi
+    await db.query("update public.host_profiles set status = 'suspended' where user_id = $1", [host]);
+    await expect(revoke(host)).rejects.toThrow(/forbidden/);
+    await revoke(admin);
   });
 
   it("client (kể cả admin/host) không đọc bảng hay gọi hàm enrollment/heartbeat", async () => {

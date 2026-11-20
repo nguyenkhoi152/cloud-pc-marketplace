@@ -15,9 +15,9 @@ describe("supabase/verify/post_migration_checks.sql (chạy trên PGlite đã á
     expect(sql.replace(/--.*$/gm, "").replace(/'[^']*'/g, "''")).not.toMatch(/\b(insert|update|delete|drop|alter|create|grant|revoke|truncate)\b/i);
     const r = await db.query<{ o: number; name: string; expected: string; actual: string; ok: boolean | null }>(sql);
     const checks = r.rows.filter((x) => x.ok !== null);
-    expect(checks.map((x) => x.o)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    expect(checks.map((x) => x.o)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     expect(checks.filter((x) => !x.ok), JSON.stringify(checks.filter((x) => !x.ok), null, 1)).toEqual([]);
-    expect(r.rows.map((x) => x.o)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    expect(r.rows.map((x) => x.o)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]);
   });
 
   it("phát hiện lỗi cấu hình: hàm cho PUBLIC gọi và bảng thiếu RLS", async () => {
