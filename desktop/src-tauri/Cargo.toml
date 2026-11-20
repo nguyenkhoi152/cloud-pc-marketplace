@@ -1,6 +1,6 @@
 [package]
 name = "cloud-pc-companion"
-version = "0.2.4"
+version = "0.2.5"
 description = "Cloud PC Companion (vỏ native; UI ở ../src)"
 edition = "2021"
 rust-version = "1.90"
