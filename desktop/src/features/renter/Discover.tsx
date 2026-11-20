@@ -34,7 +34,12 @@ export function Discover() {
   const locations = useMemo(() => (live && state.status === "ready" ? [...new Set(state.data.map((m) => m.location))].sort() : LOCATIONS), [live, state]);
 
   const list = useMemo(() => (state.status === "ready" ? filterMachines(state.data, filters) : []), [state, filters]);
-  const dirty = filters.query || filters.maxPrice !== null || filters.minRam || filters.minVram || filters.location !== "all" || filters.workspaceOnly || filters.rentableNow;
+  const dirty = filters.query || filters.maxPrice !== null || filters.minRam || filters.minVram || filters.location !== "all" || filters.workspaceOnly || filters.rentableNow || (live && !filters.hideOffline);
+  // Máy khớp mọi bộ lọc khác nhưng đang bị ẩn vì offline (để nói rõ cho người thuê, không để họ tưởng danh mục trống).
+  const hiddenOffline = useMemo(
+    () => (state.status === "ready" && filters.hideOffline ? filterMachines(state.data, { ...filters, hideOffline: false }).length - list.length : 0),
+    [state, filters, list],
+  );
 
   return (
     <div className={compare.length ? "pb-16" : ""}>
@@ -87,6 +92,7 @@ export function Discover() {
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-5">
           <Checkbox checked={filters.workspaceOnly} onChange={(v) => set({ workspaceOnly: v })} label="Hỗ trợ lưu workspace" />
+          {live && <Checkbox checked={!filters.hideOffline} onChange={(v) => set({ hideOffline: !v })} label="Hiện cả máy đang offline" />}
           {!live && <Checkbox checked={filters.rentableNow} onChange={(v) => set({ rentableNow: v })} label="Thuê được ngay bây giờ" />}
         </div>
         <div className="flex items-center gap-3">
@@ -104,7 +110,7 @@ export function Discover() {
       </div>
 
       <p className="mt-3 text-sm text-ink-soft" aria-live="polite">
-        {state.status === "ready" ? <>Hiển thị <b className="num text-ink">{list.length}</b> / {state.data.length} máy trong danh mục <b>{filters.category === "all" ? "Tất cả" : CATEGORY_LABEL[filters.category as Category]}</b>. Tích ô “So sánh” ở 2–3 máy để xem cạnh nhau.</> : " "}
+        {state.status === "ready" ? <>Hiển thị <b className="num text-ink">{list.length}</b> / {state.data.length} máy trong danh mục <b>{filters.category === "all" ? "Tất cả" : CATEGORY_LABEL[filters.category as Category]}</b>.{hiddenOffline > 0 && <> Đang ẩn <b className="num text-ink">{hiddenOffline}</b> máy offline.</>} Tích ô “So sánh” ở 2–3 máy để xem cạnh nhau.</> : " "}
       </p>
 
       <div className="mt-2">
@@ -115,7 +121,11 @@ export function Discover() {
           empty={<EmptyState icon={Cpu} title="Chưa có máy nào được đăng">{live ? "Chưa có máy nào được đăng." : "Trong kịch bản này, danh sách máy đang trống."} Khi có host đăng máy, máy sẽ hiện ở đây.</EmptyState>}
         >
           {() =>
-            list.length === 0 ? (
+            list.length === 0 && hiddenOffline > 0 ? (
+              <EmptyState icon={Cpu} title="Hiện chưa có máy nào online" action={<Button onClick={() => set({ hideOffline: false })}>Hiện cả máy đang offline</Button>}>
+                Có {hiddenOffline} máy khớp bộ lọc nhưng đang offline (chủ máy chưa bật nhận thuê). Máy tự hiện lại ngay khi chủ máy online.
+              </EmptyState>
+            ) : list.length === 0 ? (
               <EmptyState icon={Search} title="Không có máy phù hợp bộ lọc" action={<Button onClick={() => reset()}>Xóa bộ lọc</Button>}>
                 Thử nới giá, VRAM hoặc đổi sang danh mục khác.
               </EmptyState>

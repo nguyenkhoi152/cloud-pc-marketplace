@@ -10,6 +10,8 @@ export interface MachineFilters {
   location: string;
   workspaceOnly: boolean;
   rentableNow: boolean;
+  /** Ẩn máy đang offline (chỉ `offline`: máy `unverified` là không biết, không đoán là offline nên vẫn hiện). */
+  hideOffline: boolean;
   sort: "price" | "ram" | "vram" | "window";
 }
 
@@ -22,6 +24,7 @@ export const DEFAULT_FILTERS: MachineFilters = {
   location: "all",
   workspaceOnly: false,
   rentableNow: false,
+  hideOffline: false,
   sort: "price",
 };
 
@@ -43,6 +46,7 @@ export function filterMachines(machines: Machine[], f: MachineFilters): Machine[
     if (f.location !== "all" && m.location !== f.location) return false;
     if (f.workspaceOnly && !m.workspace) return false;
     if (f.rentableNow && maxBookableMinutes(m) === 0) return false;
+    if (f.hideOffline && m.state === "offline") return false;
     return true;
   });
   const key: Record<MachineFilters["sort"], (m: Machine) => number> = {

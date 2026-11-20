@@ -179,6 +179,20 @@ describe("lọc máy", () => {
     expect(filterMachines(list, { ...f, query: "mảy" }).length).toBe(0);
     expect(filterMachines(list, { ...f, maxPrice: 10 }).map((m) => m.id)).toEqual(["b"]);
   });
+  it("ẩn máy offline: chỉ trạng thái offline bị ẩn (busy, online và unverified = không biết vẫn hiện); tắt bộ lọc thì hiện đủ; mặc định không ẩn", () => {
+    const states = (["online", "busy", "offline", "unverified", "available", "blocked"] as const).map((s) => machine({ id: s, name: s, state: s }));
+    const f = { ...DEFAULT_FILTERS, category: "all" as const };
+    expect(DEFAULT_FILTERS.hideOffline).toBe(false); // bản xem trước giữ nguyên
+    expect(filterMachines(states, f)).toHaveLength(6);
+    const hidden = filterMachines(states, { ...f, hideOffline: true }).map((m) => m.id);
+    expect(hidden).not.toContain("offline");
+    expect(hidden.sort()).toEqual(["available", "blocked", "busy", "online", "unverified"]);
+    // Kết hợp với bộ lọc khác: số máy "đang bị ẩn" (khớp mọi lọc khác nhưng offline) tính đúng.
+    const onlyOffline = [machine({ id: "x", state: "offline", pricePer15: 5 }), machine({ id: "y", state: "offline", pricePer15: 50 })];
+    const cheap = { ...f, maxPrice: 10 };
+    expect(filterMachines(onlyOffline, { ...cheap, hideOffline: true })).toHaveLength(0);
+    expect(filterMachines(onlyOffline, { ...cheap, hideOffline: false }).map((m) => m.id)).toEqual(["x"]);
+  });
 });
 
 describe("tương thích host", () => {
