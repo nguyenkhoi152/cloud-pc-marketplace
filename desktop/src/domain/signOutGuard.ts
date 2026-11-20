@@ -13,6 +13,8 @@ export interface SignOutDeps {
   available(): boolean;
   overview(): Promise<Pick<Overview, "backend" | "agent">>;
   probe(): Promise<Captured>;
+  /** Mã các máy thuộc tài khoản đang đăng nhập. Dùng để KHÔNG dừng nhầm máy của chủ máy khi người khác đăng xuất trên cùng PC. */
+  ownMachineIds(): Promise<string[]>;
   agentStop(): Promise<Captured>;
   tunnelStop(): Promise<void>;
 }
@@ -32,8 +34,10 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | typeof TIMEOUT> 
 }
 
 /**
- * Agent có đang chạy không? Nhìn cả tiến trình do app quản lý lẫn agent chạy nền độc lập trong bản Linux (do script khởi động),
- * vì agent loại sau không nằm trong `overview().agent`.
+ * Tài khoản đang đăng xuất có đang nhận thuê trên PC này không? Nhìn cả tiến trình do app quản lý lẫn agent chạy nền độc lập
+ * trong bản Linux (do script khởi động), vì agent loại sau không nằm trong `overview().agent`.
+ * Agent chạy nền chỉ tính là của tài khoản này khi máy nó ghi danh nằm trong các máy của tài khoản: người thuê (hoặc host khác)
+ * đăng xuất trên PC của chủ máy KHÔNG được dừng máy của chủ máy. Không tra cứu được ⇒ coi là của mình (hỏi lại cho chắc).
  */
 export async function hostingStatus(d: SignOutDeps, timeoutMs = 20_000): Promise<HostingStatus> {
   if (!d.available()) return "none";
@@ -41,11 +45,14 @@ export async function hostingStatus(d: SignOutDeps, timeoutMs = 20_000): Promise
     const r = await withTimeout(
       (async (): Promise<HostingStatus> => {
         const o = await d.overview();
-        if (o.agent.state === "running") return "running";
+        if (o.agent.state === "running") return "running"; // do CHÍNH app này bật, nên là phiên của người đang dùng app
         if (!o.backend) return "none"; // chưa chọn bản Linux ⇒ chưa từng nhận thuê trên máy này
         const p = parseProbe(await d.probe());
         if (!p.ok) return "unknown";
-        return p.agentRunning ? "running" : "none";
+        if (!p.agentRunning) return "none";
+        if (!p.machineId) return "running"; // đang chạy nhưng không rõ máy nào: không đoán là của người khác
+        const mine = await d.ownMachineIds().then((ids) => ids.includes(p.machineId!), () => true);
+        return mine ? "running" : "none";
       })(),
       timeoutMs,
     );

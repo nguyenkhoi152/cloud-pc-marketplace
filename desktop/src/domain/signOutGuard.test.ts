@@ -3,7 +3,9 @@ import type { Captured } from "./hostEnv";
 import { hostingStatus, SIGN_OUT_WARNINGS, stopForSignOut, type SignOutDeps } from "./signOutGuard";
 
 const cap = (code: number, stdout = "", stderr = ""): Captured => ({ code, stdout, stderr });
-const probeOut = (agentRunning: boolean) => cap(0, `docker_daemon=1\nagent_running=${agentRunning ? 1 : 0}\nprobe_done=1\n`);
+const MINE = "11111111-2222-3333-4444-555555555555";
+const OTHER = "99999999-8888-7777-6666-555555555555";
+const probeOut = (agentRunning: boolean, machineId: string = MINE) => cap(0, `docker_daemon=1\nmachine_id=${machineId}\nagent_running=${agentRunning ? 1 : 0}\nprobe_done=1\n`);
 const BACKEND = { kind: "wsl", distro: "Ubuntu-24.04", label: null, target: null, agentApiBase: null, gatewayBind: "127.0.0.1" } as const;
 const proc = (state: "never" | "running" | "exited") => ({ state, exitCode: null, startedMs: null, logTail: "" });
 
@@ -14,6 +16,7 @@ function deps(over: Partial<SignOutDeps> = {}): SignOutDeps & { calls: string[] 
     available: () => true,
     overview: async () => ({ backend: BACKEND, agent: proc("never") }),
     probe: async () => { calls.push("probe"); return probeOut(false); },
+    ownMachineIds: async () => [MINE],
     agentStop: async () => { calls.push("agentStop"); return cap(0, "stop_done=1\n"); },
     tunnelStop: async () => { calls.push("tunnelStop"); },
     ...over,
@@ -34,6 +37,16 @@ describe("hostingStatus: máy này có đang nhận thuê không?", () => {
   it("agent chạy nền độc lập trong bản Linux (do script khởi động, app không quản lý) ⇒ vẫn là running: đây chính là trường hợp bị lọt trước đây", async () => {
     const d = deps({ probe: async () => probeOut(true) });
     expect(await hostingStatus(d)).toBe("running");
+  });
+  it("agent chạy nền là của NGƯỜI KHÁC (người thuê hoặc host khác đăng xuất trên PC của chủ máy) ⇒ none: không dừng nhầm máy của chủ máy", async () => {
+    expect(await hostingStatus(deps({ probe: async () => probeOut(true, OTHER) }))).toBe("none");
+    expect(await hostingStatus(deps({ probe: async () => probeOut(true, OTHER), ownMachineIds: async () => [] }))).toBe("none"); // tài khoản chưa có máy nào
+  });
+  it("không tra cứu được máy của tài khoản ⇒ coi là của mình (hỏi lại cho chắc, không bỏ sót); agent chạy mà không rõ máy nào ⇒ cũng hỏi", async () => {
+    const d = deps({ probe: async () => probeOut(true, OTHER), ownMachineIds: async () => { throw new Error("mạng"); } });
+    expect(await hostingStatus(d)).toBe("running");
+    const noId = deps({ probe: async () => cap(0, "docker_daemon=1\nagent_running=1\nprobe_done=1\n") });
+    expect(await hostingStatus(noId)).toBe("running");
   });
   it("không chạy ⇒ none; chưa chọn bản Linux ⇒ none mà không probe", async () => {
     expect(await hostingStatus(deps())).toBe("none");

@@ -91,7 +91,7 @@ export function Compare() {
 export function MachineDetail({ id }: { id: string }) {
   const live = isLive();
   const tick = usePolling(10_000, live); // trạng thái online/offline của máy được làm mới nền khi người thuê đang xem
-  const state = useAsync(() => service.getMachine(id), [id, tick]);
+  const state = useAsync(() => service.getMachine(id), [id, tick], { keepDataOnError: true });
   const compare = useAppStore((s) => s.compare);
   const toggle = useAppStore((s) => s.toggleCompare);
   const session = useAppStore((s) => s.session);

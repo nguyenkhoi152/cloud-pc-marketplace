@@ -100,7 +100,7 @@ Chọn mức theo thứ bạn có:
 
 | Mức | Cần gì | Thấy gì |
 | --- | --- | --- |
-| **A** | Chỉ Node.js, không tài khoản nào | Giao diện app với dữ liệu mẫu có nhãn; 684 test tự động |
+| **A** | Chỉ Node.js, không tài khoản nào | Giao diện app với dữ liệu mẫu có nhãn; 689 test tự động |
 | **B** | Bộ cài + liên kết kết nối do nhóm cấp | Vòng thuê thật trên Fuji với máy của nhóm |
 | **C** | Hạ tầng riêng (Supabase, AVAX Fuji, Windows 11 + WSL2) | Tự dựng toàn bộ hệ thống |
 
@@ -122,7 +122,7 @@ npm run dev:desktop        # mở http://127.0.0.1:5174
 
 Không có file `.env`, app tự vào chế độ preview. Mở `/#/welcome`, chọn "Vào nhanh với tài khoản demo", rồi chọn chế độ Thuê máy hoặc Cho thuê máy. Nút **Demo** ở thanh trên đổi kịch bản (thành công, lỗi dịch vụ, mất mạng, host chưa duyệt, lỗi cleanup…). Ở preview mọi hành động tiền và remote chỉ là mô phỏng.
 
-**Chạy toàn bộ test** (đã chạy hết **trên một bản clone sạch từ GitHub**, Windows 11, ngày 20/11/2026: `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` đều exit 0, tổng 684 test):
+**Chạy toàn bộ test** (đã chạy hết **trên một bản clone sạch từ GitHub**, Windows 11, ngày 20/11/2026: `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` đều exit 0, tổng 689 test):
 
 ```bash
 npm test
@@ -133,7 +133,7 @@ npm test
 | `packages/shared` | 28 | Schema, tiền PCP (chuỗi thập phân, bigint, không dùng number), lọc máy, cấu hình |
 | `db` | 87 | Migration, RLS, grants, khoá đồng thời, tự đăng máy, màn Quản trị. Chạy trên PGlite **và PostgreSQL 18 thật** cục bộ, hai connection |
 | `contracts` | 52 | PCP và RentalEscrow trên mạng Hardhat |
-| `desktop` | 350 | Logic domain, lớp API live (client giả có nhãn), render từng màn, bàn phím, liên kết kết nối, thẻ máy, màn Giới thiệu (đối chiếu lời với cấu hình hợp đồng trên Fuji), đọc thông số máy |
+| `desktop` | 355 | Logic domain, lớp API live (client giả có nhãn), render từng màn, bàn phím, liên kết kết nối, thẻ máy, màn Giới thiệu (đối chiếu lời với cấu hình hợp đồng trên Fuji), đọc thông số máy |
 | `host-agent` | 58 | Agent, enrollment, session gateway |
 | `server` | 109 | API, worker, đối soát chuỗi; gồm một bài tích hợp E2E cục bộ (HTTP thật + worker + agent + gateway + Postgres thật) |
 

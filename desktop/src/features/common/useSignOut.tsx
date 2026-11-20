@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { navigate } from "@/app/router";
+import { getLiveApi } from "@/api";
 import { isLive } from "@/api/env";
 import { hostNative, hostNativeAvailable } from "@/api/hostNative";
 import { hostingStatus, SIGN_OUT_WARNINGS, stopForSignOut, type SignOutDeps } from "@/domain/signOutGuard";
@@ -10,6 +11,7 @@ const nativeDeps = (): SignOutDeps => ({
   available: hostNativeAvailable,
   overview: hostNative.overview,
   probe: () => hostNative.probe(),
+  ownMachineIds: async () => (await getLiveApi().host.listMachines()).map((m) => m.id),
   agentStop: hostNative.agentStop,
   tunnelStop: hostNative.tunnelStop,
 });

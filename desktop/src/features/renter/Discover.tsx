@@ -29,7 +29,7 @@ export function Discover() {
   const live = isLive();
   // Live: làm mới danh sách nền mỗi 10 giây để máy chủ máy vừa dừng/đăng xuất chuyển offline kịp thời (dữ liệu cũ được giữ nên thẻ không nháy).
   const tick = usePolling(LIST_REFRESH_MS, live);
-  const state = useAsync(() => service.listMachines(), [tick]);
+  const state = useAsync(() => service.listMachines(), [tick], { keepDataOnError: true });
   // Live: vị trí lấy từ dữ liệu thật (không dùng danh sách mẫu).
   const locations = useMemo(() => (live && state.status === "ready" ? [...new Set(state.data.map((m) => m.location))].sort() : LOCATIONS), [live, state]);
 

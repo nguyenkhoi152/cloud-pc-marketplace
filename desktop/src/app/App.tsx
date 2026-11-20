@@ -63,7 +63,7 @@ const ROUTES: Route[] = [
 
   { pattern: "/rent/discover", mode: "rent", render: () => <Discover /> },
   { pattern: "/rent/compare", mode: "rent", render: () => <Compare /> },
-  { pattern: "/rent/machine/:id", mode: "rent", render: (p) => <MachineDetail id={p.id!} /> },
+  { pattern: "/rent/machine/:id", mode: "rent", render: (p) => <MachineDetail key={p.id} id={p.id!} /> }, // key: đổi sang máy khác thì tải lại từ đầu, không giữ dữ liệu của máy trước
   { pattern: "/rent/checkout/:id", mode: "rent", render: (p) => <Checkout id={p.id!} /> },
   { pattern: "/rent/session", mode: "rent", render: () => <SessionScreen /> },
   { pattern: "/rent/workspaces", mode: "rent", render: () => <Workspaces /> },

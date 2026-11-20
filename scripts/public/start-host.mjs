@@ -31,8 +31,8 @@ const cf = `${DEMO}\\bin\\cloudflared.exe`;
 if (!existsSync(cf)) fail("thieu cloudflared (scripts\\public\\get-cloudflared.ps1)");
 
 /** Chay mot hanh dong co dinh cua cpm-guest.sh trong guest, dua `input` vao stdin dung nguyen byte. */
-function guest(action, input = "") {
-  const r = spawnSync("wsl.exe", ["-d", distro, "--cd", "~", "--exec", "bash", ".cpm-host/cpm-guest.sh", action], { input, encoding: "utf8", env: { ...process.env, WSL_UTF8: "1" }, timeout: 120_000 });
+function guest(action, input = "", args = []) {
+  const r = spawnSync("wsl.exe", ["-d", distro, "--cd", "~", "--exec", "bash", ".cpm-host/cpm-guest.sh", action, ...args], { input, encoding: "utf8", env: { ...process.env, WSL_UTF8: "1" }, timeout: 120_000 });
   const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.replace(/\0/g, "");
   return { code: r.status, out };
 }
@@ -40,6 +40,23 @@ function guest(action, input = "") {
 step("Kiem tra guest (chi doc)");
 const probe = guest("probe").out;
 if (!/^agent_installed=1/m.test(probe) || !/^docker_daemon=1/m.test(probe) || !/^image_present=1/m.test(probe)) fail("guest chua du agent/Docker/image Selkies: lam buoc 'Thiet lap & chay may' trong app mot lan");
+
+/**
+ * start-all KHONG tu cai agent: neu guest dang giu ban cu (chua biet bao offline khi dung nen may van hien online sau khi chu may thoat),
+ * no se chay mai. Cap nhat khi khac ban vua dong goi (npm run bundle). Loi o buoc nay chi canh bao, khong chan viec bat he thong.
+ */
+function updateAgentIfStale() {
+  const bundle = path.join(here, "..", "..", "host-agent", "dist", "cpm-host-agent.cjs");
+  if (!existsSync(bundle) || !existsSync(`${bundle}.sha256`)) return step("CANH BAO: chua co host-agent/dist (npm run bundle -w @cpm/host-agent): giu agent dang co trong guest");
+  const want = readFileSync(`${bundle}.sha256`, "utf8").trim();
+  if (!/^[0-9a-f]{64}$/.test(want)) return step("CANH BAO: tep .sha256 cua agent sai dinh dang: giu agent dang co trong guest");
+  const have = /^agent_sha256=([0-9a-f]{64})$/m.exec(probe)?.[1];
+  if (have === want) return step("Agent trong guest da la ban moi nhat");
+  step(`Cap nhat agent trong guest (${have ? have.slice(0, 8) : "chua ro"} -> ${want.slice(0, 8)})`);
+  const r = guest("install-agent", readFileSync(bundle), [want]);
+  step(/install_done=1/.test(r.out) ? "Da cap nhat agent trong guest" : "CANH BAO: cap nhat agent that bai, giu ban cu (may se khong tu bao offline khi dung)");
+}
+updateAgentIfStale();
 
 /** Ghi danh thiet bi bang ma trong enroll-token.txt (qua stdin, khong in ra, xoa tep sau khi dung); khong co ma thi dung ghi danh san co. */
 function enrollGuest() {

@@ -19,6 +19,13 @@ $repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 if (Get-Process -Name "cloud-pc-companion" -ErrorAction SilentlyContinue) {
   Write-Warning "App Cloud PC Companion dang mo. Khong bam 'Bat dau nhan thue' trong app: agent da chay bang script nay."
 }
+# Dong goi lai agent tu ma nguon hien tai (vai giay) de start-host.mjs cap nhat agent trong guest neu khac ban dang cai.
+# Khong co buoc nay, agent cu (chua biet bao offline khi dung) se chay mai vi start-all khong tu cai lai agent.
+Push-Location $repo
+try {
+  & npm run bundle -w "@cpm/host-agent" | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw "npm run bundle -w @cpm/host-agent that bai (ma $LASTEXITCODE)" }
+} finally { Pop-Location }
 Write-Host "[1/2] May chu + tunnel API (mat khoang 3-5 phut: build web ban san xuat)"
 & "$repo\scripts\vm\start-demo.ps1" -Chain fuji -Guest wsl -Agent app -Tunnel -NewEnrollment
 if ($ServerOnly) {
