@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseProbe } from "./hostEnv";
-import { MIN_GPU_VRAM_GB, mergeDetectedSpecs, specsFromProbe, specsSummary } from "./machineSpecs";
+import { GPU_UNNAMED, MIN_GPU_VRAM_GB, mergeDetectedSpecs, specsFromProbe, specsSummary } from "./machineSpecs";
 
 /** Dựng kết quả quét từ cặp khóa=giá trị như bản Linux in ra (qua đúng bộ phân tích của app). */
 const probe = (kv: Record<string, string>) =>
@@ -33,6 +33,27 @@ describe("specsFromProbe", () => {
   it("VRAM không có GPU thì bỏ qua", () => {
     const r = specsFromProbe(probe({ gpu_vram_mb: "8192" }));
     expect(r).toMatchObject({ ok: true, specs: { gpu: null, vramGb: 0 } });
+  });
+  it("chủ máy chọn chia sẻ ít hơn ⇒ số nhân và RAM trên thẻ là phần khách được dùng, CPU/GPU vẫn là số đọc được", () => {
+    const r = specsFromProbe(probe({ cpu_count: "16", mem_total_mb: "31000", cpu_model: "AMD Ryzen 9 5950X", gpu_nvidia: "NVIDIA GeForce RTX 3070", gpu_vram_mb: "8192" }), { ramGb: 8, cpus: 4 });
+    expect(r).toMatchObject({ ok: true, specs: { cpu: "AMD Ryzen 9 5950X", cores: 4, ramGb: 8, gpu: "NVIDIA GeForce RTX 3070", vramGb: 8 } });
+  });
+  it("không chọn chia sẻ ⇒ lấy toàn bộ phần bản Linux thấy", () => {
+    const r = specsFromProbe(probe({ cpu_count: "16", mem_total_mb: "31000" }), { ramGb: null, cpus: null });
+    expect(r).toMatchObject({ ok: true, specs: { cores: 16, ramGb: 30 } });
+  });
+  it("mức đã lưu không còn hợp lệ với máy này (lưu từ máy khác lớn hơn) ⇒ bỏ qua, không khoe nhiều hơn máy có", () => {
+    const r = specsFromProbe(probe({ cpu_count: "4", mem_total_mb: "7942" }), { ramGb: 64, cpus: 32 });
+    expect(r).toMatchObject({ ok: true, specs: { cores: 4, ramGb: 8 } });
+  });
+  it("thấy thiết bị GPU nhưng không đọc được tên ⇒ ghi rõ chưa đọc được tên, không khẳng định không có GPU, không xếp Game/Đồ họa", () => {
+    const r = specsFromProbe(probe({ gpu_dxg: "1" }));
+    expect(r).toMatchObject({ ok: true, specs: { gpu: GPU_UNNAMED, vramGb: 0, categories: ["dev"] } });
+    const render = specsFromProbe(probe({ gpu_render_node: "1" }));
+    expect(render).toMatchObject({ ok: true, specs: { gpu: GPU_UNNAMED } });
+  });
+  it("không thấy thiết bị GPU nào ⇒ gpu null", () => {
+    expect(specsFromProbe(probe({ gpu_dxg: "0", gpu_render_node: "0" }))).toMatchObject({ ok: true, specs: { gpu: null } });
   });
   it("thiếu số nhân hoặc RAM ⇒ từ chối, nói rõ thiếu gì", () => {
     expect(specsFromProbe(probe({ cpu_count: "" }))).toEqual({ ok: false, reason: "không đọc được số nhân CPU" });

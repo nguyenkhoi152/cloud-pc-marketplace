@@ -72,7 +72,7 @@ export const HOST_STEPS: Step[] = [
   { title: "Thiết lập máy", text: "Ở màn Thiết lập & chạy máy, app kiểm tra máy của bạn và hướng dẫn từng bước các phần còn thiếu." },
   { title: "Quét và đăng máy", text: "Bạn chỉ đặt tên và viết mô tả ngắn. CPU, RAM, GPU và ổ đĩa do app đọc từ máy của bạn khi quét. Máy đạt điều kiện được đăng ngay, không cần chờ duyệt." },
   { title: "Đặt cam kết và lịch", text: "Cam kết cho thuê tối thiểu 4 giờ và lịch nhận thuê hằng tuần (mỗi khung tối thiểu 30 phút, tính theo mốc 15 phút)." },
-  { title: "Bắt đầu nhận thuê", text: "Máy chỉ nhận khách khi bạn bấm Bắt đầu nhận thuê. Bạn có thể ngừng nhận phiên mới bất cứ lúc nào." },
+  { title: "Bắt đầu nhận thuê", text: "Bạn chọn chia sẻ bao nhiêu RAM và CPU cho khách; số này hiện trên thẻ máy. Máy chỉ nhận khách khi bạn bấm Bắt đầu nhận thuê, và bạn có thể ngừng nhận phiên mới bất cứ lúc nào." },
   { title: "Nhận PCP", text: "Sau khi phiên tất toán, phần của bạn nằm trong hợp đồng; rút về ví ở màn Thu nhập." },
 ];
 

@@ -13,7 +13,8 @@ import { bookingPhase, formatRemaining } from "@/domain/bookingPhase";
 import { sessionSteps, type StepView } from "@/domain/sessionSteps";
 import { cn, stagger } from "@/lib/utils";
 import { HostSessions } from "./HostSetup";
-import { defaultScanDeps, rescanSpecs, scanAndPublish } from "./machineScan";
+import { hostNativeAvailable } from "@/api/hostNative";
+import { defaultScanDeps, rescanSpecs, scanAndPublish, syncOwnMachineSpecs } from "./machineScan";
 import { specsSummary } from "@/domain/machineSpecs";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
@@ -528,7 +529,18 @@ export function HostSessionsPage() {
 }
 
 function HostMachines() {
-  const state = useAsync(() => getLiveApi().host.listMachines());
+  // `tick` làm mới danh sách mà KHÔNG về trạng thái đang tải (useAsync giữ dữ liệu cũ), nên thẻ máy không chớp và không chạy lại hiệu ứng vào.
+  const [tick, setTick] = useState(0);
+  const state = useAsync(() => getLiveApi().host.listMachines(), [tick]);
+  const synced = useRef(false);
+  // Trong app Windows: tự đọc cấu hình của máy đang chạy trên PC này và điền vào máy tương ứng (một lần mỗi lần mở màn), không cần bấm gì.
+  useEffect(() => {
+    if (synced.current || state.status !== "ready" || !hostNativeAvailable()) return;
+    synced.current = true;
+    void syncOwnMachineSpecs(getLiveApi().host, state.data, defaultScanDeps()).then((r) => {
+      if (r?.changed) setTick((n) => n + 1);
+    });
+  }, [state]);
   return (
     <>
       <Section title="Máy của tôi">

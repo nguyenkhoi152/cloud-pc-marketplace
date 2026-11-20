@@ -20,6 +20,7 @@ import { Checkbox, Field, Input, Select } from "@/ui/controls";
 import { Banner } from "@/ui/feedback";
 import { KeyValue, PageHeader, Section } from "@/ui/page";
 import { Amount } from "./Amount";
+import { defaultScanDeps, syncOwnMachineSpecs } from "./machineScan";
 
 const SHARE_KEY = "cpm.hostShare.v1";
 const TZ = "Asia/Ho_Chi_Minh";
@@ -320,6 +321,8 @@ export function HostSetup() {
       const r = await startHosting({ ...hostNative, sleep: (ms) => new Promise((ok) => setTimeout(ok, ms)) }, { apiBase: api, frameAncestors, share, ...toLimitInput(limits, probe?.memTotalMb ?? null, probe?.cpuCount ?? null) });
       await loadOverview();
       void hostNative.tunnelState().then(setTunnel, () => undefined);
+      // Mức RAM/CPU vừa chọn có hiệu lực từ lần bắt đầu này: cập nhật thẻ máy để người thuê thấy đúng phần họ được dùng (chạy nền, không chặn).
+      void syncOwnMachineSpecs(getLiveApi().host, machines, { ...defaultScanDeps(), share: () => limits });
       return `Đang khởi động: chuẩn bị môi trường sạch cho khách và kết nối với máy chủ. Có thể mất một hai phút.${r.publicUrl ? ` Địa chỉ truy cập của máy (đổi mỗi lần bắt đầu): ${r.publicUrl}` : " Hiện chỉ người dùng ngay trên máy này truy cập được (bạn chưa bật chia sẻ ra Internet)."}`;
     });
   const doStop = () =>

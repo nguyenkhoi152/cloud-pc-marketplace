@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { assertMachineEligible, readMachineSpecs, rescanSpecs, scanAndPublish, scanForPublish, type ScanDeps } from "./machineScan";
+import { assertMachineEligible, readMachineSpecs, rescanSpecs, scanAndPublish, scanForPublish, syncOwnMachineSpecs, type ScanDeps } from "./machineScan";
 
 // Đầu ra dạng `cpm-guest.sh probe` (cùng định dạng hostEnv.test.ts dùng). Chỉ thay đổi các khoá cần thử.
 const probeText = (over: Record<string, string> = {}) => {
@@ -123,5 +123,58 @@ describe("đăng máy và đọc lại cấu hình: ghi thông số đọc đư�
     const bad = fakeApi();
     await expect(rescanSpecs(bad.api, { id: "m2", specs: hostSpecs }, deps({ probe: probeOf({ cpu_count: "" }) }))).rejects.toThrow(/không đọc được số nhân CPU/);
     expect(bad.api.updateMachineSpecs).not.toHaveBeenCalled();
+  });
+});
+
+describe("tự điền thông số cho máy đang chạy trên PC này (không cần bấm gì)", () => {
+  const MY_ID = "11111111-2222-3333-4444-555555555555";
+  const probeOf = (over: Record<string, string>) => async () => ({ code: 0, stdout: probeText({ machine_id: MY_ID, enrolled: "1", cpu_model: "AMD Ryzen 9 5950X", gpu_nvidia: "NVIDIA GeForce RTX 3070", gpu_vram_mb: "8192", ...over }), stderr: "" });
+  const typed = { cores: 8, ramGb: 16, networkMbps: 100, summary: "Máy học tập", location: "Đà Nẵng" };
+  const mk = () => ({ updateMachineSpecs: vi.fn(async () => undefined) });
+
+  it("máy khớp mã ghi danh ⇒ ghi CPU, GPU, VRAM đọc được; mô tả và vị trí được giữ; số mạng tự khai cũ bị dọn", async () => {
+    const api = mk();
+    const r = await syncOwnMachineSpecs(api, [{ id: MY_ID, specs: typed }], deps({ probe: probeOf({}) }));
+    expect(r).toEqual({ machineId: MY_ID, changed: true });
+    const written = (api.updateMachineSpecs.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+    expect(written).toMatchObject({ cpu: "AMD Ryzen 9 5950X", gpu: "NVIDIA GeForce RTX 3070", vramGb: 8, summary: "Máy học tập", location: "Đà Nẵng" });
+    expect("networkMbps" in written).toBe(false);
+  });
+  it("chỉ đụng máy chạy trên PC này: máy khác của cùng tài khoản không bị ghi", async () => {
+    const api = mk();
+    expect(await syncOwnMachineSpecs(api, [{ id: "other-machine", specs: typed }], deps({ probe: probeOf({}) }))).toBeNull();
+    expect(api.updateMachineSpecs).not.toHaveBeenCalled();
+  });
+  it("chưa ghi danh (không có mã máy) ⇒ không ghi gì", async () => {
+    const api = mk();
+    expect(await syncOwnMachineSpecs(api, [{ id: MY_ID, specs: typed }], deps({ probe: probeOf({ machine_id: "" }) }))).toBeNull();
+    expect(api.updateMachineSpecs).not.toHaveBeenCalled();
+  });
+  it("không có thay đổi ⇒ không ghi lại (ổ trống dao động dưới 20 GB không tính)", async () => {
+    const api = mk();
+    const first = (await readMachineSpecs(deps({ probe: probeOf({}) })));
+    const specs = { ...first, summary: "x", storageGb: first.storageGb + 10 };
+    expect(await syncOwnMachineSpecs(api, [{ id: MY_ID, specs }], deps({ probe: probeOf({}) }))).toEqual({ machineId: MY_ID, changed: false });
+    expect(api.updateMachineSpecs).not.toHaveBeenCalled();
+  });
+  it("chủ máy đổi mức chia sẻ ⇒ số nhân và RAM trên thẻ đổi theo (CPU/GPU vẫn là số đọc được)", async () => {
+    const api = mk();
+    const full = await readMachineSpecs(deps({ probe: probeOf({ cpu_count: "16", mem_total_mb: "31000" }) }));
+    await syncOwnMachineSpecs(api, [{ id: MY_ID, specs: { ...full, summary: "x" } }], deps({ probe: probeOf({ cpu_count: "16", mem_total_mb: "31000" }), share: () => ({ ramGb: 8, cpus: 4 }) }));
+    expect(api.updateMachineSpecs).toHaveBeenCalledWith(MY_ID, expect.objectContaining({ cores: 4, ramGb: 8, cpu: "AMD Ryzen 9 5950X" }));
+  });
+  it("không bao giờ ném lỗi: ngoài app Windows, chưa chọn bản Linux, quét lỗi hoặc ghi lỗi đều trả null", async () => {
+    const m = [{ id: MY_ID, specs: typed }];
+    expect(await syncOwnMachineSpecs(mk(), m, deps({ available: () => false }))).toBeNull();
+    expect(await syncOwnMachineSpecs(mk(), m, deps({ overview: async () => ({ backend: null }) }))).toBeNull();
+    expect(await syncOwnMachineSpecs(mk(), m, deps({ probe: async () => ({ code: 1, stdout: "", stderr: "boom" }) }))).toBeNull();
+    expect(await syncOwnMachineSpecs(mk(), m, deps({ probe: async () => { throw new Error("native lỗi"); } }))).toBeNull();
+    const failing = { updateMachineSpecs: vi.fn(async () => { throw new Error("không ghi được"); }) };
+    expect(await syncOwnMachineSpecs(failing, m, deps({ probe: probeOf({}) }))).toBeNull();
+  });
+  it("đăng máy và đọc lại cấu hình cũng theo mức chia sẻ đã chọn", async () => {
+    const api = { updateMachineSpecs: vi.fn(async () => undefined), publishMachine: vi.fn(async () => "approved" as const) };
+    await scanAndPublish(api, { id: "m9", specs: typed }, deps({ probe: probeOf({ cpu_count: "16", mem_total_mb: "31000" }), share: () => ({ ramGb: 12, cpus: 6 }) }));
+    expect(api.updateMachineSpecs).toHaveBeenCalledWith("m9", expect.objectContaining({ cores: 6, ramGb: 12 }));
   });
 });

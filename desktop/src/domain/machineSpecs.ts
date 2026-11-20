@@ -7,6 +7,7 @@
  * Không đoán: thiếu số nhân hoặc RAM thì không đăng; có GPU mà chưa đọc được VRAM thì không xếp vào Game/Đồ họa.
  */
 import type { GuestProbe } from "./hostEnv";
+import { toLimitInput, type Limits } from "./hostLimits";
 import type { Category } from "./types";
 
 export interface DetectedSpecs {
@@ -24,19 +25,28 @@ export const MIN_GPU_VRAM_GB = 6;
 
 export type SpecsResult = { ok: true; specs: DetectedSpecs } | { ok: false; reason: string };
 
-export function specsFromProbe(p: GuestProbe | null): SpecsResult {
+/** Tên hiển thị khi bản Linux thấy thiết bị GPU nhưng không đọc được tên (ví dụ GPU AMD/Intel: chỉ đọc được tên GPU NVIDIA). */
+export const GPU_UNNAMED = "GPU (chưa đọc được tên)";
+
+/**
+ * `share`: mức RAM/CPU chủ máy chọn chia sẻ cho khách (màn Cho thuê máy). Số nhân và RAM trên thẻ là PHẦN KHÁCH ĐƯỢC DÙNG:
+ * có chọn (và hợp lệ với máy này) thì lấy mức đã chọn, không chọn thì lấy toàn bộ phần bản Linux thấy. CPU/GPU/VRAM/ổ đĩa là số đọc được.
+ */
+export function specsFromProbe(p: GuestProbe | null, share: Limits = { ramGb: null, cpus: null }): SpecsResult {
   if (!p || !p.ok) return { ok: false, reason: "chưa quét được máy" };
   if (!p.cpuCount || p.cpuCount < 1) return { ok: false, reason: "không đọc được số nhân CPU" };
   if (!p.memTotalMb || p.memTotalMb < 1) return { ok: false, reason: "không đọc được dung lượng RAM" };
-  const gpu = p.gpuNvidia.trim() || null;
-  const vramGb = gpu && p.gpuVramMb ? Math.max(1, Math.round(p.gpuVramMb / 1024)) : 0;
-  const categories: Category[] = gpu && vramGb >= MIN_GPU_VRAM_GB ? ["game", "graphics", "dev"] : ["dev"];
+  const named = p.gpuNvidia.trim();
+  const gpu = named || (p.gpuDxg || p.gpuRenderNode ? GPU_UNNAMED : null);
+  const vramGb = named && p.gpuVramMb ? Math.max(1, Math.round(p.gpuVramMb / 1024)) : 0;
+  const categories: Category[] = named && vramGb >= MIN_GPU_VRAM_GB ? ["game", "graphics", "dev"] : ["dev"];
+  const limit = toLimitInput(share, p.memTotalMb, p.cpuCount);
   return {
     ok: true,
     specs: {
       cpu: p.cpuModel.trim(),
-      cores: p.cpuCount,
-      ramGb: Math.max(1, Math.round(p.memTotalMb / 1024)),
+      cores: limit.cpus ?? p.cpuCount,
+      ramGb: limit.memoryMb ? Math.max(1, Math.round(limit.memoryMb / 1024)) : Math.max(1, Math.round(p.memTotalMb / 1024)),
       gpu,
       vramGb,
       storageGb: Math.max(0, p.diskFreeGb ?? 0),

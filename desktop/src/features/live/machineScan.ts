@@ -8,6 +8,7 @@ import { apiBase } from "@/api";
 import { hostNative, hostNativeAvailable } from "@/api/hostNative";
 import { machineEligibility, parseProbe, type Captured, type GuestProbe } from "@/domain/hostEnv";
 import type { DeclaredSpecs } from "@/api/live";
+import { loadLimits, type Limits } from "@/domain/hostLimits";
 import { mergeDetectedSpecs, specsFromProbe, type DetectedSpecs } from "@/domain/machineSpecs";
 
 export interface ScanDeps {
@@ -15,9 +16,15 @@ export interface ScanDeps {
   overview: () => Promise<{ backend: unknown | null }>;
   probe: (apiBase?: string) => Promise<Captured>;
   apiBase: () => string | null;
+  /** Mức RAM/CPU chủ máy đã chọn chia sẻ cho khách (không có ⇒ chia sẻ toàn bộ phần bản Linux thấy). */
+  share?: () => Limits;
 }
 
-export const defaultScanDeps = (): ScanDeps => ({ available: hostNativeAvailable, overview: hostNative.overview, probe: hostNative.probe, apiBase });
+const NO_SHARE: Limits = { ramGb: null, cpus: null };
+const savedShare = (): Limits => loadLimits(typeof localStorage === "undefined" ? null : localStorage);
+const shareOf = (d: ScanDeps): Limits => d.share?.() ?? NO_SHARE;
+
+export const defaultScanDeps = (): ScanDeps => ({ available: hostNativeAvailable, overview: hostNative.overview, probe: hostNative.probe, apiBase, share: savedShare });
 
 /** Quét một lần; trả kết quả đã đọc được hoặc ném lỗi nói rõ vì sao chưa quét được. */
 async function scan(d: ScanDeps): Promise<GuestProbe> {
@@ -34,8 +41,8 @@ function assertEligible(p: GuestProbe): void {
   if (!e.ok) throw new Error(`Máy chưa đủ điều kiện để đăng: còn thiếu ${e.missing.join("; ")}. Vào Thiết lập & chạy máy để hoàn tất rồi đăng lại.`);
 }
 
-function specsOf(p: GuestProbe): DetectedSpecs {
-  const r = specsFromProbe(p);
+function specsOf(p: GuestProbe, d: ScanDeps): DetectedSpecs {
+  const r = specsFromProbe(p, shareOf(d));
   if (!r.ok) throw new Error(`Chưa đọc được cấu hình máy: ${r.reason}. Vào Thiết lập & chạy máy để kiểm tra lại.`);
   return r.specs;
 }
@@ -49,12 +56,12 @@ export async function assertMachineEligible(d: ScanDeps): Promise<void> {
 export async function scanForPublish(d: ScanDeps): Promise<DetectedSpecs> {
   const p = await scan(d);
   assertEligible(p);
-  return specsOf(p);
+  return specsOf(p, d);
 }
 
 /** Đọc lại cấu hình từ máy (không bắt buộc máy đã đủ điều kiện đăng). */
 export async function readMachineSpecs(d: ScanDeps): Promise<DetectedSpecs> {
-  return specsOf(await scan(d));
+  return specsOf(await scan(d), d);
 }
 
 /** Phần của API host mà hai thao tác dưới đây cần (để kiểm thử mà không cần máy chủ). */
@@ -77,4 +84,44 @@ export async function scanAndPublish<S>(api: SpecsApi<S>, m: { id: string; specs
 export async function rescanSpecs(api: Pick<SpecsApi<unknown>, "updateMachineSpecs">, m: { id: string; specs: DeclaredSpecs }, d: ScanDeps): Promise<void> {
   const detected = await readMachineSpecs(d);
   await api.updateMachineSpecs(m.id, mergeDetectedSpecs(m.specs, detected));
+}
+
+export interface SyncResult {
+  machineId: string;
+  changed: boolean;
+}
+
+/** Hai bản thông số giống nhau (đủ để khỏi ghi lại): ổ trống dao động liên tục nên chỉ coi là đổi khi lệch từ 20 GB. */
+function specsUnchanged(cur: DeclaredSpecs, next: DetectedSpecs): boolean {
+  const same = (a: unknown, b: unknown) => (a ?? null) === (b ?? null);
+  return (
+    same(cur.cpu, next.cpu) && same(cur.cores, next.cores) && same(cur.ramGb, next.ramGb) && same(cur.gpu, next.gpu) && same(cur.vramGb, next.vramGb) &&
+    JSON.stringify([...(cur.categories ?? [])].sort()) === JSON.stringify([...next.categories].sort()) &&
+    Math.abs((cur.storageGb ?? 0) - next.storageGb) < 20 &&
+    cur.networkMbps == null // số mạng tự khai cũ phải được dọn đi một lần
+  );
+}
+
+/**
+ * Tự điền thông số cho máy đang chạy trên CHÍNH PC này, không cần chủ máy bấm gì.
+ * Nhận ra máy bằng mã ghi danh của agent trong bản Linux (chỉ máy đã ghi danh ở đây mới chắc là máy này); máy khác của cùng tài khoản không bị đụng tới.
+ * Chỉ ghi khi có thay đổi. Là việc chạy nền: không bao giờ ném lỗi (không có app Windows, chưa chọn bản Linux, chưa ghi danh, quét lỗi ⇒ trả null).
+ */
+export async function syncOwnMachineSpecs(api: Pick<SpecsApi<unknown>, "updateMachineSpecs">, machines: { id: string; specs: DeclaredSpecs }[], d: ScanDeps): Promise<SyncResult | null> {
+  try {
+    if (!d.available()) return null;
+    const o = await d.overview();
+    if (!o.backend) return null;
+    const p = parseProbe(await d.probe(d.apiBase() ?? undefined));
+    if (!p.ok || !p.machineId) return null;
+    const mine = machines.find((m) => m.id === p.machineId);
+    if (!mine) return null;
+    const r = specsFromProbe(p, shareOf(d));
+    if (!r.ok) return null;
+    if (specsUnchanged(mine.specs, r.specs)) return { machineId: mine.id, changed: false };
+    await api.updateMachineSpecs(mine.id, mergeDetectedSpecs(mine.specs, r.specs));
+    return { machineId: mine.id, changed: true };
+  } catch {
+    return null;
+  }
 }
