@@ -323,10 +323,14 @@ describe("enrollment thiết bị và heartbeat", () => {
     expect(health).toBe("ok");
   });
 
-  it("chỉ admin tạo enrollment; tham số xấu bị từ chối; token lạ bị từ chối", async () => {
+  it("chỉ chủ máy hoặc admin tạo enrollment (người lạ 403); tham số xấu bị từ chối; token lạ bị từ chối", async () => {
     const host = await makeApprovedHost(A());
     const machine = await makeMachine(A(), host);
-    await rejects(createEnrollment(deps, user(host), { machineId: machine }), 403, "forbidden");
+    const stranger = await makeApprovedHost(A()); // host khác, không sở hữu máy này
+    await rejects(createEnrollment(deps, user(stranger), { machineId: machine }), 403, "forbidden");
+    const plain = await newUser(A());
+    await rejects(createEnrollment(deps, user(plain), { machineId: machine }), 403, "forbidden");
+    expect((await createEnrollment(deps, user(host), { machineId: machine })).status).toBe(201); // chủ máy: không cần admin
     const adminId = await makeAdmin(A());
     await rejects(createEnrollment(deps, user(adminId), { machineId: "rác" }), 400, "bad_request");
     await rejects(createEnrollment(deps, user(adminId), { machineId: machine, ttlSeconds: 5 }), 400, "bad_request");
@@ -335,9 +339,37 @@ describe("enrollment thiết bị và heartbeat", () => {
     await rejects(redeemEnrollment(deps, {}), 400, "bad_request");
   });
 
-  it("thu hồi thiết bị: chỉ admin; credential cũ bị từ chối ngay; sau đó mới ghi danh lại được (credential mới, bộ đếm bắt đầu lại)", async () => {
+  it("chủ máy tự ghi danh → tự thu hồi → tự ghi danh lại, KHÔNG cần admin; người khác và host bị đình chỉ bị chặn", async () => {
+    const host = await makeApprovedHost(A());
+    const machine = await makeMachine(A(), host);
+    const stranger = await makeApprovedHost(A());
+    const enrollOwn = async () => {
+      const t = await createEnrollment(deps, user(host), { machineId: machine, ttlSeconds: 600 });
+      return ((await redeemEnrollment(deps, { token: (t.body as { enrollmentToken: string }).enrollmentToken })).body as { credential: string }).credential;
+    };
+    const first = await enrollOwn();
+    expect((await heartbeat(deps, `Device ${first}`, { counter: 1 })).status).toBe(200);
+    await rejects(createEnrollment(deps, user(host), { machineId: machine }), 409, "unavailable"); // đang có thiết bị: phải thu hồi trước
+    await rejects(revokeDevice(deps, user(stranger), { machineId: machine }), 403, "forbidden"); // người khác không thu hồi hộ được
+    expect((await heartbeat(deps, `Device ${first}`, { counter: 2 })).status).toBe(200); // lần bị chặn không thu hồi gì
+    expect((await revokeDevice(deps, user(host), { machineId: machine })).body).toEqual({ revoked: true });
+    await rejects(heartbeat(deps, `Device ${first}`, { counter: 3 }), 401, "invalid_heartbeat");
+    const second = await enrollOwn();
+    expect(second).not.toBe(first);
+    // Host bị admin đình chỉ: mất luôn quyền tự ghi danh/thu hồi (phanh khẩn cấp còn hiệu lực).
+    await admin.query("update public.host_profiles set status = 'suspended' where user_id = $1", [host]);
+    await rejects(revokeDevice(deps, user(host), { machineId: machine }), 403, "forbidden");
+    await rejects(createEnrollment(deps, user(host), { machineId: machine }), 403, "forbidden");
+    // Máy chưa đăng (draft) thì chưa ghi danh được, kể cả chủ máy.
+    const h2 = await makeApprovedHost(A());
+    const draft = await makeMachine(A(), h2, { status: "draft" });
+    await rejects(createEnrollment(deps, user(h2), { machineId: draft }), 409, "unavailable");
+  });
+
+  it("thu hồi thiết bị: admin vẫn làm được; credential cũ bị từ chối ngay; sau đó mới ghi danh lại được (credential mới, bộ đếm bắt đầu lại)", async () => {
     const adminId = await makeAdmin(A());
     const host = await makeApprovedHost(A());
+    const stranger = await makeApprovedHost(A());
     const machine = await makeMachine(A(), host);
     const enrollOnce = async () => {
       const t = await createEnrollment(deps, user(adminId), { machineId: machine, ttlSeconds: 600 });
@@ -347,7 +379,7 @@ describe("enrollment thiết bị và heartbeat", () => {
     expect((await heartbeat(deps, `Device ${first}`, { counter: 5 })).status).toBe(200);
     // Thiết bị đang hiệu lực: không cấp enrollment mới khi chưa thu hồi.
     await rejects(createEnrollment(deps, user(adminId), { machineId: machine }), 409, "unavailable");
-    await rejects(revokeDevice(deps, user(host), { machineId: machine }), 403, "forbidden");
+    await rejects(revokeDevice(deps, user(stranger), { machineId: machine }), 403, "forbidden");
     await rejects(revokeDevice(deps, user(adminId), { machineId: "rác" }), 400, "bad_request");
     expect((await heartbeat(deps, `Device ${first}`, { counter: 6 })).status).toBe(200); // các lần bị từ chối ở trên không thu hồi gì
     expect((await revokeDevice(deps, user(adminId), { machineId: machine })).body).toEqual({ revoked: true });
@@ -379,6 +411,16 @@ describe("lớp HTTP", () => {
     const r = await h()(post("/api/wallet/challenge", { address: "0x" + "1".repeat(40), chainId: 43113 }));
     expect(r.status).toBe(401);
     expect(await r.json()).toEqual({ error: { code: "unauthorized", message: "Cần đăng nhập." } });
+  });
+
+  it("đường /api/host/enrollments và /api/host/devices/revoke: cần đăng nhập (401); người lạ không phải chủ máy nhận 403 từ DB", async () => {
+    const machine = await makeMachine(A(), await makeApprovedHost(A()));
+    const okAuth = { authorization: "Bearer " + "ok".padEnd(40, "o") }; // authFetch coi token này là user 1111… (không sở hữu máy nào)
+    for (const p of ["/api/host/enrollments", "/api/host/devices/revoke"]) {
+      expect((await h()(post(p, { machineId: machine }))).status, p).toBe(401);
+      const r = await h()(post(p, { machineId: machine }, okAuth));
+      expect([r.status, ((await r.json()) as { error: { code: string } }).error.code], p).toEqual([403, "forbidden"]);
+    }
   });
 
   it("trần body theo BYTE và theo luồng: không đọc hết body khi vượt trần (không Content-Length), chạy trước xác thực", async () => {

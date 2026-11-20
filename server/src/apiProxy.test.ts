@@ -31,7 +31,9 @@ const get = (p: string, init: RequestInit = {}) => fetch(base + p, init);
 
 describe("decide (đường dẫn nào được ra Internet)", () => {
   it("cho /api/*, từ chối mọi thứ khác và mọi cách lách bằng chuẩn hoá đường dẫn", () => {
-    for (const ok of ["/api/chain-info", "/api/bookings/abc/quote", "/api/faucet?x=1"]) expect(decide(ok), ok).toBe("allow");
+    // /api/host/* (chủ máy tự ghi danh/thu hồi thiết bị của máy mình) PHẢI ra được Internet; /api/admin/* thì không (xem danh sách deny bên dưới).
+    for (const ok of ["/api/chain-info", "/api/bookings/abc/quote", "/api/faucet?x=1", "/api/host/enrollments", "/api/host/devices/revoke"]) expect(decide(ok), ok).toBe("allow");
+    for (const bad of ["/api/admin/devices/revoke", "/api/admin/enrollments?x=/api/host/enrollments"]) expect(decide(bad), bad).toBe("deny");
     for (const bad of ["/", "/sessions", "/_next/static/x.js", "/__nextjs_original-stack-frame", "/api", "/apix", "/api/../sessions", "/api/%2e%2e/sessions", "/api/%2E%2E/x", "/api//x", "/api\\admin", "/api/admin", "/api/admin/enrollments", "/api/admin/", "/api/%61dmin/enrollments", "http://evil.example/api/x", "//evil.example/api/x", "/api/%zz", "/api/%00"])
       expect(decide(bad), bad).toBe("deny");
   });

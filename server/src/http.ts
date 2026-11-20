@@ -109,6 +109,10 @@ async function route(req: Request, deps: HttpDeps): Promise<ApiResult> {
   if (key === "POST /api/faucet") return requestFaucet(deps, await user());
   if (key === "POST /api/wallet/challenge") return walletChallenge(deps, await user(), body);
   if (key === "POST /api/wallet/verify") return walletVerify(deps, await user(), body);
+  // Chủ máy tự ghi danh/thu hồi thiết bị của MÁY MÌNH (đi qua proxy công khai). Quyền kiểm ở DB: người lạ nhận 403.
+  if (key === "POST /api/host/enrollments") return createEnrollment(deps, await user(), body);
+  if (key === "POST /api/host/devices/revoke") return revokeDevice(deps, await user(), body);
+  // Cùng hàm DB; đường admin giữ cho script quản trị chạy trên máy chủ (proxy công khai chặn /api/admin/*).
   if (key === "POST /api/admin/enrollments") return createEnrollment(deps, await user(), body);
   if (key === "POST /api/admin/devices/revoke") return revokeDevice(deps, await user(), body);
   if (key === "POST /api/agent/enroll") return redeemEnrollment(deps, body);

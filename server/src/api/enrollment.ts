@@ -1,12 +1,14 @@
 /**
- * Enrollment thiết bị host: admin tạo token một lần có hạn; thiết bị đổi lấy credential riêng (chỉ lưu băm), thu hồi được;
- * heartbeat có counter tăng nghiêm ngặt (chống replay). Token/credential chỉ trả về MỘT lần, DB chỉ giữ SHA-256.
+ * Enrollment thiết bị host: chủ máy (host đã đăng ký) HOẶC admin tạo token một lần có hạn cho máy đã đăng; thiết bị đổi lấy credential
+ * riêng (chỉ lưu băm), thu hồi được; heartbeat có counter tăng nghiêm ngặt (chống replay). Token/credential chỉ trả về MỘT lần, DB chỉ giữ SHA-256.
+ * Quyền do hàm DB kiểm (create_enrollment / revoke_device): chủ máy chỉ làm được cho máy CỦA MÌNH, admin làm được cho mọi máy.
+ * Đường /api/host/* dành cho chủ máy (đi qua proxy công khai); /api/admin/* chỉ chạy trên máy chủ (proxy chặn).
  */
 import { ApiError, ok, pgMessage, randomToken, sha256Bytes, type ApiResult, type ApiUser, type Deps } from "../core";
 
 const uuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/.test(v);
 
-export async function createEnrollment(deps: Deps, admin: ApiUser, body: unknown): Promise<ApiResult> {
+export async function createEnrollment(deps: Deps, actor: ApiUser, body: unknown): Promise<ApiResult> {
   const b = (body ?? {}) as { machineId?: unknown; ttlSeconds?: unknown };
   if (!uuid(b.machineId)) throw new ApiError(400, "bad_request", "Thiếu machineId.");
   const ttl = b.ttlSeconds === undefined ? 900 : b.ttlSeconds;
@@ -14,30 +16,30 @@ export async function createEnrollment(deps: Deps, admin: ApiUser, body: unknown
   const token = randomToken(32);
   try {
     await deps.db.tx(async (c) => {
-      await c.query("select public.create_enrollment($1, $2, $3, $4)", [admin.id, b.machineId, sha256Bytes(token), ttl]);
+      await c.query("select public.create_enrollment($1, $2, $3, $4)", [actor.id, b.machineId, sha256Bytes(token), ttl]);
     });
   } catch (e) {
     const m = pgMessage(e);
-    if (m.includes("forbidden")) throw new ApiError(403, "forbidden", "Chỉ admin được tạo enrollment.");
-    if (m.includes("unavailable")) throw new ApiError(409, "unavailable", "Máy chưa được duyệt hoặc đã có thiết bị đang hiệu lực.");
+    if (m.includes("forbidden")) throw new ApiError(403, "forbidden", "Chỉ chủ máy (host đã đăng ký) hoặc quản trị viên mới ghi danh được máy này.");
+    if (m.includes("unavailable")) throw new ApiError(409, "unavailable", "Máy chưa được đăng hoặc đã có thiết bị đang hoạt động. Nếu bạn cài lại bản Linux, hãy tick \"thay thiết bị cũ\" rồi ghi danh lại.");
     throw e;
   }
   return ok({ enrollmentToken: token, ttlSeconds: ttl }, 201);
 }
 
 /**
- * Admin thu hồi thiết bị đang hiệu lực của một máy (credential cũ lập tức bị từ chối ở heartbeat và kênh lệnh). Cần trước khi
- * ghi danh lại, ví dụ khi host chuyển agent sang môi trường guest khác. Quyền admin do hàm DB kiểm (không tin claim của client).
+ * Chủ máy (hoặc admin) thu hồi thiết bị đang hiệu lực của một máy (credential cũ lập tức bị từ chối ở heartbeat và kênh lệnh). Cần trước khi
+ * ghi danh lại, ví dụ khi host chuyển agent sang môi trường guest khác. Quyền do hàm DB kiểm (không tin claim của client).
  */
-export async function revokeDevice(deps: Deps, admin: ApiUser, body: unknown): Promise<ApiResult> {
+export async function revokeDevice(deps: Deps, actor: ApiUser, body: unknown): Promise<ApiResult> {
   const b = (body ?? {}) as { machineId?: unknown };
   if (!uuid(b.machineId)) throw new ApiError(400, "bad_request", "Thiếu machineId.");
   try {
     await deps.db.tx(async (c) => {
-      await c.query("select public.revoke_device($1, $2)", [admin.id, b.machineId]);
+      await c.query("select public.revoke_device($1, $2)", [actor.id, b.machineId]);
     });
   } catch (e) {
-    if (pgMessage(e).includes("forbidden")) throw new ApiError(403, "forbidden", "Chỉ admin được thu hồi thiết bị.");
+    if (pgMessage(e).includes("forbidden")) throw new ApiError(403, "forbidden", "Chỉ chủ máy (host đã đăng ký) hoặc quản trị viên mới thu hồi được thiết bị của máy này.");
     throw e;
   }
   return ok({ revoked: true });

@@ -43,7 +43,7 @@ describe("scripts/db-run.mjs", () => {
     expect(ok.text).toMatch(/Đã áp dụng/);
     const after = run(["verify"]);
     expect(after.code).toBe(0);
-    expect(after.text).toMatch(/14\/14 hàng kiểm đạt/);
+    expect(after.text).toMatch(/16\/16 hàng kiểm đạt/);
     expect(run(["apply", FILE, "--yes"]).code).toBe(0); // idempotent
     expect(run(["verify"]).code).toBe(0);
   });

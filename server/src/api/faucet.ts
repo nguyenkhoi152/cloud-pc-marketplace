@@ -60,7 +60,7 @@ export async function requestFaucet(deps: Deps & { faucet?: FaucetDeps }, user: 
       if (before < f.minGasWei) {
         const dripped = await c.query<{ n: number }>("select count(*)::int as n from public.audit_logs where action = 'faucet_gas' and (resource = $1 or actor = $2) and created_at > now() - interval '24 hours'", [`wallet:${address}`, user.id]);
         // Theo ví VÀ theo người dùng: liên kết ví mới liên tục không né được giới hạn để rút cạn ví vòi.
-        if (dripped.rows[0]!.n > 0) gas = { ...gas, reason: "tài khoản/ví này đã được nhỏ giọt gas trong 24 giờ qua; tự nạp thêm AVAX testnet từ vòi công khai nếu cần" };
+        if (dripped.rows[0]!.n > 0) gas = { ...gas, reason: "Bạn đã nhận AVAX trong 24 giờ qua. Nếu cần thêm, hãy nạp AVAX Fuji vào địa chỉ ví của bạn." };
         else {
           const tx = await f.chain.sendGas(address, f.gasWei);
           // Ghi NGAY sau khi gửi (gas đã rời ví vòi): không có bước nào có thể ném lỗi giữa gửi và ghi.
