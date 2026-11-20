@@ -2,16 +2,16 @@
 
 **Chợ thuê PC từ xa trên Avalanche Fuji.** Chủ máy cho thuê PC theo khung giờ, người thuê trả bằng PCP (token thử) qua hợp đồng escrow, rồi dùng desktop từ xa ngay trong app Windows.
 
-> **English TL;DR.** A peer-to-peer cloud-PC marketplace. Hosts rent out an idle Windows PC (a clean Selkies/Linux guest in WSL2); renters pay in a restricted test token (PCP) through an EIP-712-quoted escrow on **Avalanche Fuji (chain 43113)** and view the desktop inside a Tauri app. Everything is testnet-only. Judges can verify the contracts on the explorer (section 2), run 491 automated tests with no credentials (section 4A), or try the team's live demo (4B). Section 3 states plainly what was and was not verified.
+> **English TL;DR.** A peer-to-peer cloud-PC marketplace. Hosts rent out an idle Windows PC (a clean Selkies/Linux guest in WSL2); renters pay in a restricted test token (PCP) through an EIP-712-quoted escrow on **Avalanche Fuji (chain 43113)** and view the desktop inside a Tauri app. Everything is testnet-only. Judges can verify the contracts on the explorer (section 2), run 649 automated tests with no credentials (section 4A), or try the team's live demo (4B). Section 3 states plainly what was and was not verified.
 
-**Trạng thái 19/11/2026.** Vòng thuê đầy đủ đã chạy thật trên Fuji (giữ máy → trả tiền → kích hoạt → xem desktop → kết thúc → chia tiền → máy sạch lại), nhưng **chỉ trên một máy** (người thuê và host cùng mạng, đi qua tunnel công khai). Chưa có người ở máy khác thuê thử. Chưa đo hiệu năng. Xem [mục 3](#3-đã-kiểm-và-chưa-kiểm).
+**Trạng thái 20/11/2026.** Vòng thuê đầy đủ đã chạy thật trên Fuji (giữ máy → trả tiền → kích hoạt → xem desktop → kết thúc → chia tiền → máy sạch lại), nhưng **chỉ trên một máy** (người thuê và host cùng mạng, đi qua tunnel công khai). Chưa có người ở máy khác thuê thử. Chưa đo hiệu năng. Từ 20/11 chủ máy tự đăng ký và tự đăng máy (không còn admin duyệt), thông số máy do app tự đọc, và app có màn **Quản trị** thay cho script terminal. Xem [mục 3](#3-đã-kiểm-và-chưa-kiểm).
 
 ## Mục lục
 
 1. [Sản phẩm](#1-sản-phẩm)
 2. [Avalanche Fuji: địa chỉ và cách kiểm chứng](#2-avalanche-fuji-địa-chỉ-và-cách-kiểm-chứng)
 3. [Đã kiểm và chưa kiểm](#3-đã-kiểm-và-chưa-kiểm)
-4. [Cách chạy và chấm](#4-cách-chạy-và-chấm) (A: không cần tài khoản, B: demo của nhóm, C: tự dựng)
+4. [Cách chạy và chấm](#4-cách-chạy-và-chấm) (A: không cần tài khoản, B: demo của nhóm, C: tự dựng, D: màn Quản trị)
 5. [Kiến trúc và cấu trúc repo](#5-kiến-trúc-và-cấu-trúc-repo)
 6. [Bảo mật và giới hạn tin cậy](#6-bảo-mật-và-giới-hạn-tin-cậy)
 7. [Tài liệu](#7-tài-liệu)
@@ -23,7 +23,7 @@ Một app Companion (Tauri 2 + React) có **hai chế độ trong một tài kho
 | Vai trò | Làm gì |
 | --- | --- |
 | **Người thuê** | Tìm máy, giữ máy, trả PCP, mở màn hình máy thuê, kết thúc, rút tiền hoàn về ví |
-| **Chủ máy (host)** | Đăng máy và khung giờ, cài guest Linux trong WSL2 qua app, ghi danh thiết bị, bật/dừng nhận thuê, xem thu nhập |
+| **Chủ máy (host)** | Đăng máy (chỉ đặt tên và mô tả; CPU, GPU, RAM, ổ đĩa do app tự đọc từ máy, RAM/CPU chia sẻ cho khách do chủ máy chọn) và khung giờ, cài guest Linux trong WSL2 qua app, ghi danh thiết bị, bật/dừng nhận thuê, xem thu nhập |
 | **Admin** (người tổ chức) | **Không còn là cổng** (từ 20/11/2026: host tự đăng ký, tự đăng máy sau khi quét đạt, tự ghi danh thiết bị). Chỉ là phanh khẩn cấp và người giám sát: dùng màn **Quản trị** trong app (mục "Quản trị" ở thanh bên, chỉ hiện với tài khoản có role admin, chế độ live) để xem host/máy/phiên/nhật ký, đình chỉ hoặc đăng lại máy và host, thu hồi thiết bị, xóa máy chưa có tiền/phiên. Thay cho `admin.mts` ở terminal |
 
 **Luồng một phiên thuê**
@@ -72,7 +72,7 @@ Mục tiêu của bản này là **tìm chỗ hỏng**, không phải khẳng đ
 | Thanh toán, kích hoạt, kết thúc, chia tiền trên escrow Fuji | Chạy thật trên **một máy**: 20/20 bước đạt qua tunnel công khai (18/11), số tiền và phí 10% khớp chính xác (so với giá máy tính bằng bigint) |
 | Xem màn hình qua gateway của host | Trình duyệt thật đổi token một lần (HTTP 200), WebSocket nhận luồng hình 1280×720; không token bị từ chối (401). **Chưa thử từ máy khác mạng, chưa đo độ trễ/FPS** |
 | Host WSL2 + Docker + image Selkies | Chạy thật trên máy phát triển: agent ghi danh, nhận lệnh, chạy trọn một phiên. Phần host được chạy bằng chuỗi lệnh tương đương `host.rs`, **không bấm qua giao diện app** |
-| **Chưa kiểm** | Hai máy khác mạng (**đã bỏ qua theo quyết định của chủ dự án**); viewer nhúng trong WebView2 (chuột, bàn phím, âm thanh, toàn màn hình); các màn thiết lập host trong app; nút **Rút về ví**; hộp xác nhận kết nối trong app; bộ cài trên máy khác (chưa ký số: SmartScreen cảnh báo, **Smart App Control chặn hẳn**); GPU/NVENC trong WSL2 |
+| **Chưa kiểm** | Hai máy khác mạng (**đã bỏ qua theo quyết định của chủ dự án**); viewer nhúng trong WebView2 (chuột, bàn phím, âm thanh, toàn màn hình); các màn thiết lập host trong app; nút **Rút về ví**; hộp xác nhận kết nối trong app; bộ cài trên máy khác (chưa ký số: SmartScreen cảnh báo, **Smart App Control chặn hẳn**); GPU/NVENC trong WSL2; **việc app tự đọc thông số máy (CPU, GPU, VRAM, RAM chia sẻ) trong app Windows thật** (mới viết 20/11, mới kiểm bằng dữ liệu giả và test); chỉ đọc được **tên GPU NVIDIA** (GPU AMD/Intel hiện ghi "chưa đọc được tên"); màn Quản trị mới kiểm trong trình duyệt với dữ liệu thật, chưa kiểm trong app đã cài; script `scripts/browser-check-live.mjs` **còn đỏ** vì còn so khớp lời giao diện cũ (không thuộc bộ `npm test`) |
 | **Hiệu năng** | **Chưa đo, không có tuyên bố nào** |
 | Còn mô phỏng hoặc chưa làm | Workspace dùng thư mục cục bộ (`LocalFsStore`), chưa S3; thông báo, hỗ trợ, trọng tài, thu nhập chi tiết; AI tư vấn và host bond chỉ có thiết kế; audit hợp đồng; deploy web công khai |
 
@@ -84,7 +84,7 @@ Chọn mức theo thứ bạn có:
 
 | Mức | Cần gì | Thấy gì |
 | --- | --- | --- |
-| **A** | Chỉ Node.js, không tài khoản nào | Giao diện app với dữ liệu mẫu có nhãn; 491 test tự động |
+| **A** | Chỉ Node.js, không tài khoản nào | Giao diện app với dữ liệu mẫu có nhãn; 649 test tự động |
 | **B** | Bộ cài + liên kết kết nối do nhóm cấp | Vòng thuê thật trên Fuji với máy của nhóm |
 | **C** | Hạ tầng riêng (Supabase, AVAX Fuji, Windows 11 + WSL2) | Tự dựng toàn bộ hệ thống |
 
@@ -106,7 +106,7 @@ npm run dev:desktop        # mở http://127.0.0.1:5174
 
 Không có file `.env`, app tự vào chế độ preview. Mở `/#/welcome`, chọn "Vào nhanh với tài khoản demo", rồi chọn chế độ Thuê máy hoặc Cho thuê máy. Nút **Demo** ở thanh trên đổi kịch bản (thành công, lỗi dịch vụ, mất mạng, host chưa duyệt, lỗi cleanup…). Ở preview mọi hành động tiền và remote chỉ là mô phỏng.
 
-**Chạy toàn bộ test** (chạy hết ở máy dev ngày 19/11/2026, exit 0):
+**Chạy toàn bộ test** (đã chạy hết **trên một bản clone sạch từ GitHub**, Windows 11, ngày 20/11/2026: `npm ci`, `npm run typecheck`, `npm run lint`, `npm test` đều exit 0, tổng 649 test):
 
 ```bash
 npm test
@@ -115,11 +115,11 @@ npm test
 | Workspace | Test | Kiểm gì |
 | --- | --- | --- |
 | `packages/shared` | 28 | Schema, tiền PCP (chuỗi thập phân, bigint, không dùng number), lọc máy, cấu hình |
-| `db` | 72 | Migration, RLS, grants, khoá đồng thời. Chạy trên PGlite **và PostgreSQL 18 thật** cục bộ, hai connection |
+| `db` | 87 | Migration, RLS, grants, khoá đồng thời, tự đăng máy, màn Quản trị. Chạy trên PGlite **và PostgreSQL 18 thật** cục bộ, hai connection |
 | `contracts` | 52 | PCP và RentalEscrow trên mạng Hardhat |
-| `desktop` | 182 | Logic domain, lớp API live (client giả có nhãn), render từng màn, bàn phím, luồng liên kết kết nối |
+| `desktop` | 323 | Logic domain, lớp API live (client giả có nhãn), render từng màn, bàn phím, liên kết kết nối, thẻ máy, màn Giới thiệu (đối chiếu lời với cấu hình hợp đồng trên Fuji), đọc thông số máy |
 | `host-agent` | 52 | Agent, enrollment, session gateway |
-| `server` | 105 | API, worker, đối soát chuỗi; gồm một bài tích hợp E2E cục bộ (HTTP thật + worker + agent + gateway + Postgres thật) |
+| `server` | 107 | API, worker, đối soát chuỗi; gồm một bài tích hợp E2E cục bộ (HTTP thật + worker + agent + gateway + Postgres thật) |
 
 Lần chạy đầu cần Internet để Hardhat tải trình biên dịch solc 0.8.28; PostgreSQL 18 cho test `db` đi kèm devDependency `embedded-postgres` nên đã có sau `npm install`. Bài E2E dùng chuỗi, guest/Selkies và operator **giả có nhãn**, không chạm Fuji.
 
@@ -133,7 +133,7 @@ Máy chủ API, worker và máy cho thuê **chạy trên PC của nhóm**, nên 
 
 <!-- TODO(chủ repo): thêm liên kết video demo, slide, bộ cài (kèm SHA256SUMS.txt) và liên hệ đặt lịch thử. -->
 
-1. Cài `Cloud PC Companion_..._x64-setup.exe` nhóm gửi (Windows 11). Bộ cài **chưa ký số** (`Get-AuthenticodeSignature` báo `NotSigned`), nên tuỳ máy bạn sẽ gặp một trong hai:
+1. Cài `Cloud PC Companion_0.2.0_x64-setup.exe` (Windows 11): tải ở mục **Releases** của repo này, kèm `SHA256SUMS.txt`; hoặc nhóm gửi trực tiếp. Bộ cài **chưa ký số** (`Get-AuthenticodeSignature` báo `NotSigned`), nên tuỳ máy bạn sẽ gặp một trong hai:
    - **SmartScreen** ("Windows protected your PC"): đối chiếu SHA-256 trong `SHA256SUMS.txt` bằng `Get-FileHash <tệp> -Algorithm SHA256`, rồi chọn *More info → Run anyway*.
    - **Smart App Control** (thường bật sẵn trên máy Windows 11 mới cài): **chặn hẳn, không có nút bỏ qua và không cho phép riêng từng app**. Chỉ có cách tắt trong *Windows Security → App & browser control → Smart App Control settings → Off*. Trên bản Windows cũ, đã tắt thì **không bật lại được nếu không cài lại Windows** (bản mới hơn có thể bật lại). Nếu không muốn tắt, hãy dùng máy khác, xem mức A hoặc video.
 2. Bấm **liên kết kết nối** nhóm gửi (`https://….trycloudflare.com/api/connect`), chọn *Mở*, rồi **Kết nối** ở hộp xác nhận. Nếu không được, dán địa chỉ vào **Cài đặt → Kết nối máy chủ**. Chỉ dán địa chỉ từ người bạn tin: app gửi phiên đăng nhập của bạn tới đó.
@@ -172,6 +172,19 @@ Nếu bỏ dở giữa chừng, máy bị giữ tới khoảng 12 phút rồi t�
 Kiểm phần chuỗi của luồng thuê bằng script (tạo một tài khoản tạm trên Supabase dev và gửi giao dịch thật trên Fuji): `npx tsx scripts/public/fuji-rental-check.mts <địa chỉ API> --full`.
 
 Nếu mạng chặn UDP/QUIC ra ngoài, `cloudflared` không có địa chỉ; hai script đã ép `--protocol http2` (TCP), chậm hơn một chút.
+
+### D. Màn Quản trị (admin)
+
+Chỉ có ở **bản thật** (đã kết nối Supabase), với tài khoản có dòng `admin` trong bảng `user_roles`. Bản xem trước (mức A) **không có** màn này. Không có mật khẩu admin nào được công khai trong repo; muốn vào bằng tài khoản của bạn:
+
+1. Đăng ký một tài khoản trong app rồi lấy mã người dùng (`user_id`): Supabase → Authentication → Users, hoặc `npx tsx scripts/public/admin.mts find <tên hiển thị>` (chỉ đọc).
+2. Trong Supabase → SQL Editor, chạy (thay `<user_id>`):
+   ```sql
+   insert into public.user_roles (user_id, role) values ('<user_id>', 'admin') on conflict do nothing;
+   ```
+3. Đăng xuất rồi đăng nhập lại: menu bên trái có mục **Quản trị** (hoặc mở `/#/admin`).
+
+Màn có sáu tab (Tổng quan, Máy, Host, Phiên thuê, Người dùng, Nhật ký) và cho đình chỉ hoặc khôi phục host và máy, xóa máy, thu hồi thiết bị. Cờ admin ở giao diện chỉ để ẩn hiện menu: quyền thật do database kiểm (RLS và hàm chỉ dành admin), người khác gọi thẳng cũng bị từ chối. Chi tiết: [SECURITY](docs/SECURITY.md) mục 12.
 
 ## 5. Kiến trúc và cấu trúc repo
 

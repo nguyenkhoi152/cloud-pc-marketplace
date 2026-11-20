@@ -18,7 +18,7 @@ Không dự báo điểm hoặc dựng số người dùng/doanh thu/đối tác
 
 ## Video
 
-0:00–0:20 vấn đề/host-renter. 0:20–0:40 máy được duyệt và window. 0:40–1:10 renter quote/approve/fund PCP Fuji. 1:10–1:40 desktop thật thao tác. 1:40–2:10 checkpoint/end/accept/revoke/withdraw. 2:10–2:40 refund lỗi và restore project ở host thứ hai nếu đã làm. Cuối nêu business model và giới hạn.
+0:00–0:20 vấn đề/host-renter. 0:20–0:40 chủ máy đặt tên và mô tả, app tự đọc cấu hình, Quét & đăng máy (không cần admin duyệt), đặt khung giờ. 0:40–1:10 renter quote/approve/fund PCP Fuji. 1:10–1:40 desktop thật thao tác. 1:40–2:10 checkpoint/end/accept/revoke/withdraw. 2:10–2:40 refund lỗi và restore project ở host thứ hai nếu đã làm. Cuối nêu business model và giới hạn.
 
 Có thể cắt dựng minh bạch, dùng accept kết thúc sớm; không giả đã chờ đủ15 phút hoặc giả remote/cloud/receipt. Nếu portability chưa đạt, nêu chưa đạt.
 
