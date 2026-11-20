@@ -5,7 +5,9 @@ import { createLiveApi, type LiveApi } from "./live";
 import { createDevWallet, devWalletRpc, loadDevKey, type DevWallet } from "./devWallet";
 import { effectiveApiBase, saveApiOverride } from "./endpoint";
 import { createServerApi, fetchChainInfo, type ServerApi } from "./server";
-import { createTestnetWallet, loadTestnetKey, testnetRpc } from "./testnetWallet";
+import { generatePrivateKey } from "viem/accounts";
+import type { Hex } from "viem";
+import { createTestnetWallet, loadAccountTestnetKey, needsLinkedLookup, testnetRpc } from "./testnetWallet";
 
 let live: LiveApi | null = null;
 
@@ -85,9 +87,53 @@ export function getDevWallet(): DevWallet | null {
   return devWallet ?? testnetWallet;
 }
 
-/** Lấy RPC + chainId công khai từ máy chủ rồi dựng ví thử. Bỏ qua khi bản build đã bật ví giả lập hoặc máy chủ không khai RPC. Không ném lỗi. */
-export async function initTestnetWallet(): Promise<void> {
-  testnetWallet = null;
+/** Chuỗi công khai mà máy chủ khai (đã kiểm RPC trong danh sách cho phép); null nếu không có ví thử. */
+let chainCfg: { rpc: string; chainId: number } | null = null;
+/** Tài khoản mà ví thử hiện đang dựng cho (null = chưa đăng nhập). */
+let walletUserId: string | null = null;
+let walletSeq = 0;
+/** Tài khoản đang gắn với ví thử của app (để kiểm thử và để `applyLiveAccount` tự bù nếu nơi gọi quên). */
+export const walletAccountId = (): string | null => walletUserId;
+
+/**
+ * Dựng ví thử cho tài khoản đang đăng nhập: mỗi tài khoản một khoá riêng trên PC này (xem `loadAccountTestnetKey`), vì máy chủ chỉ cho một địa chỉ
+ * ví thuộc một tài khoản. Chưa đăng nhập: khoá tạm KHÔNG lưu, chỉ để các nhãn mạng ("Mạng thử nghiệm") có dữ liệu; không ai dùng nó để ký.
+ * Gọi lại liên tục an toàn: chỉ kết quả của lần gọi MỚI NHẤT được áp dụng.
+ */
+async function rebuildTestnetWallet(): Promise<void> {
+  const seq = ++walletSeq;
+  const cfg = chainCfg;
+  const user = walletUserId;
+  let built: DevWallet | null = null;
+  if (cfg) {
+    try {
+      let key: Hex;
+      if (!user) key = generatePrivateKey();
+      else {
+        const storage = safeStorage();
+        // Chỉ khi cần phân xử kế thừa ví cũ mới hỏi máy chủ; tra lỗi ⇒ undefined (tạm dùng khoá cũ, không lưu).
+        const linked = needsLinkedLookup(storage, user) ? await getLiveApi().wallet.linked().then((r) => r?.address ?? null, () => undefined) : null;
+        key = loadAccountTestnetKey(storage, user, linked);
+      }
+      built = createTestnetWallet({ rpcUrl: cfg.rpc, chainId: cfg.chainId, key });
+    } catch {
+      built = null;
+    }
+  }
+  if (seq === walletSeq) testnetWallet = built;
+}
+
+/** Gắn ví thử của app với tài khoản đang đăng nhập (userId) hoặc gỡ khi đăng xuất (null). Không ném lỗi. */
+export async function activateWalletForAccount(userId: string | null): Promise<void> {
+  walletUserId = userId;
+  if (ENV.mode !== "live") return;
+  if (!chainCfg && userId) await loadChainConfig(); // máy chủ chưa trả lời lúc mở app: thử lại khi người dùng đăng nhập
+  await rebuildTestnetWallet();
+}
+
+/** Đọc RPC + chainId công khai từ máy chủ vào `chainCfg`. Không ném lỗi; ghi lý do vào walletIssue khi có vấn đề. */
+async function loadChainConfig(): Promise<void> {
+  chainCfg = null;
   walletIssue = null;
   if (ENV.mode !== "live") return;
   if (getDevWalletFromEnvOnly()) return;
@@ -104,11 +150,14 @@ export async function initTestnetWallet(): Promise<void> {
     walletIssue = "Máy chủ đang dùng một mạng không được ứng dụng này hỗ trợ nên ví chưa hoạt động.";
     return;
   }
-  try {
-    testnetWallet = createTestnetWallet({ rpcUrl: rpc, chainId: info.chainId, key: loadTestnetKey(safeStorage()) });
-  } catch {
-    testnetWallet = null;
-  }
+  chainCfg = { rpc, chainId: info.chainId };
+}
+
+/** Lấy RPC + chainId công khai từ máy chủ rồi dựng ví thử. Bỏ qua khi bản build đã bật ví giả lập hoặc máy chủ không khai RPC. Không ném lỗi. */
+export async function initTestnetWallet(): Promise<void> {
+  testnetWallet = null;
+  await loadChainConfig();
+  await rebuildTestnetWallet();
 }
 const getDevWalletFromEnvOnly = (): DevWallet | null => {
   if (devWallet === undefined) getDevWallet();

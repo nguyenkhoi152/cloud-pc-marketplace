@@ -3,7 +3,7 @@ import { useState, type FormEvent, type InputHTMLAttributes, type ReactNode } fr
 import { cn } from "@/lib/utils";
 import { passwordStrength } from "@/domain/passwordStrength";
 import { Link, navigate } from "@/app/router";
-import { getLiveApi } from "@/api";
+import { activateWalletForAccount, getLiveApi } from "@/api";
 import { isLive } from "@/api/env";
 import { useAppStore } from "@/state/store";
 import { Banner } from "@/ui/feedback";
@@ -273,7 +273,9 @@ export function Login() {
     try {
       const api = getLiveApi();
       await api.auth.signIn(email.trim(), pw);
-      applyLive(await api.account());
+      const acc = await api.account();
+      await activateWalletForAccount(acc.userId); // ví của chính tài khoản này (mỗi tài khoản một ví trên PC)
+      applyLive(acc);
       navigate("/choose-mode");
     } catch (ex) {
       setFail((ex as Error).message);
@@ -334,7 +336,9 @@ export function Register() {
       const api = getLiveApi();
       const r = await api.auth.signUp(f.email.trim(), f.pw, f.name.trim());
       if (!r.confirmed) return setNeedConfirm(true);
-      applyLive(await api.account());
+      const acc = await api.account();
+      await activateWalletForAccount(acc.userId); // ví của chính tài khoản này (mỗi tài khoản một ví trên PC)
+      applyLive(acc);
       navigate("/choose-mode");
     } catch (ex) {
       setFail((ex as Error).message);

@@ -1,6 +1,7 @@
 /**
  * VÍ THỬ TRONG APP cho chuỗi thử CÔNG KHAI (Avalanche Fuji) — để người thử trên máy khác có ví mà không cần cài ví ngoài.
- * KHÔNG có giá trị tiền: PCP và AVAX testnet. Khoá riêng sinh trong app và lưu localStorage (chỉ dùng cho testnet; xoá dữ liệu app là mất ví).
+ * KHÔNG có giá trị tiền: PCP và AVAX testnet. Khoá riêng sinh trong app và lưu localStorage THEO TỪNG TÀI KHOẢN trên máy này (chỉ dùng cho testnet;
+ * xoá dữ liệu app là mất ví; đăng nhập cùng tài khoản trên máy khác là một ví khác).
  *
  * Khác ví giả lập (devWallet.ts) ở chốt chặn và cách nạp tiền:
  *  - KHÔNG có đường nào dùng khoá Hardhat công khai hay `hardhat_*` (mọi thao tác chỉ là RPC chuẩn);
@@ -29,6 +30,63 @@ export function testnetRpc(raw: string | undefined): string | null {
   return null;
 }
 export const loadTestnetKey = (storage: Pick<Storage, "getItem" | "setItem"> | null): Hex => loadKey(storage, TESTNET_STORAGE_KEY);
+
+/**
+ * VÍ THEO TÀI KHOẢN. Trước đây cả app dùng MỘT khoá (`cpm.testWallet.v1`) nên mọi tài khoản trên cùng PC dùng chung một ví, mà máy chủ chỉ cho
+ * một địa chỉ ví thuộc một tài khoản ⇒ tài khoản thứ hai không liên kết được ví. Nay mỗi tài khoản có khoá riêng trên PC này.
+ */
+export const TESTNET_ACCOUNT_KEY_PREFIX = "cpm.testWallet.v2:";
+export const testnetAccountKeyName = (userId: string) => `${TESTNET_ACCOUNT_KEY_PREFIX}${userId}`;
+
+type KeyStore = Pick<Storage, "getItem" | "setItem">;
+const KEY_RE = /^0x[0-9a-fA-F]{64}$/;
+const readKey = (storage: KeyStore | null, name: string): Hex | null => {
+  try {
+    const v = storage?.getItem(name);
+    return v && KEY_RE.test(v) ? (v as Hex) : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Địa chỉ (chữ thường) của khoá ví thử dùng chung cũ trên PC này; null nếu chưa có khoá cũ. */
+export function legacyTestnetAddress(storage: KeyStore | null): string | null {
+  const k = readKey(storage, TESTNET_STORAGE_KEY);
+  return k ? privateKeyToAccount(k).address.toLowerCase() : null;
+}
+
+/** Cần tra ví đã liên kết của tài khoản không? Chỉ khi tài khoản chưa có khoá riêng nhưng PC còn khoá dùng chung cũ (để xem có kế thừa không). */
+export const needsLinkedLookup = (storage: KeyStore | null, userId: string): boolean =>
+  readKey(storage, testnetAccountKeyName(userId)) === null && readKey(storage, TESTNET_STORAGE_KEY) !== null;
+
+/**
+ * Khoá ví thử của MỘT tài khoản trên PC này.
+ *  1. Đã có khoá riêng ⇒ dùng.
+ *  2. Chưa có, PC còn khoá dùng chung cũ:
+ *     - `linkedAddress` trùng địa chỉ của khoá cũ (máy chủ nói tài khoản này đang liên kết đúng ví đó) ⇒ KẾ THỪA: chép sang khoá riêng, giữ nguyên số dư;
+ *     - `linkedAddress === undefined` (không tra cứu được, ví dụ máy chủ tắt) ⇒ tạm dùng khoá cũ, KHÔNG lưu khoá riêng (không nhận nhầm, lần sau tra lại);
+ *     - còn lại (chưa liên kết ví nào, hoặc liên kết ví khác) ⇒ khoá mới. Khoá cũ giữ nguyên trong máy, không ai kế thừa được ngoài tài khoản đang liên kết nó.
+ *  3. Chưa có gì ⇒ khoá mới, lưu riêng cho tài khoản.
+ * Lưu trữ lỗi ⇒ khoá tạm của phiên (như `loadKey`).
+ */
+export function loadAccountTestnetKey(storage: KeyStore | null, userId: string, linkedAddress: string | null | undefined): Hex {
+  const own = testnetAccountKeyName(userId);
+  const mine = readKey(storage, own);
+  if (mine) return mine;
+  const legacy = readKey(storage, TESTNET_STORAGE_KEY);
+  if (legacy) {
+    if (linkedAddress === undefined) return legacy;
+    if (linkedAddress !== null && linkedAddress.toLowerCase() === privateKeyToAccount(legacy).address.toLowerCase()) {
+      try {
+        storage?.setItem(own, legacy);
+      } catch {
+        /* không lưu được: vẫn dùng trong phiên */
+      }
+      return legacy;
+    }
+  }
+  return loadKey(storage, own);
+}
 
 const NET_RE = /fetch failed|Failed to fetch|ECONNREFUSED|NetworkError|HTTP request failed|network|timeout|timed out/i;
 /** Lỗi mạng ⇒ nói đúng là mạng thử không trả lời (không nhắc node Hardhat cục bộ); lỗi khác dịch như thường. */

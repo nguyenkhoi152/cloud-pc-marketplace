@@ -86,6 +86,11 @@ export function LiveWallet() {
               ) : (
                 <p className="text-sm text-ink-soft">Bạn chưa liên kết ví. Hãy liên kết ví trước khi thuê máy.</p>
               )}
+              {w && dev && w.address.toLowerCase() !== dev.address.toLowerCase() && (
+                <Banner tone="warn" className="mt-3" title="Ví đã liên kết khác ví của ứng dụng trên máy này">
+                  Mỗi tài khoản có một ví riêng trên từng máy tính, và ví đã liên kết của bạn không nằm trên máy này (có thể bạn liên kết nó từ máy khác). Muốn dùng ví của máy này, bấm “Liên kết ví khác”. Ví cũ vẫn còn trên máy đã liên kết nó.
+                </Banner>
+              )}
               {w && <Banner tone="info" className="mt-3" title="Đổi ví">Chỉ đổi được ví khi không còn phiên thuê nào đang diễn ra.</Banner>}
               {err && <Banner tone="danger" className="mt-3" title="Chưa liên kết được">{err}</Banner>}
               {done && <Banner tone="ok" className="mt-3" title="Thành công">{done}</Banner>}

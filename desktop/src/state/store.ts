@@ -17,7 +17,7 @@ import type { Account, HostApproval, HostConfig, Machine, Mode, Wallet } from ".
 import { addTransaction, releaseHeld } from "../domain/wallet";
 import { ACCOUNT, DEFAULT_HOST_CONFIG, INSTALL_COMPONENTS, WALLET } from "../mock/fixtures";
 import { ServiceError, type ScenarioId } from "../mock/scenarios";
-import { getLiveApi, service } from "../api";
+import { activateWalletForAccount, getLiveApi, service, walletAccountId } from "../api";
 import { isLive as isLiveMode } from "../api/env";
 import { navigate } from "../app/router";
 import { readSavedMode, safeLocalStorage, saveMode, startupRoute } from "../domain/startup";
@@ -312,13 +312,18 @@ export const useAppStore = create<AppState>((set, get) => {
     toasts: [],
 
     signIn: (name, email) => set((s) => ({ authed: true, account: { ...s.account, name: name?.trim() || s.account.name, email: email?.trim() || s.account.email } })),
-    applyLiveAccount: (a) => set((s) => ({ authed: true, account: { ...s.account, name: a.name, email: a.email, hostApproval: a.hostApproval, isAdmin: a.isAdmin } })),
+    applyLiveAccount: (a) => {
+      // Ví thử là của TỪNG tài khoản trên PC này. Nơi gọi đã chờ gắn ví trước khi vào đây; nếu sót thì bù ở đây (không chặn giao diện).
+      if (walletAccountId() !== a.userId) void activateWalletForAccount(a.userId);
+      set((s) => ({ authed: true, account: { ...s.account, name: a.name, email: a.email, hostApproval: a.hostApproval, isAdmin: a.isAdmin } }));
+    },
     liveBooting: isLiveMode(),
     bootstrapLive: async () => {
       if (!isLiveMode()) return;
       try {
         const a = await getLiveApi().auth.restore();
         if (a) {
+          await activateWalletForAccount(a.userId); // ví của tài khoản này sẵn sàng trước khi màn nào dùng tới
           get().applyLiveAccount(a);
           // Mở app từ Start Menu: URL không hash ⇒ router coi là /welcome. Người đã đăng nhập phải vào thẳng trang chủ của chế độ lần trước
           // (liên kết sâu/tải lại giữa chừng được giữ nguyên).
@@ -347,7 +352,10 @@ export const useAppStore = create<AppState>((set, get) => {
       if (isLiveMode()) {
         // Đăng xuất thật: xoá phiên ở máy trước, UI chỉ về trạng thái chưa đăng nhập khi thành công.
         void getLiveApi().auth.signOut().then(
-          () => set({ authed: false, account: { ...BLANK_ACCOUNT } }),
+          () => {
+            void activateWalletForAccount(null); // gỡ ví của tài khoản vừa thoát: tài khoản kế tiếp trên PC này không dùng ké
+            set({ authed: false, account: { ...BLANK_ACCOUNT } });
+          },
           (e) => toast(err(e), "error"),
         );
         return;
