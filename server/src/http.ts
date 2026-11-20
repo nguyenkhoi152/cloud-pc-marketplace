@@ -5,7 +5,7 @@
 import { connectToSession, pollCommands, reportCommand } from "./api/agent";
 import { requestFaucet, type FaucetDeps } from "./api/faucet";
 import { issueQuote } from "./api/quote";
-import { createEnrollment, heartbeat, redeemEnrollment, revokeDevice } from "./api/enrollment";
+import { agentOffline, createEnrollment, heartbeat, redeemEnrollment, revokeDevice } from "./api/enrollment";
 import { reconcileByTx } from "./api/reconcile";
 import { walletChallenge, walletVerify } from "./api/wallet";
 import { acquireLease, commitWorkspace, createWorkspace, deleteWorkspace, putObject, readManifest, readObject, releaseLease, type WorkspaceStore } from "./workspace";
@@ -117,6 +117,7 @@ async function route(req: Request, deps: HttpDeps): Promise<ApiResult> {
   if (key === "POST /api/admin/devices/revoke") return revokeDevice(deps, await user(), body);
   if (key === "POST /api/agent/enroll") return redeemEnrollment(deps, body);
   if (key === "POST /api/agent/heartbeat") return heartbeat(deps, auth, body);
+  if (key === "POST /api/agent/offline") return agentOffline(deps, auth);
   if (key === "GET /api/agent/commands") return pollCommands(deps, auth);
   const rc = /^POST \/api\/agent\/commands\/([0-9]{1,18})\/result$/.exec(key);
   if (rc) return reportCommand(deps, auth, rc[1], body);

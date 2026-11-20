@@ -38,7 +38,8 @@ Cần: Windows 11 Home/Pro, ảo hoá bật, ≥ 16 GB RAM khuyến nghị, ≥ 
 5. **Không cần admin duyệt.** Ở màn **Máy của tôi**: bấm **Đăng ký làm host** (có hiệu lực ngay), đặt **tên máy** và viết **mô tả ngắn** (kèm giá và vị trí) rồi **Tạo máy**, sau đó bấm **Quét & đăng máy**. Bạn không phải nhập thông số: app tự đọc CPU, số nhân, RAM, GPU và ổ đĩa từ máy. App quét guest (Docker, Node, image Selkies, agent); đạt thì máy hiện cho người thuê ngay, chưa đạt thì app nói còn thiếu gì. Rồi quay lại **Thiết lập & chạy máy**, bước **Ghi danh thiết bị**: chọn máy vừa đăng và bấm **Ghi danh máy này** (app tự xin mã một lần và đưa thẳng vào guest, bạn không phải dán gì). Nếu cài lại guest và máy đã ghi danh trước đó, tick "thay thiết bị cũ". Cần quét xong WSL/Docker/image ở các bước trên trước.
 6. Ở bước **Nhận thuê**: chọn giới hạn RAM/CPU cho khách (khuyến nghị ≥ 4 GB và ≥ 2 CPU; số nhân và RAM trên thẻ máy của bạn chính là mức này, còn CPU/GPU tự đọc từ máy và tự cập nhật mỗi lần bắt đầu nhận thuê hoặc mở màn Máy của tôi), tick **Cho phép người ở mạng khác thuê máy này** nếu muốn người ở xa vào được (app mở kênh Cloudflare chỉ kết nối ra, không mở cổng router/tường lửa; địa chỉ công khai đổi mỗi lần bắt đầu), rồi **Bắt đầu nhận thuê**.
 7. Muốn app vẫn nhận thuê khi đóng cửa sổ: **Cài đặt → Cho thuê máy → Chạy nền khi đóng cửa sổ**; thoát hẳn bằng biểu tượng ở khay hệ thống → "Dừng nhận thuê và thoát". Chưa có tự khởi động cùng Windows.
-8. Thu nhập và rút PCP về ví: **Thu nhập**.
+8. Dừng nhận thuê: bấm **Dừng nhận thuê** ở Thiết lập & chạy máy, hoặc cứ **Đăng xuất** (app sẽ hỏi lại rồi tự dừng). Máy chuyển sang **offline** trong vài giây và người thuê không đặt được nữa; nếu đang có người thuê, phiên của họ bị ngắt. Chỉ đóng cửa sổ khi đã bật "Chạy nền" thì máy vẫn nhận thuê.
+9. Thu nhập và rút PCP về ví: **Thu nhập**.
 
 ## 3. Hãy báo lại cho người tổ chức
 

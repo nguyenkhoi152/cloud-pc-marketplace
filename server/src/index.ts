@@ -6,7 +6,7 @@ export { requestFaucet, type FaucetDeps } from "./api/faucet";
 export { issueQuote } from "./api/quote";
 export { CONNECT_SCHEME, connectDeepLink, connectHost, connectPageResponse, renderConnectPage } from "./api/connectPage";
 export { walletChallenge, walletVerify } from "./api/wallet";
-export { createEnrollment, heartbeat, redeemEnrollment, revokeDevice } from "./api/enrollment";
+export { agentOffline, createEnrollment, heartbeat, redeemEnrollment, revokeDevice } from "./api/enrollment";
 export { applyEvents, reconcileByTx, validateEvent } from "./api/reconcile";
 export * from "./worker";
 export * from "./chainOperator";

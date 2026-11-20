@@ -164,10 +164,27 @@ export class Agent {
     }
   }
 
+  /**
+   * Báo máy chủ "tôi sắp dừng" để máy hiện OFFLINE ngay, thay vì chờ hết hạn nhịp tim (tới 90 giây).
+   * Gọi MỘT lần khi dừng (sau khi vòng lặp đã thoát nên không còn heartbeat nào có thể kéo máy online lại), trước khi đóng gateway và dọn guest.
+   * Best-effort: lỗi mạng hoặc quá hạn không cản việc dừng; agent bị tắt cứng thì máy vẫn sang offline khi nhịp tim quá hạn.
+   */
+  async goOffline(timeoutMs = 3000): Promise<boolean> {
+    try {
+      const r = await this.f(`${this.o.apiBase}/agent/offline`, { method: "POST", headers: this.headers(), body: "{}", signal: AbortSignal.timeout(timeoutMs) });
+      this.o.log?.(r.ok ? "đã báo máy chủ: máy chuyển sang offline" : `báo offline bị từ chối (HTTP ${r.status}); máy sẽ offline khi nhịp tim quá hạn`);
+      return r.ok;
+    } catch (e) {
+      this.o.log?.(`báo offline lỗi: ${(e as Error).message}; máy sẽ offline khi nhịp tim quá hạn`);
+      return false;
+    }
+  }
+
   /** Vòng lặp thường trực; một tick lỗi không làm chết agent. */
   async run(signal: AbortSignal, intervalMs: number): Promise<void> {
     while (!signal.aborted) {
       await this.tick().catch((e: Error) => this.o.log?.(`tick lỗi: ${e.message}`));
+      if (signal.aborted) break; // nhận lệnh dừng trong lúc tick: thoát ngay, không chờ hết một chu kỳ
       await new Promise<void>((r) => {
         // Gỡ listener khi hết giờ chờ: nếu không, mỗi vòng để lại một listener trên signal (rò rỉ khi agent chạy nhiều giờ).
         const onAbort = () => { clearTimeout(t); r(); };

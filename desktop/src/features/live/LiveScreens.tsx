@@ -714,7 +714,7 @@ export function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => 
             <div className="md:col-span-2">
               <KeyValue items={[
                 { k: "Nhận phiên mới", v: <Switch id={`acc-${m.id}`} label="Nhận phiên mới" checked={d.accepting} onCheckedChange={(v) => void run(() => api.setAccepting(m.id, v))} /> },
-                { k: "Kết nối của máy", v: d.health === "unknown" ? "Chưa kết nối (hãy ghi danh và bắt đầu nhận thuê)" : d.health === "ok" ? "Đang kết nối" : d.health === "suspect" ? "Kết nối chậm" : "Mất kết nối" },
+                { k: "Kết nối của máy", v: d.health === "unknown" ? "Đang không nhận thuê: máy hiện offline (bấm “Bắt đầu nhận thuê” ở Thiết lập & chạy máy; lần đầu cần ghi danh)" : d.health === "ok" ? "Đang kết nối" : d.health === "suspect" ? "Kết nối chậm" : "Mất kết nối" },
                 { k: "Khung nhận thuê 7 ngày tới", v: d.windows.length ? d.windows.map(windowLabel).join("; ") : "Chưa có" },
               ]} />
             </div>

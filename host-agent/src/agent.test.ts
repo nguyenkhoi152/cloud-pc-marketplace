@@ -135,3 +135,43 @@ describe("FileCounter / enroll / run (fail-closed)", () => {
     await expect(run({ ...base, AGENT_DATA_DIR: dir, GATEWAY_PUBLIC_URL: "https://host.example.com" }, ac.signal)).rejects.toBeInstanceOf(ConfigError);
   });
 });
+
+describe("Agent.goOffline và dừng", () => {
+  type Seen = { url: string; method?: string; auth?: string; body?: string };
+  const agentWith = async (f: typeof fetch) =>
+    new Agent({ apiBase: "http://api.test/api", credential: "c".repeat(43), gateway: await gw(), gatewayPublicUrl: "http://host.test:9000", guest: okGuest, counter: new MemoryCounter(), fetchImpl: f });
+
+  it("báo offline: POST /agent/offline kèm credential thiết bị; trả true khi máy chủ nhận", async () => {
+    const seen: Seen[] = [];
+    const f = (async (url: string, init: RequestInit = {}) => {
+      seen.push({ url, method: init.method, auth: (init.headers as Record<string, string>).authorization, body: String(init.body) });
+      return new Response("{}");
+    }) as unknown as typeof fetch;
+    expect(await (await agentWith(f)).goOffline()).toBe(true);
+    expect(seen).toEqual([{ url: "http://api.test/api/agent/offline", method: "POST", auth: `Device ${"c".repeat(43)}`, body: "{}" }]);
+  });
+  it("không bao giờ cản việc dừng: bị từ chối, lỗi mạng hay quá hạn đều trả false, không ném lỗi", async () => {
+    const rejected = (async () => new Response("{}", { status: 401 })) as unknown as typeof fetch;
+    expect(await (await agentWith(rejected)).goOffline()).toBe(false);
+    const down = (async () => { throw new Error("ECONNREFUSED"); }) as unknown as typeof fetch;
+    expect(await (await agentWith(down)).goOffline()).toBe(false);
+    // Máy chủ treo: chỉ chờ tới hạn (AbortSignal.timeout), rồi bỏ qua.
+    const hang = ((_u: string, init: RequestInit) => new Promise((_ok, bad) => init.signal?.addEventListener("abort", () => bad(new Error("hết giờ"))))) as unknown as typeof fetch;
+    const t0 = Date.now();
+    expect(await (await agentWith(hang)).goOffline(40)).toBe(false);
+    expect(Date.now() - t0).toBeLessThan(2000);
+  });
+  it("nhận lệnh dừng giữa lúc tick: vòng lặp thoát ngay (không chờ hết chu kỳ), không còn heartbeat nào sau đó", async () => {
+    const ac = new AbortController();
+    const beats: number[] = [];
+    const f = (async (url: string) => {
+      if (url.endsWith("/agent/heartbeat")) { beats.push(1); ac.abort(); return new Response("{}"); }
+      if (url.endsWith("/agent/commands")) return new Response(JSON.stringify({ commands: [] }));
+      return new Response("{}", { status: 404 });
+    }) as unknown as typeof fetch;
+    const t0 = Date.now();
+    await (await agentWith(f)).run(ac.signal, 60_000); // chu kỳ 60 giây: nếu phải chờ hết chu kỳ thì test này quá hạn
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(beats).toEqual([1]);
+  });
+});

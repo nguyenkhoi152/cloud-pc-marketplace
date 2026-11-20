@@ -9,6 +9,7 @@ import { isLive } from "@/api/env";
 import { useFilters } from "@/state/filtersStore";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
+import { usePolling } from "@/state/usePolling";
 import { Button } from "@/ui/button";
 import { Checkbox, Input, Select, Tabs } from "@/ui/controls";
 import { Async, EmptyState } from "@/ui/feedback";
@@ -17,6 +18,7 @@ import { MachineCard } from "./MachineCard";
 import { DemoTag } from "@/ui/badge";
 import { CATEGORY_LABEL } from "./machineFormat";
 
+const LIST_REFRESH_MS = 10_000;
 const TAB_ICON: Record<Category, typeof Gamepad2> = { game: Gamepad2, graphics: Palette, dev: Terminal };
 
 export function Discover() {
@@ -24,8 +26,10 @@ export function Discover() {
   const compare = useAppStore((s) => s.compare);
   const toggle = useAppStore((s) => s.toggleCompare);
   const toast = useAppStore((s) => s.toast);
-  const state = useAsync(() => service.listMachines());
   const live = isLive();
+  // Live: làm mới danh sách nền mỗi 10 giây để máy chủ máy vừa dừng/đăng xuất chuyển offline kịp thời (dữ liệu cũ được giữ nên thẻ không nháy).
+  const tick = usePolling(LIST_REFRESH_MS, live);
+  const state = useAsync(() => service.listMachines(), [tick]);
   // Live: vị trí lấy từ dữ liệu thật (không dùng danh sách mẫu).
   const locations = useMemo(() => (live && state.status === "ready" ? [...new Set(state.data.map((m) => m.location))].sort() : LOCATIONS), [live, state]);
 

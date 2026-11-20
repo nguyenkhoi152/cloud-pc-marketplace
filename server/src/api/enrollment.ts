@@ -59,6 +59,26 @@ export async function redeemEnrollment(deps: Deps, body: unknown): Promise<ApiRe
   }
 }
 
+/**
+ * Agent báo "tôi sắp dừng" (chủ máy dừng nhận thuê, đăng xuất hoặc thoát app): xoá dấu thời gian heartbeat để máy hiện OFFLINE ngay,
+ * thay vì chờ hết hạn nhịp tim (tới 90 giây). Cùng cách xác thực credential thiết bị như heartbeat và chỉ ảnh hưởng đúng thiết bị đó.
+ * KHÔNG đụng last_counter: lần heartbeat kế tiếp (counter lớn hơn) đưa máy online lại. Cố ý không cần migration (service_role đã có quyền bảng).
+ * Agent bị tắt cứng hoặc mất điện không kịp gọi: máy vẫn sang offline khi nhịp tim quá hạn.
+ */
+export async function agentOffline(deps: Deps, authorization: string | null | undefined): Promise<ApiResult> {
+  const m = /^Device ([A-Za-z0-9_-]{20,200})$/.exec(authorization ?? "");
+  if (!m) throw new ApiError(401, "unauthorized", "Thiếu credential thiết bị.");
+  const machineId = await deps.db.tx(
+    async (c) =>
+      (await c.query<{ machine_id: string }>(
+        "update public.device_enrollments set last_heartbeat_at = null where credential_hash = $1 and revoked_at is null and enrolled_at is not null returning machine_id",
+        [sha256Bytes(m[1]!)],
+      )).rows[0]?.machine_id ?? null,
+  );
+  if (!machineId) throw new ApiError(401, "invalid_heartbeat", "Credential không hợp lệ hoặc đã thu hồi.");
+  return ok({ ok: true, machineId });
+}
+
 /** Heartbeat của thiết bị: Authorization: Device <credential>. */
 export async function heartbeat(deps: Deps, authorization: string | null | undefined, body: unknown): Promise<ApiResult> {
   const m = /^Device ([A-Za-z0-9_-]{20,200})$/.exec(authorization ?? "");

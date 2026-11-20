@@ -10,6 +10,7 @@ import { isLive } from "@/api/env";
 import { networkLabel, PREVIEW_BANNER } from "@/domain/envLabels";
 import { envFacts } from "@/api/envFacts";
 import { SCENARIOS } from "@/mock/scenarios";
+import { useSignOut } from "@/features/common/useSignOut";
 import { useAppStore } from "@/state/store";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
@@ -127,9 +128,10 @@ export function TopBar() {
   const wallet = useAppStore((s) => s.wallet);
   const name = useAppStore((s) => s.account.name);
   const email = useAppStore((s) => s.account.email);
-  const signOut = useAppStore((s) => s.signOut);
+  const { requestSignOut, dialog: signOutDialog } = useSignOut();
   return (
     <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-5">
+      {signOutDialog}
       <ModeSwitch />
       <div className="flex items-center gap-3">
         {!isLive() && <Link to="/wallet" className="hidden rounded-md px-2 py-1 text-right text-xs leading-tight hover:bg-subtle sm:block" aria-label="Xem số dư và giao dịch">
@@ -151,7 +153,7 @@ export function TopBar() {
                 <Link to="/account" className="flex h-9 items-center gap-2 rounded-md px-2.5 text-sm font-semibold hover:bg-subtle"><User className="h-4 w-4" aria-hidden /> Tài khoản</Link>
               </Popover.Close>
               <Popover.Close asChild>
-                <button type="button" onClick={() => { signOut(); navigate("/welcome"); }} className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-sm font-semibold text-danger hover:bg-danger-bg"><LogOut className="h-4 w-4" aria-hidden /> Đăng xuất</button>
+                <button type="button" onClick={requestSignOut} className="flex h-9 w-full items-center gap-2 rounded-md px-2.5 text-sm font-semibold text-danger hover:bg-danger-bg"><LogOut className="h-4 w-4" aria-hidden /> Đăng xuất</button>
               </Popover.Close>
             </Popover.Content>
           </Popover.Portal>

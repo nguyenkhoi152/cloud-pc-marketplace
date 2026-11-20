@@ -15,7 +15,7 @@ import { linkWallet, makeAdmin, makeApprovedHost, makeMachine, newUser, renterWi
 import { asPglite, startRealPg, type RealPg } from "../../db/tests/realpg";
 import { ApiError, authenticate, dbSsl, isLoopbackRpc, isPublicDevAddress, loadServerConfig, pgServiceDb, publicDevKeyProblem, sha256Hex, type ApiUser, type Deps, type ServerConfig } from "./core";
 import { createApiHandler } from "./http";
-import { createEnrollment, heartbeat, redeemEnrollment, revokeDevice } from "./api/enrollment";
+import { agentOffline, createEnrollment, heartbeat, redeemEnrollment, revokeDevice } from "./api/enrollment";
 import { issueQuote } from "./api/quote";
 import { reconcileByTx } from "./api/reconcile";
 import { walletChallenge, walletVerify } from "./api/wallet";
@@ -323,6 +323,40 @@ describe("enrollment thiết bị và heartbeat", () => {
     expect(health).toBe("ok");
   });
 
+  it("agent báo offline: máy sang offline NGAY (không chờ hết hạn nhịp tim), heartbeat kế tiếp đưa lên online lại, credential xấu hoặc đã thu hồi bị từ chối", async () => {
+    const host = await makeApprovedHost(A());
+    const machine = await makeMachine(A(), host);
+    const adminId = await makeAdmin(A());
+    const t = await createEnrollment(deps, user(adminId), { machineId: machine, ttlSeconds: 600 });
+    const { credential } = (await redeemEnrollment(deps, { token: (t.body as { enrollmentToken: string }).enrollmentToken })).body as { credential: string };
+    const dev = `Device ${credential}`;
+    const availability = async () => (await admin.query("select availability from public.public_machines where id = $1", [machine])).rows[0]?.availability as string;
+    const health = async () => (await admin.query("select public.machine_health($1) as h", [machine])).rows[0].h as string;
+
+    expect(await availability()).toBe("offline"); // chưa có nhịp tim nào
+    await heartbeat(deps, dev, { counter: 1 });
+    expect(await availability()).toBe("online");
+    expect(await health()).toBe("ok");
+
+    expect((await agentOffline(deps, dev)).body).toEqual({ ok: true, machineId: machine });
+    expect(await availability()).toBe("offline"); // ngay sau lời báo, không chờ 90 giây
+    expect(await health()).toBe("unknown");
+    expect((await agentOffline(deps, dev)).status).toBe(200); // gọi lặp lại vẫn ổn (agent có thể báo hai lần)
+
+    // Không đụng counter: nhịp tim cũ vẫn là replay; nhịp tim mới (counter lớn hơn) đưa máy online lại (agent khởi động lại).
+    await rejects(heartbeat(deps, dev, { counter: 1 }), 401, "invalid_heartbeat");
+    expect(await availability()).toBe("offline");
+    await heartbeat(deps, dev, { counter: 2 });
+    expect(await availability()).toBe("online");
+
+    // Chỉ credential hợp lệ mới báo được, và chỉ tác động đúng thiết bị đó.
+    await rejects(agentOffline(deps, null), 401, "unauthorized");
+    await rejects(agentOffline(deps, "Device " + "x".repeat(43)), 401, "invalid_heartbeat");
+    expect(await availability()).toBe("online"); // credential xấu không làm máy offline
+    await revokeDevice(deps, user(host), { machineId: machine });
+    await rejects(agentOffline(deps, dev), 401, "invalid_heartbeat"); // đã thu hồi
+  });
+
   it("chỉ chủ máy hoặc admin tạo enrollment (người lạ 403); tham số xấu bị từ chối; token lạ bị từ chối", async () => {
     const host = await makeApprovedHost(A());
     const machine = await makeMachine(A(), host);
@@ -470,6 +504,21 @@ describe("lớp HTTP", () => {
     expect(e.status).toBe(500);
     expect(JSON.stringify(await e.json())).not.toContain("hunter2");
     expect(logs.length).toBe(1);
+  });
+
+  it("đi qua HTTP: POST /api/agent/offline xác thực bằng credential thiết bị như heartbeat, không lộ lỗi nội bộ, GET không phải route", async () => {
+    const none = await h()(post("/api/agent/offline", {}));
+    expect(none.status).toBe(401);
+    expect(((await none.json()) as { error: { code: string } }).error.code).toBe("unauthorized");
+    const bogus = await h()(post("/api/agent/offline", {}, { authorization: "Device " + "a".repeat(30) }));
+    expect(bogus.status).toBe(401);
+    expect(((await bogus.json()) as { error: { code: string } }).error.code).toBe("invalid_heartbeat");
+    expect((await h()(new Request("http://api.test/api/agent/offline", { method: "GET" }))).status).toBe(404);
+    const logs: string[] = [];
+    const boom = h({ db: { tx: async () => { throw new Error("mật khẩu db = hunter2"); } }, log: (m) => logs.push(m) });
+    const e = await boom(post("/api/agent/offline", {}, { authorization: "Device " + "a".repeat(30) }));
+    expect(e.status).toBe(500);
+    expect(JSON.stringify(await e.json())).not.toContain("hunter2");
   });
 
   it("đi qua HTTP: người đăng nhập thật cấp challenge ví", async () => {

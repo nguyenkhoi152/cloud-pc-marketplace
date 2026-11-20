@@ -7,6 +7,7 @@ import { service } from "@/api";
 import { isLive } from "@/api/env";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
+import { usePolling } from "@/state/usePolling";
 import { Badge, DemoTag } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Async, Banner, EmptyState } from "@/ui/feedback";
@@ -88,12 +89,13 @@ export function Compare() {
 
 /* ===================== Chi tiết máy ===================== */
 export function MachineDetail({ id }: { id: string }) {
-  const state = useAsync(() => service.getMachine(id), [id]);
+  const live = isLive();
+  const tick = usePolling(10_000, live); // trạng thái online/offline của máy được làm mới nền khi người thuê đang xem
+  const state = useAsync(() => service.getMachine(id), [id, tick]);
   const compare = useAppStore((s) => s.compare);
   const toggle = useAppStore((s) => s.toggleCompare);
   const session = useAppStore((s) => s.session);
   const online = useAppStore((s) => s.online);
-  const live = isLive();
   return (
     <Async state={state} isEmpty={(m) => m === null} empty={<EmptyState title="Không tìm thấy máy" action={<Button onClick={() => navigate("/rent/discover")}>Về danh sách</Button>} />}>
       {(m) => {

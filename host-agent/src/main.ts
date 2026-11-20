@@ -160,6 +160,7 @@ export async function run(env: Env, signal: AbortSignal, log: (m: string) => voi
   const pidFile = env.AGENT_PID_FILE?.trim();
   const port = await gateway.listen(Number(env.GATEWAY_PORT ?? 0), env.GATEWAY_BIND?.trim() || "127.0.0.1");
   log(`gateway lắng nghe cổng ${port}`);
+  let agent: Agent | undefined;
   try {
     if (pidFile) {
       await mkdir(path.dirname(pidFile), { recursive: true });
@@ -169,7 +170,7 @@ export async function run(env: Env, signal: AbortSignal, log: (m: string) => voi
       const r = await guest.ensureReady();
       log(r.ok ? `guest sẵn sàng khởi tạo: ${r.evidence}` : `guest CHƯA sẵn sàng (${r.unknown ? "chưa rõ" : "lỗi"}): ${r.evidence} — agent vẫn chạy, bước chuẩn bị phiên sẽ báo lại`);
     }
-    const agent = new Agent({
+    agent = new Agent({
       apiBase: clean(env.AGENT_API_BASE!), credential, gateway, gatewayPublicUrl: clean(env.GATEWAY_PUBLIC_URL!),
       guest, counter: new FileCounter(path.join(dataDir(env), "counter.json")), log, fetchImpl: hooks.fetchImpl,
     });
@@ -178,6 +179,8 @@ export async function run(env: Env, signal: AbortSignal, log: (m: string) => voi
     await agent.run(signal, Number(env.AGENT_INTERVAL_MS ?? 5000));
     log("agent dừng theo yêu cầu");
   } finally {
+    // Báo offline TRƯỚC khi cắt phiên và dọn guest (việc dọn mất vài giây): người thuê thấy máy offline ngay từ lúc bắt đầu dừng.
+    if (agent) await agent.goOffline();
     await gateway.close(); // cắt mọi phiên xem đang mở trước khi dọn guest
     if (flag(env, "GUEST_CLEANUP_ON_EXIT") && guest.cleanup) {
       const r = await guest.cleanup().catch((e: Error) => ({ ok: false, evidence: e.message }));

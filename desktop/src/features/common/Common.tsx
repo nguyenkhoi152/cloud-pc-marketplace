@@ -1,9 +1,9 @@
 import { Bell, Coins, Mail, MessageSquareText, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { navigate } from "@/app/router";
 import type { Transaction, TxKind } from "@/domain/types";
 import { getLiveApi, service } from "@/api";
 import { isLive } from "@/api/env";
+import { useSignOut } from "@/features/common/useSignOut";
 import { HostBackgroundRow } from "@/features/live/HostBackgroundRow";
 import { ServerConnection } from "@/features/live/ServerConnection";
 import { useAppStore } from "@/state/store";
@@ -175,7 +175,7 @@ export function SettingsScreen() {
 /* ===================== Tài khoản ===================== */
 export function AccountScreen() {
   const a = useAppStore((s) => s.account);
-  const signOut = useAppStore((s) => s.signOut);
+  const { requestSignOut, busy: signingOut, dialog: signOutDialog } = useSignOut();
   const toast = useAppStore((s) => s.toast);
   const refreshAccount = useAppStore((s) => s.refreshAccount);
   const live = isLive();
@@ -214,14 +214,15 @@ export function AccountScreen() {
           <p className="mt-3 flex items-start gap-1.5 text-xs text-ink-faint"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />{live ? "Đăng ký làm host ở màn Cho thuê máy. Đổi chế độ không ảnh hưởng tới tài khoản host." : "Quyền host chỉ có khi máy được duyệt; đổi chế độ không thay đổi quyền."}</p>
           <div className="mt-4 border-t border-line pt-4">
             {live ? (
-              <Button variant="secondary" onClick={() => { signOut(); navigate("/welcome"); }}>Đăng xuất</Button>
+              <Button variant="secondary" loading={signingOut} onClick={requestSignOut}>Đăng xuất</Button>
             ) : (
               <>
                 <Checkbox checked={agree} onChange={setAgree} label="Tôi muốn đăng xuất khỏi bản xem trước" />
-                <Button className="mt-2" variant="secondary" disabled={!agree} onClick={() => { signOut(); navigate("/welcome"); }}>Đăng xuất</Button>
+                <Button className="mt-2" variant="secondary" disabled={!agree} onClick={requestSignOut}>Đăng xuất</Button>
               </>
             )}
           </div>
+          {signOutDialog}
         </Section>
       </div>
       {!live && <Banner tone="info" className="mt-6 max-w-3xl">Ví thật chưa được kết nối. PCP thử là điểm giả lập trong bản xem trước.</Banner>}

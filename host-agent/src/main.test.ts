@@ -114,6 +114,54 @@ describe("run: vòng đời guest", () => {
     await expect(fetch(`http://127.0.0.1:${port}/`)).rejects.toThrow(); // gateway đã đóng
     expect(logs.join("\n")).not.toContain(CRED);
   });
+  it("dừng: báo máy chủ offline NGAY (sau khi hết heartbeat, trước khi cắt phiên và dọn guest) để máy không còn hiện online", async () => {
+    const dir = tmp();
+    writeCred(dir);
+    const events: string[] = [];
+    const f = (async (url: string) => {
+      const u = String(url);
+      if (u.endsWith("/agent/heartbeat")) events.push("heartbeat");
+      if (u.endsWith("/agent/offline")) events.push("offline");
+      return u.endsWith("/agent/commands") ? new Response(JSON.stringify({ commands: [] })) : new Response("{}");
+    }) as unknown as typeof fetch;
+    const { g } = fakeGuest();
+    g.cleanup = async () => { events.push("cleanup"); return { ok: true, evidence: "đã xoá" }; };
+    const ac = new AbortController();
+    let ready = false;
+    const done = run({ ...base(dir), GUEST_CLEANUP_ON_EXIT: "1" }, ac.signal, () => undefined, { guest: g, fetchImpl: f, onReady: () => { ready = true; } });
+    await expect.poll(() => ready, { timeout: 5000 }).toBe(true);
+    await expect.poll(() => events.includes("heartbeat"), { timeout: 5000 }).toBe(true);
+    ac.abort();
+    await done;
+    expect(events.filter((e) => e === "offline")).toHaveLength(1);
+    expect(events.indexOf("offline")).toBeLessThan(events.indexOf("cleanup")); // báo trước khi dọn (việc dọn mất vài giây)
+    expect(events.slice(events.indexOf("offline") + 1)).not.toContain("heartbeat"); // sau lời báo không còn nhịp tim nào kéo máy online lại
+    expect(events.at(-1)).toBe("cleanup");
+  });
+  it("máy chủ không nhận lời báo offline (lỗi mạng) ⇒ vẫn dừng, vẫn dọn guest", async () => {
+    const dir = tmp();
+    writeCred(dir);
+    const f = (async (url: string) => {
+      const u = String(url);
+      if (u.endsWith("/agent/offline")) throw new Error("ECONNREFUSED");
+      return u.endsWith("/agent/commands") ? new Response(JSON.stringify({ commands: [] })) : new Response("{}");
+    }) as unknown as typeof fetch;
+    const { g, calls } = fakeGuest();
+    const ac = new AbortController();
+    let ready = false;
+    const done = run({ ...base(dir), GUEST_CLEANUP_ON_EXIT: "1" }, ac.signal, () => undefined, { guest: g, fetchImpl: f, onReady: () => { ready = true; } });
+    await expect.poll(() => ready, { timeout: 5000 }).toBe(true);
+    ac.abort();
+    await done;
+    expect(calls).toEqual(["ensureReady", "cleanup"]);
+  });
+  it("lỗi cấu hình trước khi agent chạy (chưa có credential) ⇒ không gọi báo offline", async () => {
+    const dir = tmp(); // không ghi credential
+    const urls: string[] = [];
+    const f = (async (url: string) => { urls.push(String(url)); return new Response("{}"); }) as unknown as typeof fetch;
+    await expect(run(base(dir), new AbortController().signal, () => undefined, { guest: fakeGuest().g, fetchImpl: f })).rejects.toBeInstanceOf(ConfigError);
+    expect(urls.some((u) => u.endsWith("/agent/offline"))).toBe(false);
+  });
   it("không bật GUEST_CLEANUP_ON_EXIT ⇒ không dọn guest khi dừng", async () => {
     const dir = tmp();
     writeCred(dir);

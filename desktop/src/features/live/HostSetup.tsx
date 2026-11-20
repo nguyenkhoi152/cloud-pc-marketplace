@@ -360,7 +360,7 @@ export function HostSetup() {
     });
 
   const distros = wsl?.kind === "ready" ? wsl.distros.filter((d) => d.version !== 1) : [];
-  const healthText = health === "ok" ? "Đang kết nối với máy chủ" : health === "suspect" ? "Kết nối chậm" : health === "incident" ? "Mất kết nối với máy chủ" : "Chưa kết nối với máy chủ";
+  const healthText = health === "ok" ? "Đang kết nối với máy chủ" : health === "suspect" ? "Kết nối chậm" : health === "incident" ? "Mất kết nối với máy chủ" : "Chưa kết nối với máy chủ (máy đang hiện offline)";
 
   return (
     <div>
