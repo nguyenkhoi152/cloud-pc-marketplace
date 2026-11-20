@@ -54,7 +54,18 @@ Vai trò on-chain (địa chỉ công khai): admin `0x5ea46bed5249ea11edaa4bbc38
 
 Cấu hình: `feeBps = 1000` (10%), `durationSeconds = 900`, `graceSeconds = 600`, `arbitrationSeconds = 86400`. Biên dịch bằng solc 0.8.28, optimizer 200 runs, `viaIR`. Domain EIP-712: `CloudPCRentalEscrow` v1.
 
-**Cách kiểm chứng:** mở trang địa chỉ RentalEscrow ở trên, xem danh sách giao dịch và log (`Funded`, `Activated`, sự kiện accept/settle, rút tiền). Mã nguồn ở `contracts/contracts/PCP.sol` và `RentalEscrow.sol`, ABI ở `packages/shared/src/abi/`. README không liệt kê sẵn mã giao dịch của từng lần thuê thử, vì trang giao dịch của escrow luôn là nguồn đúng nhất.
+**Cách kiểm chứng:** mở trang địa chỉ RentalEscrow ở trên, xem danh sách giao dịch và log (`Funded`, `Activated`, sự kiện accept/settle, rút tiền). Mã nguồn ở `contracts/contracts/PCP.sol` và `RentalEscrow.sol`, ABI ở `packages/shared/src/abi/`.
+
+**Biên nhận mẫu trên Fuji** (đọc từ log hợp đồng ngày 20/11/2026; một chu trình đầy đủ: giá 20 PCP, phí 10% = 2 PCP, host nhận 18 PCP):
+
+| Bước | Giao dịch trên Snowtrace |
+| --- | --- |
+| Nạp PCP vào escrow (`fund`) | [`0x2eb3b6fa…b2fb5a`](https://testnet.snowtrace.io/tx/0x2eb3b6fa99a4621c59f6080f08a8e2100e54d574ea35a2bd225891b730b2fb5a) |
+| Kích hoạt phiên (`activate`) | [`0xc6cc84a2…68cc60`](https://testnet.snowtrace.io/tx/0xc6cc84a2406d22372892e32915dab90626da970015b694086b1736e69f68cc60) |
+| Kết thúc và chia tiền (`accept`) | [`0xc89b90c5…87c8f7`](https://testnet.snowtrace.io/tx/0xc89b90c5b81f40cfc817a0cbdfabcb5110712c79f60e26e4a4049b284287c8f7) |
+| Hoàn tiền cho người thuê (hủy trước khi kích hoạt) | [`0x40eec114…605a8c`](https://testnet.snowtrace.io/tx/0x40eec1147ae6648b9335ee144664aa094ba7c5d4df33ef40cfc142218c605a8c) |
+
+Tổng cộng trong log: 7 lần `Funded`, 6 `Activated`, 6 `Settled`, 1 `Refunded`, **0 `CreditWithdrawn`**, 0 tranh chấp. Nghĩa là **chưa có giao dịch rút tiền (`withdrawPCP`) nào trên Fuji**: khoản chia tiền và tiền hoàn đang nằm trong escrow chờ chủ ví rút (nút **Rút về ví** trong app chưa được kiểm; xem mục 3). Tự lấy lại số liệu này, chỉ đọc, không cần khoá: `node scripts/fuji/receipts.mjs --md` (và `node scripts/fuji/activity.mjs` cho số dư tổng hợp).
 
 **Thiết kế hợp đồng**
 - **PCP**: ERC-20 18 decimals, trần 1.000.000, **chỉ chuyển qua escrow** (không chuyển P2P, không permit/burn/mint tự do). Vòi: 1.000 PCP một lần mỗi ví. `configureEscrowOnce` chỉ gọi được một lần.
