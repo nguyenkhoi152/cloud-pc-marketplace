@@ -270,6 +270,21 @@ export interface StepInput {
   agentRunning: boolean;
   /** Sức khoẻ heartbeat do máy chủ ghi nhận ("ok" | "suspect" | "incident" | "unknown"); null nếu chưa biết máy nào. */
   health: string | null;
+  /**
+   * Mã các máy thuộc tài khoản đang đăng nhập. null/không có = chưa biết (đang tải hoặc không tải được): khi đó KHÔNG chặn,
+   * vì không được coi "chưa biết" là "của người khác".
+   */
+  ownMachineIds?: string[] | null;
+}
+
+/**
+ * Bản Linux đã ghi danh cho một máy KHÔNG thuộc tài khoản đang đăng nhập (ví dụ chủ máy đã đăng xuất, tài khoản khác đăng nhập
+ * trên cùng PC). Agent chỉ biết chứng chỉ thiết bị chứ không biết ai đang dùng app, nên nếu cho bắt đầu nhận thuê thì máy của
+ * người kia lại hiện online dù họ đã đăng xuất.
+ */
+export function enrolledForOtherAccount(p: Pick<GuestProbe, "enrolled" | "machineId"> | null, ownMachineIds: string[] | null | undefined): boolean {
+  if (!p?.enrolled || !p.machineId || !ownMachineIds) return false;
+  return !ownMachineIds.includes(p.machineId);
 }
 
 /**
@@ -398,6 +413,11 @@ export function buildSteps(i: StepInput): SetupStep[] {
 
   // 9. Ghi danh thiết bị
   if (!netOk) steps.push(pending("enroll", "Ghi danh thiết bị"));
+  else if (enrolledForOtherAccount(p, i.ownMachineIds))
+    steps.push({
+      id: "enroll", title: "Ghi danh thiết bị", status: "action", action: "enroll",
+      detail: `Bản Linux này đang ghi danh cho máy ${p!.machineId!.slice(0, 8)}…, máy KHÔNG thuộc tài khoản đang đăng nhập (có thể tài khoản trước chưa dọn). Ghi danh lại cho máy của bạn để nhận thuê; nếu không máy kia sẽ hiện online khi bạn bắt đầu.${i.agentRunning || p!.agentRunning ? " Đang có dịch vụ cho thuê chạy cho máy đó: hãy dừng trước." : ""}`,
+    });
   else if (p!.enrolled) steps.push({ id: "enroll", title: "Ghi danh thiết bị", status: "ok", detail: `Đã ghi danh cho máy ${p!.machineId?.slice(0, 8) ?? "?"}….` });
   else steps.push({ id: "enroll", title: "Ghi danh thiết bị", status: "action", action: "enroll", detail: "Chọn máy bạn đã đăng rồi bấm ghi danh. (Cần đăng máy ở mục Máy của tôi trước.)" });
   const enrolled = netOk && steps[steps.length - 1]!.status === "ok";

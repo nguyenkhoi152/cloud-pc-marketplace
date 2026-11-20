@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSteps, gpuNote, guestError, interpretWsl, interpretWslInstall, machineEligibility, nextStep, parseKv, parseProbe, type BackendInfo, type Captured, type GuestProbe, type WslState } from "./hostEnv";
+import { buildSteps, enrolledForOtherAccount, gpuNote, guestError, interpretWsl, interpretWslInstall, machineEligibility, nextStep, parseKv, parseProbe, type BackendInfo, type Captured, type GuestProbe, type WslState } from "./hostEnv";
 
 const cap = (code: number, stdout = "", stderr = ""): Captured => ({ code, stdout, stderr });
 const SHA = "88bfd111192d15883e4c271bdf7ea268e7eeeafa2cd7e04394fa86815f700025";
@@ -228,6 +228,28 @@ describe("buildSteps", () => {
     expect(running.find((s) => s.id === "run")!.detail).toContain("kết nối với máy chủ");
     const waiting = buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled, agentRunning: true, health: "unknown" });
     expect(waiting.find((s) => s.id === "run")!.detail).toContain("chờ kết nối đầu tiên");
+  });
+  it("bản Linux đã ghi danh cho máy của TÀI KHOẢN KHÁC (chủ máy đăng xuất, người khác đăng nhập) ⇒ phải ghi danh lại, KHÔNG được bắt đầu: nếu không máy của chủ cũ lại hiện online", () => {
+    const MINE = "99999999-8888-7777-6666-555555555555";
+    const THEIRS = "11111111-2222-3333-4444-555555555555";
+    const enrolled = probe({ enrolled: true, machineId: THEIRS });
+    // Máy đã ghi danh KHÔNG nằm trong các máy của tài khoản này.
+    const other = buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled, ownMachineIds: [MINE] });
+    expect(nextStep(other)).toMatchObject({ id: "enroll", status: "action", action: "enroll" });
+    expect(other.find((s) => s.id === "enroll")!.detail).toContain("KHÔNG thuộc tài khoản");
+    expect(other.find((s) => s.id === "run")).toMatchObject({ status: "blocked" }); // nút Bắt đầu nhận thuê không hiện
+    expect(enrolledForOtherAccount(enrolled, [MINE])).toBe(true);
+    expect(enrolledForOtherAccount(enrolled, [])).toBe(true); // tài khoản chưa có máy nào cũng không dùng được chứng chỉ của người khác
+    // Dịch vụ đang chạy cho máy đó: nói rõ phải dừng trước (ghi danh lại bị từ chối khi dịch vụ đang chạy).
+    const running = buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled, agentRunning: true, ownMachineIds: [MINE] });
+    expect(running.find((s) => s.id === "enroll")!.detail).toContain("hãy dừng trước");
+    // Máy của chính tài khoản này, hoặc chưa biết danh sách máy (đang tải/lỗi): KHÔNG chặn (chưa biết ≠ của người khác).
+    expect(nextStep(buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled, ownMachineIds: [MINE, THEIRS] }))).toMatchObject({ id: "run", action: "start" });
+    expect(nextStep(buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled, ownMachineIds: null }))).toMatchObject({ id: "run", action: "start" });
+    expect(nextStep(buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled }))).toMatchObject({ id: "run", action: "start" });
+    expect(enrolledForOtherAccount(enrolled, null)).toBe(false);
+    expect(enrolledForOtherAccount(probe(), [MINE])).toBe(false); // chưa ghi danh: bước ghi danh bình thường lo
+    expect(enrolledForOtherAccount(null, [MINE])).toBe(false);
   });
   it("backend VM thử: không đòi WSL, nhưng vẫn BÁO trạng thái WSL của máy (không che việc máy chưa cài WSL)", () => {
     const steps = buildSteps({ ...base, wsl: interpretWsl(notInstalled), backend: vmBackend, probe: probe({ isWsl: false, enrolled: true, machineId: "11111111-2222-3333-4444-555555555555" }) });

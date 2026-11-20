@@ -9,7 +9,7 @@ import { apiBase, getDevWallet, getLiveApi, getServerApi } from "@/api";
 import { hostNative, hostNativeAvailable, viewerOrigins } from "@/api/hostNative";
 import { splitFeeUnits, type HostMachine, type LiveBooking } from "@/api/live";
 import { BOOKING_STATE_LABEL } from "@/domain/adminData";
-import { buildSteps, gpuNote, guestError, interpretWsl, interpretWslInstall, nextStep, parseProbe, RECOMMENDED_DISTRO, type GuestProbe, type Overview, type SetupStep, type StepStatus } from "@/domain/hostEnv";
+import { buildSteps, enrolledForOtherAccount, gpuNote, guestError, interpretWsl, interpretWslInstall, nextStep, parseProbe, RECOMMENDED_DISTRO, type GuestProbe, type Overview, type SetupStep, type StepStatus } from "@/domain/hostEnv";
 import { startHosting, stopHosting, type TunnelInfo } from "@/domain/hostStart";
 import { loadLimits, saveLimits, toLimitInput, type Limits } from "@/domain/hostLimits";
 import { hostSessionLabel } from "@/domain/sessionSteps";
@@ -145,6 +145,8 @@ export function HostSetup() {
   const [ov, setOv] = useState<Overview | null>(null);
   const [probe, setProbe] = useState<GuestProbe | null>(null);
   const [machines, setMachines] = useState<HostMachine[]>([]);
+  // null cho tới khi tải được danh sách máy của tài khoản này: chưa biết thì không chặn (xem enrolledForOtherAccount).
+  const [ownIds, setOwnIds] = useState<string[] | null>(null);
   const [health, setHealth] = useState<string | null>(null);
   // true cho tới khi lần kiểm tra guest đầu tiên xong (kể cả thất bại): tránh hiện "Chưa tới" như thể đã biết kết quả.
   const [probing, setProbing] = useState(true);
@@ -197,7 +199,7 @@ export function HostSetup() {
   useEffect(() => {
     if (!native) return;
     void refresh();
-    void getLiveApi().host.listMachines().then(setMachines, () => undefined);
+    void getLiveApi().host.listMachines().then((ms) => { setMachines(ms); setOwnIds(ms.map((m) => m.id)); }, () => undefined);
     const t = setInterval(() => {
       void loadOverview().catch(() => undefined);
       void hostNative.tunnelState().then(setTunnel, () => undefined);
@@ -269,7 +271,7 @@ export function HostSetup() {
     );
 
   const wsl = ov ? interpretWsl(ov) : null;
-  const steps = ov && wsl ? buildSteps({ wsl, backend: ov.backend, probe, appAgentSha256: ov.agentSha256, agentRunning: !!agentRunning, health }) : [];
+  const steps = ov && wsl ? buildSteps({ wsl, backend: ov.backend, probe, appAgentSha256: ov.agentSha256, agentRunning: !!agentRunning, health, ownMachineIds: ownIds }) : [];
   const next = nextStep(steps);
   const myMachine = machineId ? machines.find((m) => m.id === machineId) : undefined;
   const gpu = gpuNote(probe);
@@ -318,6 +320,8 @@ export function HostSetup() {
   const doStart = () =>
     act("start", async () => {
       if (!api) throw new Error("Ứng dụng chưa kết nối máy chủ. Vào Cài đặt → Kết nối máy chủ để nhập địa chỉ.");
+      // Chốt chặn thứ hai (bước thiết lập đã ẩn nút này): không bắt đầu nhận thuê bằng chứng chỉ của máy thuộc tài khoản khác.
+      if (enrolledForOtherAccount(probe, ownIds)) throw new Error("Bản Linux này đang ghi danh cho máy không thuộc tài khoản của bạn. Ghi danh lại cho máy của bạn trước khi bắt đầu nhận thuê.");
       // Ghi lại cấu hình MỖI lần bắt đầu: địa chỉ API và địa chỉ tunnel có thể đã đổi từ lần chạy trước.
       const r = await startHosting({ ...hostNative, sleep: (ms) => new Promise((ok) => setTimeout(ok, ms)) }, { apiBase: api, frameAncestors, share, ...toLimitInput(limits, probe?.memTotalMb ?? null, probe?.cpuCount ?? null) });
       await loadOverview();
