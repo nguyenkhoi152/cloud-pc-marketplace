@@ -26,6 +26,8 @@ export function Badge({ tone = "neutral", icon = true, children, className }: { 
   );
 }
 
-export function DemoTag({ children = isLive() ? "Cấu hình do host tự khai" : "Dữ liệu mô phỏng" }: { children?: ReactNode }) {
-  return <span className="rounded border border-warn-line bg-warn-bg px-1.5 py-px text-[11px] font-semibold text-warn">{children}</span>;
+export function DemoTag({ children = isLive() ? "Do chủ máy cung cấp" : "Dữ liệu mô phỏng" }: { children?: ReactNode }) {
+  // Bản xem trước: nhãn cảnh báo (dữ liệu giả phải nói rõ). Bản thật: nhãn trung tính ghi nguồn của thông tin.
+  const cls = isLive() ? "border-line-strong bg-subtle text-ink-soft" : "border-warn-line bg-warn-bg text-warn";
+  return <span className={`rounded border px-1.5 py-px text-[11px] font-semibold ${cls}`}>{children}</span>;
 }

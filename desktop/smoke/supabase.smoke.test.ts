@@ -12,7 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { readEnv } from "../src/api/env";
 import { createLiveApi, formatUnits, type Db, type LiveApi } from "../src/api/live";
 
@@ -66,6 +66,18 @@ let machineId = "";
 let priceUnits = "";
 
 describe("Supabase dev thật (qua src/api/live.ts)", () => {
+  // Dọn: test 5 đăng một máy `smoke-*` công khai mỗi lần chạy (client không xoá được). Đình chỉ nó để KHÔNG còn hiện trong danh mục của người thuê
+  // (trước đây mỗi lần chạy để lại một máy "Máy test tự động" cạnh máy thật). Muốn xoá hẳn: Quản trị → Máy → Xoá (chỉ khi chưa có tiền/phiên).
+  afterAll(async () => {
+    if (!machineId || !users.admin) return;
+    try {
+      await users.admin.api.admin.reviewMachine(machineId, "suspended");
+      console.log(`[smoke] đã đình chỉ máy thử ${machineId.slice(0, 8)} (không còn hiện cho người thuê)`);
+    } catch (e) {
+      console.warn(`[smoke] KHÔNG đình chỉ được máy thử ${machineId.slice(0, 8)}: ${(e as Error).message}. Đình chỉ tay: Quản trị → Máy.`);
+    }
+  });
+
   it("0. cấu hình hợp lệ và Auth trả cài đặt; email autoconfirm đã bật", async () => {
     expect(cfg.mode, cfg.mode === "invalid" ? cfg.problems.join(" ") : "").toBe("live");
     state.configured = true;
@@ -148,16 +160,12 @@ describe("Supabase dev thật (qua src/api/live.ts)", () => {
     state.sql = true;
   });
 
-  it("5. host: chưa duyệt thì không đăng được máy; admin duyệt; đăng máy, cam kết, lịch, gửi duyệt, admin duyệt máy", async () => {
+  it("5. host: tự đăng ký là được ngay (KHÔNG admin); đăng máy, cam kết, lịch, rồi đăng máy công khai không cần admin duyệt", async () => {
     requires("accounts", "sql");
-    const { host, admin } = users;
-    if ((await host.api.account()).hostApproval === "none") {
-      await host.api.host.apply();
-      expect((await host.api.account()).hostApproval).toBe("pending");
-      await expect(host.api.host.createMachine({ name: `smoke-${run}`, pricePcp: "20", specs: {} })).rejects.toMatchObject({ code: "rejected" }); // pending → RLS chặn
-    }
-    await admin.api.admin.reviewHost(host.id, "approved");
-    expect((await host.api.account()).hostApproval).toBe("approved");
+    const { host } = users;
+    if ((await host.api.account()).hostApproval === "none") await host.api.host.apply();
+    // Đỏ ở đây nghĩa là Supabase dev chưa áp migration 20261120000001_self_service_listing.sql (host mới còn "pending").
+    expect((await host.api.account()).hostApproval, "áp supabase/migrations/20261120000001_self_service_listing.sql trong SQL Editor").toBe("approved");
 
     priceUnits = "12345678901234567890"; // > 2^53 trong đơn vị nhỏ nhất: kiểm không mất chính xác
     machineId = await host.api.host.createMachine({ name: `smoke-${run}`, pricePcp: formatUnits(priceUnits), specs: { cpu: "Smoke CPU", cores: 4, ramGb: 8, categories: ["dev"], location: "Smoke", summary: "Máy test tự động" } });
@@ -171,9 +179,9 @@ describe("Supabase dev thật (qua src/api/live.ts)", () => {
     expect(await host.api.host.health(machineId)).toBe("unknown"); // chưa có agent thật
 
     expect((await anon().catalog.list()).some((m) => m.id === machineId)).toBe(false); // nháp: chưa công khai
-    await host.api.host.submitForReview(machineId);
-    await expect(host.api.admin.reviewMachine(machineId, "approved")).rejects.toMatchObject({ code: "rejected" }); // host không tự duyệt
-    await admin.api.admin.reviewMachine(machineId, "approved");
+    expect(await host.api.host.publishMachine(machineId)).toBe("approved"); // không cần admin
+    await expect(host.api.admin.reviewMachine(machineId, "suspended")).rejects.toMatchObject({ code: "rejected" }); // host vẫn không có quyền admin (đình chỉ máy)
+    expect((await anon().catalog.list()).some((m) => m.id === machineId)).toBe(true);
   });
 
   it("6. danh mục công khai thấy máy đã duyệt, giá chính xác tuyệt đối, không lộ chủ máy", async () => {

@@ -7,7 +7,7 @@ import { formatClock } from "@/domain/clock";
 import { isTerminal } from "@/domain/session";
 import { cn } from "@/lib/utils";
 import { isLive } from "@/api/env";
-import { describeEnv } from "@/domain/envLabels";
+import { networkLabel, PREVIEW_BANNER } from "@/domain/envLabels";
 import { envFacts } from "@/api/envFacts";
 import { SCENARIOS } from "@/mock/scenarios";
 import { useAppStore } from "@/state/store";
@@ -15,25 +15,30 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { RadioGroup } from "@/ui/radio";
 import { Money } from "@/ui/page";
-import { COMMON_NAV, HOST_NAV, LIVE_NAV, RENT_NAV, isActive, type NavItem } from "./nav";
+import { ADMIN_NAV, COMMON_NAV, HOST_NAV, LIVE_NAV, RENT_NAV, isActive, type NavItem } from "./nav";
 
-/* ---------- Dải thông báo demo ---------- */
+/* ---------- Dải thông báo (chỉ ở bản xem trước: dữ liệu mẫu phải được ghi rõ) ---------- */
 export function DemoBanner() {
   const scenario = useAppStore((s) => s.scenario);
   const label = SCENARIOS.find((s) => s.id === scenario)?.label;
-  if (isLive())
-    return (
-      <Link to="/about" data-testid="env-banner" className="flex min-h-7 shrink-0 items-center justify-center gap-2 border-b border-warn-line bg-warn-bg px-4 py-1 text-center text-xs font-semibold text-warn hover:underline" aria-label="Bản demo. Xem phần nào thật, phần nào giả lập">
-        <FlaskConical className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        {describeEnv(envFacts()).banner}
-      </Link>
-    );
+  if (isLive()) return null; // bản thật không có dải này: nhãn mạng nằm ở chip trên thanh trên và chân thanh bên
   return (
     <div className="flex h-7 shrink-0 items-center justify-center gap-2 border-b border-warn-line bg-warn-bg px-4 text-xs font-semibold text-warn">
       <FlaskConical className="h-3.5 w-3.5" aria-hidden />
-      BẢN XEM TRƯỚC GIAO DIỆN — dữ liệu, đăng nhập, thanh toán, cài đặt và kết nối đều là mô phỏng.
-      <span className="hidden font-medium md:inline">Kịch bản: {label}</span>
+      {PREVIEW_BANNER}
+      <span className="hidden font-medium md:inline">· Kịch bản: {label}</span>
     </div>
+  );
+}
+
+/** Chip mạng ở thanh trên (live). Không hiện nếu app không có ví để biết mạng nào. */
+function NetworkChip() {
+  const net = isLive() ? networkLabel(envFacts()) : null;
+  if (!net) return null;
+  return (
+    <Link to="/about" title={net.note} aria-label={net.note} className="hidden items-center rounded-full border border-line-strong px-2.5 py-0.5 text-xs font-semibold text-ink-soft hover:bg-subtle sm:inline-flex">
+      {net.chip}
+    </Link>
   );
 }
 
@@ -61,14 +66,19 @@ export function ModeSwitch() {
             aria-checked={mode === i.v}
             tabIndex={mode === i.v ? 0 : -1}
             onClick={() => go(i.v)}
-            className={cn("inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors duration-150", mode === i.v ? "bg-navy text-white" : "text-ink-soft hover:bg-sky/60")}
+            className={cn("relative inline-flex h-8 items-center rounded-md px-3 text-sm font-semibold transition-colors duration-150", mode === i.v ? "text-white" : "text-ink-soft hover:bg-sky/60")}
           >
-            <i.icon className="h-4 w-4" aria-hidden />
-            {i.label}
+            {/* Nền đậm trượt từ nút này sang nút kia (motion tự tắt khi bật "Giảm chuyển động"). */}
+            {mode === i.v && <motion.span layoutId="mode-pill" className="absolute inset-0 rounded-md bg-navy" transition={{ type: "spring", stiffness: 520, damping: 38 }} aria-hidden />}
+            <span className="relative z-10 inline-flex items-center gap-1.5">
+              <i.icon className="h-4 w-4" aria-hidden />
+              {i.label}
+            </span>
           </button>
         ))}
       </RadioGroup>
-      {mode === "host" && approval !== "approved" && <Badge tone="warn" icon={false}>Chưa được duyệt</Badge>}
+      {mode === "host" && approval !== "approved" && !isLive() && <Badge tone="warn" icon={false}>Chưa được duyệt</Badge>}
+      {mode === "host" && approval === "rejected" && isLive() && <Badge tone="danger" icon={false}>Tài khoản host bị tạm khóa</Badge>}
     </div>
   );
 }
@@ -116,6 +126,7 @@ export function TopBar() {
   const mode = useAppStore((s) => s.account.mode);
   const wallet = useAppStore((s) => s.wallet);
   const name = useAppStore((s) => s.account.name);
+  const email = useAppStore((s) => s.account.email);
   const signOut = useAppStore((s) => s.signOut);
   return (
     <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-5">
@@ -126,6 +137,7 @@ export function TopBar() {
           <Money value={mode === "rent" ? wallet.usable : wallet.hostSettled} className="text-sm" />
         </Link>}
         {!isLive() && <DemoPanel />}
+        <NetworkChip />
         <Popover.Root>
           <Popover.Trigger asChild>
             <Button variant="ghost" size="icon" aria-label={`Tài khoản của ${name}`}>
@@ -134,7 +146,7 @@ export function TopBar() {
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Content align="end" sideOffset={6} className="z-50 w-56 rounded-lg border border-line bg-surface p-1.5 shadow-pop animate-pop-in">
-              <p className="px-2.5 py-1.5 text-xs text-ink-faint">{isLive() ? "Tài khoản dev (Supabase)" : "Tài khoản mô phỏng"}</p>
+              <p className="truncate px-2.5 py-1.5 text-xs text-ink-faint" title={email || undefined}>{isLive() ? email || name : "Tài khoản mẫu"}</p>
               <Popover.Close asChild>
                 <Link to="/account" className="flex h-9 items-center gap-2 rounded-md px-2.5 text-sm font-semibold hover:bg-subtle"><User className="h-4 w-4" aria-hidden /> Tài khoản</Link>
               </Popover.Close>
@@ -153,10 +165,14 @@ export function TopBar() {
 function NavLink({ item, path, badge }: { item: NavItem; path: string; badge?: string }) {
   const active = isActive(item, path);
   return (
-    <Link to={item.to} aria-current={active ? "page" : undefined} className={cn("flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-semibold transition-colors duration-150", active ? "bg-teal-tint text-teal-dark" : "text-ink-soft hover:bg-sky/60 hover:text-ink")}>
-      <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
-      <span className="truncate">{isLive() ? (item.liveLabel ?? item.label) : item.label}</span>
-      {badge && <span className="num ml-auto rounded-full bg-navy px-1.5 text-[11px] font-bold leading-5 text-white">{badge}</span>}
+    <Link to={item.to} aria-current={active ? "page" : undefined} className={cn("relative flex h-9 items-center rounded-md px-2.5 text-sm font-semibold transition-colors duration-150", active ? "text-teal-dark" : "text-ink-soft hover:bg-sky/60 hover:text-ink")}>
+      {/* Nền của mục đang xem trượt giữa các mục khi đổi màn. */}
+      {active && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-md bg-teal-tint" transition={{ type: "spring", stiffness: 520, damping: 40 }} aria-hidden />}
+      <span className="relative z-10 flex min-w-0 flex-1 items-center gap-2.5">
+        <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
+        <span className="truncate">{isLive() ? (item.liveLabel ?? item.label) : item.label}</span>
+        {badge && <span className="num ml-auto rounded-full bg-navy px-1.5 text-[11px] font-bold leading-5 text-white">{badge}</span>}
+      </span>
     </Link>
   );
 }
@@ -167,6 +183,7 @@ export function Sidebar({ path }: { path: string }) {
   const session = useAppStore((s) => s.session);
   const hostSession = useAppStore((s) => s.hostSession);
   const blocked = useAppStore((s) => s.hostBlocked);
+  const isAdmin = useAppStore((s) => !!s.account.isAdmin);
 
   const live = isLive();
   const rent = RENT_NAV.filter((i) => (live ? LIVE_NAV.has(i.to) : !i.liveOnly && (i.to !== "/rent/session" || !!session)));
@@ -192,12 +209,18 @@ export function Sidebar({ path }: { path: string }) {
         {(mode === "rent" ? rent : host).map((i) => (
           <NavLink key={i.to} item={i} path={path} badge={badgeFor(i.to)} />
         ))}
+        {live && isAdmin && (
+          <>
+            <p className="mt-4 px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Quản trị</p>
+            <NavLink item={ADMIN_NAV} path={path} />
+          </>
+        )}
         <p className="mt-4 px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Chung</p>
         {COMMON_NAV.filter((i) => !live || LIVE_NAV.has(i.to)).map((i) => (
           <NavLink key={i.to} item={i} path={path} />
         ))}
       </nav>
-      <p className="border-t border-line p-3 text-[11px] leading-snug text-ink-faint">{isLive() ? "Bản demo · dữ liệu dev, PCP không có giá trị tiền" : "Phiên bản xem trước · không kết nối dịch vụ thật"}</p>
+      <p className="border-t border-line p-3 text-[11px] leading-snug text-ink-faint">{isLive() ? (networkLabel(envFacts())?.footer ?? "") : "Bản xem trước · dữ liệu mẫu"}</p>
     </aside>
   );
 }

@@ -94,7 +94,7 @@ describe("chốt chặn chainId: RPC phải đúng chuỗi mà máy chủ công 
   it("RPC trả chainId khác ⇒ KHÔNG ký, KHÔNG xin quote, KHÔNG gửi giao dịch, chỉ hỏi eth_chainId", async () => {
     const n = fakeNode({ chainId: 1 }); // mainnet Ethereum
     const w = wallet(n);
-    const refused = { code: "unsupported", message: expect.stringContaining("không ký trên mạng khác") };
+    const refused = { code: "unsupported", message: expect.stringContaining("không khớp với hệ thống") };
     await expect(w.provider.request({ method: "personal_sign", params: [utf8Hex("x"), w.address] })).rejects.toMatchObject(refused);
     await expect(w.provider.request({ method: "eth_chainId" })).rejects.toMatchObject(refused);
     await expect(w.pay("b1", server)).rejects.toMatchObject(refused);
@@ -144,7 +144,7 @@ describe("nạp ví từ vòi của máy chủ trước khi trả tiền", () =>
     const server = { issueQuote: async () => quoteFor(w.address), reconcile: async () => ({ status: "x", pending: false }) };
     const e = await w.pay("b1", server).catch((x: unknown) => x);
     expect(e).toBeInstanceOf(ServiceError);
-    expect((e as ServiceError).message).toContain("chưa có AVAX testnet");
+    expect((e as ServiceError).message).toContain("chưa có AVAX để trả phí giao dịch");
     expect((e as ServiceError).message).toContain(w.address);
     expect(n.s.seen.some((m) => /^eth_send|^eth_estimateGas$/.test(m))).toBe(false);
   });
@@ -160,7 +160,7 @@ describe("nạp ví từ vòi của máy chủ trước khi trả tiền", () =>
     const e = await w.pay("b1", server).catch((x: unknown) => x);
     expect(faucetCalls).toBe(1);
     // Đã vượt qua bước nạp ví: lỗi (nếu có) đến từ nút giả không hỗ trợ ký/gửi, không phải "thiếu gas/PCP".
-    expect(String((e as Error)?.message)).not.toMatch(/chưa có AVAX|chưa đủ PCP/);
+    expect(String((e as Error)?.message)).not.toMatch(/chưa có AVAX|PCP chưa đủ/);
     expect(n.s.seen.some((m) => m === "eth_estimateGas" || m === "eth_getTransactionCount" || m === "eth_sendRawTransaction" || m === "eth_getBlockByNumber")).toBe(true);
   });
   it("vòi chạy xong mà số dư vẫn thiếu (vòi hết hạn mức/24 giờ): báo thiếu rõ ràng, không treo", async () => {
@@ -170,7 +170,7 @@ describe("nạp ví từ vòi của máy chủ trước khi trả tiền", () =>
     const server = { issueQuote: async () => quoteFor(w.address), reconcile: async () => ({ status: "x", pending: false }), faucet: async () => { faucetCalls++; return FAUCET_OK; } };
     const e = await w.pay("b1", server).catch((x: unknown) => x);
     expect(faucetCalls).toBe(1);
-    expect((e as ServiceError).message).toContain("chưa có AVAX testnet");
+    expect((e as ServiceError).message).toContain("chưa có AVAX để trả phí giao dịch");
   });
   it("đủ gas và PCP: không gọi vòi", async () => {
     const n = fakeNode({ gas: MIN_GAS_WEI * 10n, pcp: 10n ** 21n });
@@ -186,14 +186,14 @@ describe("nạp ví từ vòi của máy chủ trước khi trả tiền", () =>
     let faucetCalls = 0;
     const server = { issueQuote: async () => quoteFor("0x" + "77".repeat(20)), reconcile: async () => ({ status: "x", pending: false }), faucet: async () => { faucetCalls++; return FAUCET_OK; } };
     const e = await w.pay("b1", server).catch((x: unknown) => x);
-    expect((e as ServiceError).message).toContain("Ví thử của cửa sổ này không phải ví đã liên kết");
+    expect((e as ServiceError).message).toContain("không phải ví đã liên kết");
     expect(faucetCalls).toBe(0);
   });
   it("quote cho chuỗi khác chainId ví đang kết nối bị chặn", async () => {
     const n = fakeNode({ chainId: 43113 });
     const w = wallet(n);
     const server = { issueQuote: async () => ({ ...quoteFor(w.address), chainId: 43114 }), reconcile: async () => ({ status: "x", pending: false }) };
-    await expect(w.pay("b1", server)).rejects.toMatchObject({ code: "rejected", message: expect.stringContaining("chainId 43113, máy chủ cần 43114") });
+    await expect(w.pay("b1", server)).rejects.toMatchObject({ code: "rejected", message: expect.stringContaining("sai mạng") });
   });
 });
 

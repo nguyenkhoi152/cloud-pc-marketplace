@@ -67,23 +67,24 @@ export function toQuote(raw: Record<string, string>) {
 }
 
 const CHAIN_ERRORS: Record<string, string> = {
-  BadSignature: "Chữ ký quote không đúng người ký của escrow (cấu hình máy chủ lệch với chuỗi).",
-  InvalidQuote: "Quote không khớp cấu hình escrow trên chuỗi (token/phí/phiên bản/thời hạn).",
+  BadSignature: "Không xác thực được báo giá. Hãy giữ máy lại và thử lần nữa.",
+  InvalidQuote: "Báo giá không còn hợp lệ. Hãy giữ máy lại và thử lần nữa.",
   TooLate: "Đã quá hạn thanh toán; hãy giữ máy lại.",
-  MachineOccupied: "Máy đang bị chiếm trên chuỗi.",
-  BookingUsed: "Booking này đã được dùng trên chuỗi.",
-  InvalidState: "Trạng thái trên chuỗi không cho phép thao tác này.",
-  NotAuthorized: "Ví này không phải bên được phép thao tác.",
-  NothingToWithdraw: "Không có PCP nào để rút trên escrow cho ví này.",
+  MachineOccupied: "Máy đang có giao dịch khác chưa hoàn tất.",
+  BookingUsed: "Phiên thuê này đã được thanh toán trước đó.",
+  InvalidState: "Phiên thuê không ở trạng thái cho phép thao tác này.",
+  NotAuthorized: "Ví này không có quyền thực hiện thao tác này.",
+  NothingToWithdraw: "Chưa có PCP nào để rút về ví này.",
 };
 export function mapChainError(e: unknown): ServiceError {
   if (e instanceof ServiceError) return e;
   const msg = String((e as Error)?.message ?? e);
   const name = /Error: ([A-Za-z0-9_]+)\(/.exec(msg)?.[1];
   if (/User rejected|denied/i.test(msg)) return new ServiceError("rejected", "Đã từ chối giao dịch.");
-  if (name) return new ServiceError("rejected", CHAIN_ERRORS[name] ?? `Hợp đồng từ chối: ${name}.`);
+  if (name) return new ServiceError("rejected", CHAIN_ERRORS[name] ?? "Giao dịch bị từ chối. Hãy thử lại sau.");
   if (/fetch failed|Failed to fetch|ECONNREFUSED|network/i.test(msg)) return new ServiceError("offline", "Không kết nối được chuỗi cục bộ (node Hardhat chưa chạy?).");
-  return new ServiceError("server", `Giao dịch lỗi: ${msg.slice(0, 140)}`);
+  if (typeof console !== "undefined") console.warn("[wallet]", msg.slice(0, 300));
+  return new ServiceError("server", "Giao dịch chưa thực hiện được. Hãy thử lại sau ít phút.");
 }
 
 /**
@@ -256,12 +257,12 @@ export function buildWallet(c: WalletCore): DevWallet {
       await guard();
       const r = await server.issueQuote(bookingId);
       const chainId = await pub.getChainId().catch((e) => { throw mapChainError(e); });
-      if (chainId !== r.chainId) throw new ServiceError("rejected", `Chuỗi đang kết nối có chainId ${chainId}, máy chủ cần ${r.chainId}.`);
+      if (chainId !== r.chainId) throw new ServiceError("rejected", "Ví đang kết nối sai mạng. Hãy chuyển ví sang đúng mạng rồi thử lại.");
       const q = toQuote(r.quote) as { token: Address; priceUnits: bigint; renter: Address };
       // Quote ghi địa chỉ renter lấy từ ví ĐÃ LIÊN KẾT trong DB. Mỗi cửa sổ/hồ sơ có khoá ví riêng: nếu khác ví đã liên kết,
       // escrow sẽ trả InvalidQuote (thông báo khó hiểu). Chặn sớm, trước khi nạp ví/approve/fund, và chỉ đúng việc cần làm.
       if (String(q.renter).toLowerCase() !== account.address.toLowerCase())
-        throw new ServiceError("rejected", `${c.noun[0]!.toUpperCase()}${c.noun.slice(1)} của cửa sổ này không phải ví đã liên kết với tài khoản. Vào Ví → Liên kết ví (dùng ${c.noun} của cửa sổ này) rồi trả tiền lại.`);
+        throw new ServiceError("rejected", "Ví đang dùng trong ứng dụng không phải ví đã liên kết với tài khoản. Vào Ví → Liên kết ví rồi thử trả tiền lại.");
       await c.ensureFunds(q.token, q.priceUnits, server);
       await send(wallet, q.token, pcpAbi, "approve", [r.escrow as Address, q.priceUnits]);
       const tx = await send(wallet, r.escrow as Address, escrowAbi, "fund", [q, r.signature]);

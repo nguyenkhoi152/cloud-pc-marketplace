@@ -4,7 +4,8 @@
  * Hàm nhận `Db` (tập con của SupabaseClient) để test được bằng bản giả có nhãn.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Category, HostApproval, Machine } from "../domain/types";
+import { buildAdminSnapshot, type AdminSnapshot, type RawAudit, type RawBooking, type RawHost, type RawMachine, type RawProfile, type RawRole } from "../domain/adminData";
+import type { Category, HostApproval, Machine, MachineState } from "../domain/types";
 import { ServiceError } from "../mock/scenarios";
 
 export type Db = Pick<SupabaseClient, "from" | "rpc" | "auth">;
@@ -17,12 +18,13 @@ interface PgErr {
 /** Thông báo nghiệp vụ từ `raise exception` trong DB → tiếng Việt. */
 const DB_MESSAGES: Record<string, string> = {
   forbidden: "Bạn không có quyền thực hiện thao tác này.",
-  unavailable: "Máy hiện không thể giữ (đang có người giữ, chưa đủ điều kiện hoặc chưa được duyệt).",
+  unavailable: "Máy này hiện không thể giữ: có thể đang có người dùng hoặc chưa sẵn sàng. Hãy thử máy khác hoặc quay lại sau.",
   wallet_required: "Cần liên kết ví đã xác minh trước khi giữ máy.",
   invalid_request: "Yêu cầu không hợp lệ.",
-  idempotency_conflict: "Khóa yêu cầu đã dùng với nội dung khác. Thử lại từ đầu.",
-  commitment_in_use: "Không thể sửa/xóa cam kết đang bảo đảm một booking còn hiệu lực.",
+  idempotency_conflict: "Yêu cầu này đã được gửi với nội dung khác. Hãy thử lại từ đầu.",
+  commitment_in_use: "Không thể sửa hay xóa cam kết khi đang có phiên thuê dựa trên cam kết này.",
   schedule_overlap: "Khung giờ bị chồng với khung đã có.",
+  has_history: "Không xóa được: máy này đã có giao dịch hoặc phiên thuê. Hãy đình chỉ thay vì xóa.",
 };
 
 export function mapError(e: unknown): ServiceError {
@@ -39,7 +41,9 @@ export function mapError(e: unknown): ServiceError {
   if (/user already registered|already been registered/i.test(msg)) return new ServiceError("auth", "Email này đã có tài khoản.");
   if (/rate limit|too many/i.test(msg)) return new ServiceError("auth", "Quá nhiều yêu cầu, thử lại sau ít phút.");
   if (/password/i.test(msg) && /(at least|weak|short)/i.test(msg)) return new ServiceError("auth", "Mật khẩu chưa đủ mạnh (tối thiểu 8 ký tự).");
-  return new ServiceError("server", `Máy chủ trả lỗi: ${msg}`);
+  // Không đưa lỗi thô của máy chủ lên màn hình (khó hiểu và có thể lộ chi tiết nội bộ); ghi ra console để chẩn đoán.
+  if (typeof console !== "undefined") console.warn("[api]", msg.slice(0, 300));
+  return new ServiceError("server", "Có lỗi xảy ra. Hãy thử lại sau ít phút.");
 }
 
 function unwrap<T>(res: { data: T | null; error: PgErr | null }): T {
@@ -80,7 +84,7 @@ export function splitFeeUnits(gross: string, feeBps: number): { fee: string; hos
 /** Tiền phải đến dạng chuỗi (select …::text). Nhận number là lỗi: JSON number có thể đã mất chính xác. */
 function moneyStr(v: unknown): string {
   if (typeof v === "string" && /^[0-9]+$/.test(v)) return v;
-  throw new ServiceError("server", "Máy chủ trả số tiền không ở dạng chuỗi nguyên; từ chối để tránh sai số.");
+  throw new ServiceError("server", "Không đọc được số tiền. Hãy tải lại trang.");
 }
 
 /* ---------------- máy ---------------- */
@@ -108,7 +112,18 @@ export interface PublicMachineRow {
   declared_specs: unknown;
   price_units: string;
   created_at: string;
+  /** Từ migration 20261120000002: 'online' | 'busy' | 'offline' do máy chủ đo (heartbeat + booking). Thiếu cột (DB cũ) ⇒ không có trường này. */
+  availability?: string | null;
 }
+
+/** Trạng thái hiển thị từ cột availability. Không có/khác giá trị đã biết ⇒ "unverified" (không đoán là online). */
+export function stateOfAvailability(a: unknown): MachineState {
+  return a === "online" ? "online" : a === "busy" ? "busy" : a === "offline" ? "offline" : "unverified";
+}
+
+const CATALOG_COLS = "id,name,declared_specs,price_units::text,created_at";
+/** DB chưa áp migration 20261120000002: PostgREST báo cột `availability` không tồn tại (42703). */
+const missingAvailability = (e: PgErr | null) => !!e && (e.code === "42703" || /availability/i.test(e.message ?? ""));
 export function mapMachine(r: PublicMachineRow): Machine {
   const s = (r.declared_specs && typeof r.declared_specs === "object" ? r.declared_specs : {}) as Record<string, unknown>;
   const categories = Array.isArray(s.categories) ? (s.categories.filter((c) => CATS.includes(c as Category)) as Category[]) : [];
@@ -119,7 +134,7 @@ export function mapMachine(r: PublicMachineRow): Machine {
     hostAlias: str(s.hostAlias, "Host"),
     categories: categories.length ? categories : ["dev"],
     location: str(s.location, "Chưa khai"),
-    cpu: str(s.cpu, "Chưa khai"),
+    cpu: str(s.cpu, ""),
     cores: num(s.cores),
     ramGb: num(s.ramGb),
     gpu: typeof s.gpu === "string" && s.gpu ? s.gpu.slice(0, 120) : null,
@@ -129,10 +144,10 @@ export function mapMachine(r: PublicMachineRow): Machine {
     // Chỉ để hiển thị/lọc; mọi phép tính tiền thật dùng price_units dạng chuỗi.
     pricePer15: Number(formatUnits(units)),
     workspace: s.workspace === true,
-    state: "unverified",
+    state: stateOfAvailability(r.availability),
     apps: [],
     windows: [],
-    summary: str(s.summary, "Cấu hình do host tự khai, chưa được hệ thống xác minh."),
+    summary: str(s.summary, "Chủ máy chưa viết mô tả. Cấu hình do app của chủ máy đọc từ máy, chưa được hệ thống xác minh."),
   };
 }
 export const priceUnitsOf = (m: PublicMachineRow) => moneyStr(m.price_units);
@@ -229,6 +244,8 @@ export interface LiveAccount {
   email: string;
   name: string;
   hostApproval: HostApproval;
+  /** Có dòng role 'admin' của chính mình trong user_roles. Chỉ để ẩn/hiện màn Quản trị: quyền thật do RLS và hàm DB kiểm. */
+  isAdmin: boolean;
 }
 
 export function createLiveApi(db: Db) {
@@ -272,6 +289,15 @@ export function createLiveApi(db: Db) {
           if (error) throw error;
         });
       },
+      /** Đổi tên hiển thị của chính mình (RLS/grant chỉ cho sửa cột display_name của dòng của mình). */
+      async updateName(displayName: string): Promise<void> {
+        await guard(async () => {
+          const u = await uid();
+          const name = displayName.trim();
+          if (name.length < 1 || name.length > 80) throw new ServiceError("rejected", "Tên hiển thị dài từ 1 đến 80 ký tự.");
+          unwrap(await db.from("profiles").update({ display_name: name }).eq("user_id", u.id));
+        });
+      },
       /** Tạo dòng profiles nếu chưa có (không có trigger tự tạo; reserve_machine cần profile active). */
       async ensureProfile(displayName?: string): Promise<void> {
         const u = await uid();
@@ -306,24 +332,33 @@ export function createLiveApi(db: Db) {
       const u = await uid();
       const profile = unwrap(await db.from("profiles").select("display_name").eq("user_id", u.id).maybeSingle()) as { display_name: string } | null;
       const host = unwrap(await db.from("host_profiles").select("status").eq("user_id", u.id).maybeSingle()) as { status: string } | null;
+      const roles = unwrap(await db.from("user_roles").select("role").eq("user_id", u.id)) as { role: string }[] | null;
       return {
         userId: u.id,
         email: u.email ?? "",
         name: profile?.display_name ?? (u.email ?? "Người dùng").split("@")[0]!,
         hostApproval: hostApprovalOf(host?.status),
+        isAdmin: (roles ?? []).some((r) => r.role === "admin"),
       };
     },
 
     catalog: {
+      // Chọn kèm `availability` (trạng thái online do máy chủ đo). Nếu DB chưa áp migration 20261120000002 thì chọn lại không có cột đó:
+      // danh mục vẫn hiện, các máy ở trạng thái "unverified" như trước (không làm hỏng màn Khám phá).
       async list(): Promise<Machine[]> {
         return guard(async () => {
-          const rows = unwrap(await db.from("public_machines").select("id,name,declared_specs,price_units::text,created_at").order("created_at", { ascending: false })) as PublicMachineRow[];
-          return rows.map(mapMachine);
+          const q = (cols: string) => db.from("public_machines").select(cols).order("created_at", { ascending: false });
+          let res = await q(`${CATALOG_COLS},availability`);
+          if (missingAvailability(res.error)) res = await q(CATALOG_COLS);
+          return (unwrap(res) as unknown as PublicMachineRow[]).map(mapMachine);
         });
       },
       async get(id: string): Promise<{ machine: Machine; priceUnits: string } | null> {
         return guard(async () => {
-          const r = unwrap(await db.from("public_machines").select("id,name,declared_specs,price_units::text,created_at").eq("id", id).maybeSingle()) as PublicMachineRow | null;
+          const q = (cols: string) => db.from("public_machines").select(cols).eq("id", id).maybeSingle();
+          let res = await q(`${CATALOG_COLS},availability`);
+          if (missingAvailability(res.error)) res = await q(CATALOG_COLS);
+          const r = unwrap(res) as unknown as PublicMachineRow | null;
           return r ? { machine: mapMachine(r), priceUnits: priceUnitsOf(r) } : null;
         });
       },
@@ -394,9 +429,24 @@ export function createLiveApi(db: Db) {
           return rows.map((r) => ({ id: r.id, startsAt: r.starts_at, endsAt: r.ends_at }));
         });
       },
-      async submitForReview(machineId: string): Promise<void> {
+      /**
+       * Đăng máy. Không còn admin duyệt: máy chủ DB đặt thẳng `approved` nếu thông số tối thiểu hợp lệ (RPC giữ tên cũ `submit_machine_for_review`).
+       * Trả về trạng thái máy sau khi đăng: DB chưa áp migration 20261120000001 thì vẫn là "review" (chờ admin), UI phải nói đúng điều đó.
+       */
+      /**
+       * Ghi thông số mà app đọc được từ máy (chủ máy không tự gõ). Chỉ sửa cột declared_specs của máy của mình
+       * (grant theo cột + RLS); máy của người khác thì không sửa được dòng nào.
+       */
+      async updateMachineSpecs(machineId: string, specs: DeclaredSpecs): Promise<void> {
         await guard(async () => {
+          unwrap(await db.from("machines").update({ declared_specs: specs }).eq("id", machineId));
+        });
+      },
+      async publishMachine(machineId: string): Promise<HostMachineStatus> {
+        return guard(async () => {
           unwrap(await db.rpc("submit_machine_for_review", { p_machine: machineId }));
+          const r = unwrap(await db.from("machines").select("status").eq("id", machineId).single()) as { status: HostMachineStatus };
+          return r.status;
         });
       },
       async listRules(machineId: string): Promise<ScheduleRule[]> {
@@ -448,8 +498,50 @@ export function createLiveApi(db: Db) {
       },
     },
 
-    /** Chỉ cho admin (kiểm quyền ở DB). Dùng trong smoke test; UI chưa có màn hình admin. */
+    /** Chỉ cho admin (kiểm quyền ở DB bằng RLS và hàm DB; không tin cờ `isAdmin` ở giao diện). Dùng ở màn Quản trị và smoke test. */
     admin: {
+      /**
+       * Ảnh chụp dữ liệu cho màn Quản trị. Chạy dưới JWT của admin nên RLS cho admin đọc mọi hàng (profiles, host_profiles, machines, bookings,
+       * user_roles, audit_logs); người không phải admin chỉ nhận phần của mình (và màn Quản trị không hiện cho họ). Tiền ở dạng chuỗi.
+       * Sức khoẻ thiết bị lấy từ my_machine_health (không có SELECT trên device_enrollments).
+       */
+      async snapshot(): Promise<AdminSnapshot> {
+        return guard(async () => {
+          const [profiles, hosts, machines, bookings, roles, audit] = await Promise.all([
+            db.from("profiles").select("user_id,display_name,created_at").limit(1000),
+            db.from("host_profiles").select("user_id,status,created_at").limit(1000),
+            db.from("machines").select("id,name,status,owner_id,machine_key,price_units::text,created_at,active_booking_id").order("created_at", { ascending: false }).limit(500),
+            db.from("bookings").select("id,machine_id,renter_id,host_id,state,access_state,price_units::text,created_at").order("created_at", { ascending: false }).limit(1000),
+            db.from("user_roles").select("user_id,role").limit(1000),
+            db.from("audit_logs").select("id,actor,action,resource,outcome,detail,created_at").order("created_at", { ascending: false }).limit(200),
+          ]);
+          const machineRows = (unwrap(machines) as unknown as RawMachine[] | null ?? []).map((m) => ({ ...m, price_units: moneyStr(m.price_units) }));
+          const health: Record<string, string> = {};
+          await Promise.all(
+            machineRows
+              .filter((m) => m.status === "approved")
+              .map(async (m) => {
+                const r = await db.rpc("my_machine_health", { p_machine: m.id });
+                health[m.id] = typeof r.data === "string" ? r.data : "unknown";
+              }),
+          );
+          return buildAdminSnapshot({
+            profiles: (unwrap(profiles) as unknown as RawProfile[] | null) ?? [],
+            hosts: (unwrap(hosts) as unknown as RawHost[] | null) ?? [],
+            machines: machineRows,
+            bookings: ((unwrap(bookings) as unknown as RawBooking[] | null) ?? []).map((b) => ({ ...b, price_units: moneyStr(b.price_units) })),
+            roles: (unwrap(roles) as unknown as RawRole[] | null) ?? [],
+            audit: (unwrap(audit) as unknown as RawAudit[] | null) ?? [],
+            health,
+          });
+        });
+      },
+      /** Xoá máy CHƯA TỪNG có tiền hay phiên (hàm DB admin_delete_machine kiểm lại); máy đã có lịch sử tiền chỉ đình chỉ được ('has_history'). */
+      async deleteMachine(machineId: string): Promise<void> {
+        await guard(async () => {
+          unwrap(await db.rpc("admin_delete_machine", { p_machine: machineId }));
+        });
+      },
       async reviewHost(userId: string, status: "pending" | "approved" | "suspended"): Promise<void> {
         await guard(async () => {
           unwrap(await db.rpc("review_host", { p_user: userId, p_status: status }));

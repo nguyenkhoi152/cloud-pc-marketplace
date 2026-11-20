@@ -35,7 +35,7 @@ const NET_RE = /fetch failed|Failed to fetch|ECONNREFUSED|NetworkError|HTTP requ
 function mapNet(e: unknown): ServiceError {
   if (e instanceof ServiceError) return e;
   if (NET_RE.test(String((e as Error)?.message ?? e)) && !/User rejected|denied/i.test(String((e as Error)?.message ?? e)))
-    return new ServiceError("offline", "Không kết nối được mạng thử Fuji (RPC công khai không trả lời). Kiểm tra mạng rồi thử lại.");
+    return new ServiceError("offline", "Không kết nối được mạng Avalanche Fuji. Kiểm tra mạng rồi thử lại.");
   return mapChainError(e);
 }
 
@@ -57,7 +57,7 @@ export function createTestnetWallet(o: { rpcUrl: string; chainId: number; key: H
     } catch (e) {
       throw mapNet(e);
     }
-    if (id !== o.chainId) throw new ServiceError("unsupported", `Ví thử từ chối: RPC trả chainId ${id}, máy chủ công bố ${o.chainId}. Ví thử không ký trên mạng khác.`);
+    if (id !== o.chainId) throw new ServiceError("unsupported", "Mạng đang kết nối không khớp với hệ thống nên ví không ký giao dịch. Hãy thử lại sau.");
   };
 
   const read = (token: Address, fn: "balanceOf") => pub.readContract({ address: token, abi: pcpAbi, functionName: fn, args: [account.address] } as never) as Promise<bigint>;
@@ -73,8 +73,8 @@ export function createTestnetWallet(o: { rpcUrl: string; chainId: number; key: H
           await new Promise((r) => setTimeout(r, delay));
         }
       }
-      if (gas < MIN_GAS_WEI) throw new ServiceError("rejected", `Ví thử chưa có AVAX testnet để trả gas. Địa chỉ ví: ${account.address}. Lấy AVAX Fuji từ vòi công khai rồi thử lại (máy chủ chỉ nhỏ giọt gas một lần mỗi 24 giờ).`);
-      if (bal < need) throw new ServiceError("rejected", "Ví thử chưa đủ PCP thử (vòi chỉ cấp một lần cho mỗi ví). Mở màn Ví để xem số dư.");
+      if (gas < MIN_GAS_WEI) throw new ServiceError("rejected", `Ví chưa có AVAX để trả phí giao dịch. Vào Ví để nhận AVAX, hoặc nạp AVAX Fuji vào địa chỉ ${account.address} rồi thử lại.`);
+      if (bal < need) throw new ServiceError("rejected", "Số dư PCP chưa đủ để thuê máy này. Vào Ví để kiểm tra số dư.");
     } catch (e) {
       throw mapNet(e);
     }

@@ -25,9 +25,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sidebar path={path} />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar />
-          <main id="main" ref={main} tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">
+          <main id="main" ref={main} tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto outline-none">
+            {/* Nền trang trí ở đầu trang (phẳng, ẩn khỏi trình đọc màn hình, không nhận chuột). Bọc overflow-hidden để không sinh thanh cuộn ngang. */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-56 overflow-hidden" aria-hidden data-testid="shell-backdrop">
+              <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-sky/50" />
+              <div className="absolute right-44 top-6 h-14 w-14 rounded-full border-[7px] border-sky/70" />
+            </div>
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={path.split("?")[0]} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="mx-auto w-full max-w-[1160px] px-6 py-6">
+              <motion.div key={path.split("?")[0]} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }} className="relative mx-auto w-full max-w-[1160px] px-6 py-6">
                 {children}
               </motion.div>
             </AnimatePresence>

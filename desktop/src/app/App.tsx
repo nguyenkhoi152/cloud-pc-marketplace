@@ -44,6 +44,8 @@ const HostSessionsPage = lz(() => import("@/features/live/LiveScreens").then((m)
 const HostSetup = lz(() => import("@/features/live/HostSetup").then((m) => m.HostSetup));
 const LiveHostEarnings = lz(() => import("@/features/live/HostEarnings").then((m) => m.HostEarnings));
 const About = lz(() => import("@/features/live/About").then((m) => m.About));
+const AdminDashboard = lz(() => import("@/features/admin/AdminDashboard").then((m) => m.AdminDashboard));
+const ConnectLinkPrompt = lz(() => import("@/features/live/ConnectLinkPrompt").then((m) => m.ConnectLinkPrompt));
 
 interface Route {
   pattern: string;
@@ -83,6 +85,8 @@ const ROUTES: Route[] = [
   { pattern: "/settings", render: () => <SettingsScreen /> },
   { pattern: "/account", render: () => <AccountScreen /> },
   { pattern: "/about", render: () => <About /> },
+  // Quản trị (live + role admin): màn tự kiểm lại và báo "không có quyền"; quyền thật do DB (RLS/hàm) quyết định.
+  { pattern: "/admin", render: () => <AdminDashboard /> },
 ];
 
 /** Chế độ live: chỉ các route đã nối API thật; còn lại báo thẳng là chưa nối (không hiện dữ liệu mẫu). */
@@ -123,7 +127,17 @@ function ConfigError({ problems }: { problems: string[] }) {
 
 export function App() {
   if (ENV.mode === "invalid") return <ConfigError problems={ENV.problems} />;
-  return <AppInner />;
+  return (
+    <>
+      <AppInner />
+      {/* Liên kết kết nối (cloudpc://connect?server=…): hộp xác nhận hiện ở mọi màn, kể cả chưa đăng nhập. */}
+      {isLive() && (
+        <Suspense fallback={null}>
+          <ConnectLinkPrompt />
+        </Suspense>
+      )}
+    </>
+  );
 }
 
 function AppInner() {

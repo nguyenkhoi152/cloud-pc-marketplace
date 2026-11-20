@@ -30,8 +30,8 @@ export async function waitForTunnelUrl(d: Pick<HostStartDeps, "tunnelState" | "s
   for (;;) {
     const s = await d.tunnelState();
     if (s.state === "running" && isTunnelUrl(s.url)) return s.url;
-    if (s.state === "exited") throw new Error(`Tunnel thoát (mã ${s.exitCode ?? "?"}) trước khi có địa chỉ. Mạng có thể chặn kết nối ra Cloudflare. ${lastLine(s.logTail)}`.trim());
-    if (waited >= timeoutMs) throw new Error(`Tunnel chưa có địa chỉ sau ${Math.round(timeoutMs / 1000)} giây. ${lastLine(s.logTail)}`.trim());
+    if (s.state === "exited") throw new Error(`Chưa tạo được địa chỉ truy cập từ xa (mã ${s.exitCode ?? "?"}). Mạng của bạn có thể đang chặn kết nối ra ngoài. ${lastLine(s.logTail)}`.trim());
+    if (waited >= timeoutMs) throw new Error(`Chưa tạo được địa chỉ truy cập từ xa sau ${Math.round(timeoutMs / 1000)} giây. ${lastLine(s.logTail)}`.trim());
     await d.sleep(stepMs);
     waited += stepMs;
   }

@@ -5,10 +5,12 @@ import type { Category, Machine } from "@/domain/types";
 export const CATEGORY_LABEL: Record<Category, string> = { game: "Game", graphics: "Đồ họa", dev: "Lập trình" };
 
 export function rentability(m: Machine): { canRent: boolean; text: string; sub?: string } {
-  if (m.state === "offline") return { canRent: false, text: "Máy đang offline", sub: "Lịch không tự bật máy" };
+  if (m.state === "offline") return { canRent: false, text: "Máy đang offline", sub: "Chủ máy chưa bật nhận thuê hoặc máy đã mất kết nối" };
   if (m.state === "busy") return { canRent: false, text: "Đang có phiên", sub: "Mở lại sau khi dọn dẹp xong" };
   if (m.state === "blocked") return { canRent: false, text: "Đang xử lý sự cố", sub: "Chưa nhận khách" };
-  if (m.state === "unverified") return { canRent: true, text: "Gói 15 phút", sub: "Máy chủ kiểm tra khi giữ máy" };
+  // Chế độ live: máy chủ đã đo heartbeat. Không dùng khung giờ mô phỏng (windows) ở đây.
+  if (m.state === "online") return { canRent: true, text: "Gói 15 phút", sub: "Máy đang online" };
+  if (m.state === "unverified") return { canRent: true, text: "Gói 15 phút", sub: "Sẽ kiểm tra khi bạn giữ máy" };
   const w = currentWindow(m);
   if (w) {
     const max = maxBookableMinutes(m);

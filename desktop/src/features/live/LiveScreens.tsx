@@ -2,33 +2,44 @@
  * Màn hình chỉ có ở chế độ live (dữ liệu thật trên Supabase dev). Mọi thứ chưa nối được nói rõ là chưa nối;
  * không dựng số dư, phiên, thanh toán hay trạng thái online giả.
  */
-import { CircleSlash, Plus, Trash2 } from "lucide-react";
+import { ArrowDownToLine, CircleSlash, Coins, Fuel, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { getDevWallet, getLiveApi, getServerApi, serverApiConfigured } from "@/api";
 import { linkWallet, type Eip1193 } from "@/api/wallet";
 import { formatUnits, splitFeeUnits, type DeclaredSpecs, type HostMachine, type HostMachineStatus, type LiveBooking } from "@/api/live";
 import { navigate } from "@/app/router";
+import { ACCESS_STATE_LABEL, BOOKING_STATE_LABEL } from "@/domain/adminData";
 import { bookingPhase, formatRemaining } from "@/domain/bookingPhase";
 import { sessionSteps, type StepView } from "@/domain/sessionSteps";
-import { cn } from "@/lib/utils";
+import { cn, stagger } from "@/lib/utils";
 import { HostSessions } from "./HostSetup";
-import type { Category } from "@/domain/types";
+import { defaultScanDeps, rescanSpecs, scanAndPublish } from "./machineScan";
+import { specsSummary } from "@/domain/machineSpecs";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
-import { Checkbox, Field, Input, Select, Switch } from "@/ui/controls";
+import { Field, Input, Select, Switch } from "@/ui/controls";
 import { Async, Banner, EmptyState } from "@/ui/feedback";
-import { KeyValue, PageHeader, Section } from "@/ui/page";
+import { KeyValue, PageHeader, Section, StatTile } from "@/ui/page";
+import { Amount } from "./Amount";
 
 const TZ = "Asia/Ho_Chi_Minh";
-const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: TZ, hour12: false });
+const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: TZ, hour12: false, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const hm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 const parseHm = (s: string) => {
   const m = /^(\d{2}):(\d{2})$/.exec(s);
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 };
 const WEEKDAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"];
+const timeOf = (iso: string) => new Date(iso).toLocaleTimeString("vi-VN", { timeZone: TZ, hour12: false, hour: "2-digit", minute: "2-digit" });
+/** Khung nhận thuê: "Thứ Hai 23/11, 19:00–23:00" (ngày theo giờ Việt Nam; `day` là ngày địa phương dạng YYYY-MM-DD). */
+export function windowLabel(w: { day: string; startsAt: string; endsAt: string }): string {
+  const [y, m, d] = w.day.split("-").map(Number);
+  const wd = WEEKDAYS[(new Date(Date.UTC(y!, m! - 1, d!, 12)).getUTCDay() + 6) % 7]!;
+  return `${wd} ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}, ${timeOf(w.startsAt)}–${timeOf(w.endsAt)}`;
+}
+const chainName = (id: number) => (id === 43113 ? "Avalanche Fuji" : id === 43114 ? "Avalanche" : `Mạng ${id}`);
 
 /* ------------------------------------------------------------------ Ví */
 export function LiveWallet() {
@@ -42,7 +53,7 @@ export function LiveWallet() {
   const [done, setDone] = useState("");
   const dev = getDevWallet();
   const provider: Eip1193 | undefined = dev?.provider ?? (typeof window === "undefined" ? undefined : (window as unknown as { ethereum?: Eip1193 }).ethereum);
-  const blocked = !serverApiConfigured() ? "Chưa có địa chỉ máy chủ API: vào Cài đặt → Kết nối máy chủ để nhập mã kết nối." : !provider ? "Không thấy ví trình duyệt (EIP-1193). Trong app native chưa có connector ví; cần ví trong trình duyệt hoặc connector hỗ trợ." : "";
+  const blocked = !serverApiConfigured() ? "Ứng dụng chưa kết nối máy chủ. Vào Cài đặt → Kết nối máy chủ để nhập địa chỉ." : !provider ? "Chưa tìm thấy ví. Hãy cài một ví trình duyệt (ví dụ Core hoặc MetaMask) rồi thử lại." : "";
   const link = async (chainId: number) => {
     setBusy(true);
     setErr("");
@@ -59,22 +70,22 @@ export function LiveWallet() {
   };
   return (
     <div>
-      <PageHeader title="Ví" subtitle="Liên kết ví bằng chữ ký xác minh. Không giao dịch, không tốn phí, không cấp quyền chi tiêu. PCP là điểm thử, không phải tiền thật." />
+      <PageHeader title="Ví" subtitle="Liên kết ví để thuê máy và nhận lại tiền hoàn. Chỉ cần một chữ ký: không giao dịch, không tốn phí." />
       <Async state={state}>
         {({ w, chainId }) => (
           <>
             {dev && (
-              <Banner tone="warn" className="mb-3" title={dev.label}>
-                {dev.kind === "dev" ? <>Ví thử này do trình duyệt tự sinh (địa chỉ <span className="num break-all">{dev.address}</span>) và chỉ ký được trên chuỗi cục bộ {dev.rpcUrl}. Không dùng cho tiền thật.</> : <>Ví thử này do app tự sinh (địa chỉ <span className="num break-all">{dev.address}</span>), ký trên mạng thử Avalanche Fuji qua {dev.rpcUrl}. Không có giá trị tiền: đừng chuyển tiền thật vào địa chỉ này. Khoá chỉ nằm trong app trên máy này; xoá dữ liệu app là mất ví.</>}
+              <Banner tone="info" className="mb-3" title="Ví trong ứng dụng">
+                {dev.kind === "dev" ? <>Địa chỉ <span className="num break-all">{dev.address}</span>. Ví này chỉ dùng được trên mạng thử nghiệm cục bộ.</> : <>Địa chỉ <span className="num break-all">{dev.address}</span>. Ví được tạo và lưu trong ứng dụng trên máy này: xóa dữ liệu ứng dụng sẽ mất ví. Chỉ dùng cho mạng thử nghiệm, đừng chuyển tài sản có giá trị vào địa chỉ này.</>}
               </Banner>
             )}
             <Section title="Ví đã liên kết">
               {w ? (
-                <KeyValue items={[{ k: "Địa chỉ", v: <span className="num break-all">{w.address}</span> }, { k: "Mạng", v: `Chain ${w.chainId}` }, { k: "Xác minh lúc", v: fmt(w.verifiedAt) }]} />
+                <KeyValue items={[{ k: "Địa chỉ", v: <span className="num break-all">{w.address}</span> }, { k: "Mạng", v: chainName(w.chainId) }, { k: "Xác minh lúc", v: fmt(w.verifiedAt) }]} />
               ) : (
-                <p className="text-sm text-ink-soft">Chưa liên kết ví. Cần ví đã xác minh trước khi giữ máy.</p>
+                <p className="text-sm text-ink-soft">Bạn chưa liên kết ví. Hãy liên kết ví trước khi thuê máy.</p>
               )}
-              {w && <Banner tone="info" className="mt-3" title="Đổi ví">Không đổi được ví khi còn booking chưa kết thúc (máy chủ chặn).</Banner>}
+              {w && <Banner tone="info" className="mt-3" title="Đổi ví">Chỉ đổi được ví khi không còn phiên thuê nào đang diễn ra.</Banner>}
               {err && <Banner tone="danger" className="mt-3" title="Chưa liên kết được">{err}</Banner>}
               {done && <Banner tone="ok" className="mt-3" title="Thành công">{done}</Banner>}
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -83,7 +94,7 @@ export function LiveWallet() {
               </div>
             </Section>
             <Section title="Số dư PCP" className="mt-4">
-              {dev && serverApiConfigured() ? <DevBalance /> : <p className="text-sm text-ink-soft">Chưa kết nối: bản này chưa có ví thật nên không đọc được số dư trên chuỗi. Không hiển thị số mẫu.</p>}
+              {dev && serverApiConfigured() ? <DevBalance /> : <p className="text-sm text-ink-soft">Chưa đọc được số dư. Hãy liên kết ví hoặc kiểm tra kết nối máy chủ.</p>}
             </Section>
           </>
         )}
@@ -101,7 +112,7 @@ function DevBalance() {
   const [err, setErr] = useState("");
   const state = useAsync(async () => {
     const ci = await getServerApi().chainInfo();
-    if (!ci.pcp || !/^0x[0-9a-fA-F]{40}$/.test(ci.pcp)) throw new Error("Máy chủ chưa cho biết địa chỉ PCP.");
+    if (!ci.pcp || !/^0x[0-9a-fA-F]{40}$/.test(ci.pcp)) throw new Error("Chưa đọc được số dư PCP. Hãy thử lại sau.");
     const [pcp, gas, credit] = await Promise.all([dev.balance(ci.pcp as `0x${string}`), dev.gasBalance(), dev.credit(ci.escrow as `0x${string}`)]);
     return { pcp, gas, credit, escrow: ci.escrow as `0x${string}`, faucet: ci.faucet === true };
   }, [tick]);
@@ -126,8 +137,8 @@ function DevBalance() {
     setMsg("");
     try {
       const r = await getServerApi().faucet();
-      setMsg(r.pcp.minted ? "Đã nhận 1000 PCP thử." : r.pcp.claimed ? "Ví này đã nhận PCP thử trước đó (vòi chỉ cấp một lần cho mỗi ví)." : "Chưa nhận được PCP.");
-      if (r.gas.sent) setMsg((m) => m + " Đã nhận một ít AVAX testnet để trả gas.");
+      setMsg(r.pcp.minted ? "Đã nhận 1000 PCP." : r.pcp.claimed ? "Ví này đã nhận PCP trước đó (mỗi ví nhận một lần)." : "Chưa nhận được PCP.");
+      if (r.gas.sent) setMsg((m) => m + " Đã nhận một ít AVAX để trả phí giao dịch.");
       else if (r.gas.reason) setMsg((m) => m + " " + r.gas.reason);
       setTick((n) => n + 1);
     } catch (e) {
@@ -137,26 +148,29 @@ function DevBalance() {
     }
   };
   return (
-    <Async state={state} skeleton={<p className="text-sm text-ink-faint">Đang đọc chuỗi…</p>}>
+    <Async state={state} skeleton={<p className="text-sm text-ink-faint">Đang tải số dư…</p>}>
       {({ pcp, gas, credit, escrow, faucet }) => (
         <div data-testid="dev-balance" data-kind={dev.kind}>
-          <p className="text-lg font-bold"><span className="num">{formatUnits(pcp)}</span> <span className="text-sm font-medium text-ink-faint">PCP thử</span></p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <StatTile index={0} icon={Coins} label="Số dư PCP" value={<Amount units={pcp} suffix="PCP" />} />
+            {dev.kind === "testnet" && <StatTile index={1} icon={Fuel} label="AVAX (phí giao dịch)" value={<Amount units={gas} suffix="AVAX" />} />}
+            {credit !== "0" && <StatTile index={2} tone="warn" icon={ArrowDownToLine} label="PCP đang chờ rút" value={<Amount units={credit} suffix="PCP" />} hint="Tiền hoàn từ các phiên đã hủy" />}
+          </div>
           {credit !== "0" && (
-            <div className="mt-1 flex flex-wrap items-center gap-2" data-testid="pending-credit">
-              <p className="text-sm"><span className="num font-semibold">{formatUnits(credit)}</span> <span className="text-ink-faint">PCP thử đang chờ rút (tiền hoàn được ghi có ở ví giữ tiền)</span></p>
+            <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="pending-credit">
               <Button size="sm" variant="primary" onClick={() => void withdraw(escrow)} disabled={busy}>{busy ? "Đang rút…" : "Rút về ví"}</Button>
+              <span className="text-xs text-ink-faint">Rút số PCP đang chờ về ví của bạn.</span>
             </div>
           )}
-          {dev.kind === "testnet" && <p className="text-sm"><span className="num font-semibold">{formatUnits(gas)}</span> <span className="text-ink-faint">AVAX testnet (để trả gas)</span></p>}
           <p className="mt-1 text-xs text-ink-faint">
             {dev.kind === "dev"
-              ? `Đọc từ chuỗi Hardhat cục bộ (${dev.rpcUrl}). Ví mới có số dư 0; lần trả tiền đầu tiên, ví giả lập tự nhận 1000 PCP thử từ vòi cấp của chuỗi mô phỏng. Không có giá trị tiền.`
-              : `Đọc từ mạng thử Fuji (${dev.rpcUrl}). PCP và AVAX testnet không có giá trị tiền. Vòi của máy chủ cấp 1000 PCP một lần mỗi ví và nhỏ giọt một ít AVAX gas.`}
+              ? "Số dư đọc trực tiếp từ mạng thử nghiệm cục bộ. Ví mới bắt đầu với 0 PCP và tự nhận PCP ở lần thanh toán đầu tiên."
+              : "Số dư đọc trực tiếp từ Avalanche Fuji. PCP và AVAX trên mạng thử nghiệm không có giá trị quy đổi. Mỗi ví nhận 1000 PCP một lần, kèm một ít AVAX để trả phí giao dịch."}
           </p>
           {dev.kind === "testnet" && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="primary" onClick={() => void claim()} disabled={busy || !faucet}>{busy ? "Đang xin…" : "Nhận PCP thử và gas"}</Button>
-              {!faucet && <span className="text-xs text-ink-faint">Máy chủ này không bật vòi; tự nạp AVAX testnet vào địa chỉ ví và nhờ người tổ chức cấp PCP.</span>}
+              <Button size="sm" variant="primary" onClick={() => void claim()} disabled={busy || !faucet}>{busy ? "Đang nhận…" : "Nhận PCP và AVAX"}</Button>
+              {!faucet && <span className="text-xs text-ink-faint">Hiện chưa phát PCP miễn phí. Hãy liên hệ người vận hành để được cấp.</span>}
               <Button size="sm" variant="ghost" onClick={() => setTick((n) => n + 1)}>Làm mới số dư</Button>
             </div>
           )}
@@ -168,12 +182,13 @@ function DevBalance() {
   );
 }
 
-export function NotWired({ what, why }: { what: string; why: string }) {
+/** Tính năng chưa có trong bản này: trang trung tính, không nêu lý do kỹ thuật và không hiện dữ liệu mẫu. */
+export function NotWired({ what }: { what: string; why?: string }) {
   return (
     <div>
       <PageHeader title={what} />
-      <EmptyState icon={CircleSlash} title="Chưa nối dữ liệu thật" action={<Button onClick={() => navigate("/rent/discover")}>Về danh mục máy</Button>}>
-        {why} Màn hình này không hiển thị dữ liệu mẫu ở chế độ live.
+      <EmptyState icon={CircleSlash} title="Tính năng đang được hoàn thiện" action={<Button onClick={() => navigate("/rent/discover")}>Về danh mục máy</Button>}>
+        Tính năng này sẽ sớm có mặt. Bạn vẫn có thể thuê hoặc cho thuê máy như bình thường.
       </EmptyState>
     </div>
   );
@@ -220,24 +235,24 @@ export function LiveCheckout({ id }: { id: string }) {
           <div>
             <PageHeader title="Giữ máy" subtitle={d.machine.name} crumbs={[{ label: "Khám phá", to: "/rent/discover" }, { label: d.machine.name, to: `/rent/machine/${id}` }, { label: "Giữ máy" }]} />
             {booking ? (
-              <Section title="Đã giữ máy (bước đầu của thuê thật)">
-                <Banner tone="ok" title="Máy đã được giữ nguyên tử trên máy chủ">
-                  Booking <span className="num font-semibold">{booking.id.slice(0, 8)}</span> ở trạng thái <strong>{booking.state}</strong>. Cần thanh toán trước <strong>{fmt(booking.fundBy)}</strong> (giờ GMT+7), nếu không máy sẽ được nhả sau khi máy chủ đối soát.
+              <Section title="Đã giữ máy">
+                <Banner tone="ok" title="Máy đã được giữ cho bạn">
+                  Mã phiên <span className="num font-semibold">{booking.id.slice(0, 8)}</span>. Hãy thanh toán trước <strong>{fmt(booking.fundBy)}</strong>, nếu không máy sẽ được nhả cho người khác.
                 </Banner>
                 <KeyValue className="mt-4" items={[
                   { k: "Gói", v: `${booking.durationSeconds / 60} phút` },
-                  { k: "Giá gói", v: `${formatUnits(booking.priceUnits)} PCP thử` },
+                  { k: "Giá gói", v: `${formatUnits(booking.priceUnits)} PCP` },
                   { k: "Hạn thanh toán", v: fmt(booking.fundBy) },
                   { k: "Hạn kích hoạt", v: fmt(booking.activateBy) },
-                  { k: "Trạng thái tiền / truy cập", v: `${booking.state} / ${booking.accessState}` },
+                  { k: "Trạng thái", v: `${BOOKING_STATE_LABEL[booking.state] ?? booking.state} · ${ACCESS_STATE_LABEL[booking.accessState] ?? booking.accessState}` },
                 ]} />
                 {getDevWallet() && serverApiConfigured() ? (
-                  <Banner tone="info" className="mt-4" title={`Bước tiếp theo: trả tiền bằng ${getDevWallet()!.kind === "dev" ? "ví giả lập" : "ví thử"}`}>
-                    Mở Phiên & đặt chỗ của tôi rồi bấm Trả tiền. {getDevWallet()!.kind === "dev" ? "Thanh toán chạy trên chuỗi Hardhat cục bộ bằng PCP thử (không có giá trị tiền)." : "Thanh toán chạy trên mạng thử Avalanche Fuji bằng PCP thử (không có giá trị tiền); app tự xin PCP và gas từ vòi nếu ví còn thiếu."} Sau đó máy được chuẩn bị, kích hoạt và bạn mở được màn hình.
+                  <Banner tone="info" className="mt-4" title="Bước tiếp theo: thanh toán">
+                    Mở Phiên & đặt chỗ của tôi rồi bấm Trả tiền. Sau khi thanh toán, máy được chuẩn bị và bạn mở được màn hình.
                   </Banner>
                 ) : (
-                  <Banner tone="warn" className="mt-4" title="Chưa kết nối thanh toán">
-                    Bản này chưa có ví để ký giao dịch nên phiên dừng ở bước giữ máy. Máy sẽ được nhả khi hết hạn thanh toán.
+                  <Banner tone="warn" className="mt-4" title="Cần ví để thanh toán">
+                    Hãy liên kết ví ở mục Ví để thanh toán. Máy sẽ được nhả nếu quá hạn thanh toán.
                   </Banner>
                 )}
                 <div className="mt-4 flex gap-2">
@@ -248,21 +263,21 @@ export function LiveCheckout({ id }: { id: string }) {
             ) : (
               <Section title="Xác nhận giữ máy">
                 <KeyValue items={[
-                  { k: "Gói duy nhất (theo cấu hình hợp đồng)", v: `${d.cfg.packageSeconds / 60} phút` },
-                  { k: "Giá gói", v: `${formatUnits(d.priceUnits)} PCP thử` },
-                  { k: `Phí nền tảng ${d.cfg.feeBps / 100}% (đã gồm trong giá)`, v: `${formatUnits(fee)} PCP thử` },
-                  { k: "Host nhận", v: `${formatUnits(host)} PCP thử` },
+                  { k: "Thời lượng gói", v: `${d.cfg.packageSeconds / 60} phút` },
+                  { k: "Giá gói", v: `${formatUnits(d.priceUnits)} PCP` },
+                  { k: `Phí nền tảng ${d.cfg.feeBps / 100}% (đã gồm trong giá)`, v: `${formatUnits(fee)} PCP` },
+                  { k: "Host nhận", v: `${formatUnits(host)} PCP` },
                   { k: "Hạn thanh toán sau khi giữ", v: `${d.cfg.quoteTtlSeconds / 60} phút` },
                 ]} />
-                <Banner tone="info" className="mt-4" title="Quy tắc tiền (theo hợp đồng hiện hành)">
-                  Hủy trước khi kích hoạt hoàn đủ: tiền hoàn được ghi có ở ví giữ tiền và bạn rút về ví ở màn Ví. Đồng hồ gói chạy từ lúc kích hoạt (sau khi thanh toán và máy sẵn sàng), không phải lúc bạn mở viewer; kết thúc sớm sau kích hoạt vẫn trả cả gói. PCP là điểm thử, không phải tiền thật.
+                <Banner tone="info" className="mt-4" title="Quy tắc thanh toán">
+                  Hủy trước khi máy được kích hoạt: hoàn đủ, tiền hoàn nằm trong hợp đồng và bạn rút về ví ở mục Ví. Thời gian thuê tính từ lúc máy được kích hoạt. Kết thúc sớm sau khi kích hoạt vẫn trả cả gói.
                 </Banner>
                 {error && <Banner tone="danger" className="mt-4" title="Không giữ được máy">{error}</Banner>}
                 <div className="mt-4 flex gap-2">
                   <Button variant="primary" size="lg" onClick={reserve} disabled={busy}>{busy ? "Đang giữ máy…" : "Giữ máy"}</Button>
                   <Button variant="secondary" size="lg" onClick={() => navigate(`/rent/machine/${id}`)}>Quay lại</Button>
                 </div>
-                <p className="mt-2 text-xs text-ink-faint">Máy chủ kiểm tra: bạn không phải chủ máy, máy đã được duyệt, chưa có booking đang giữ, cam kết của host đủ phủ thời gian, và ví đã xác minh.</p>
+                <p className="mt-2 text-xs text-ink-faint">Bạn cần liên kết ví trước, và không thuê được máy của chính mình.</p>
               </Section>
             )}
           </div>
@@ -279,7 +294,7 @@ function LiveViewer({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <div className="mt-3 w-full rounded-lg border border-line bg-black/5 p-2">
       <div className="mb-2 flex items-center justify-between text-xs text-ink-faint">
-        <span>Viewer thử nghiệm qua gateway của host (đã kiểm với Selkies thật trong VM không GPU; chưa kiểm hiệu năng/GPU, âm thanh, toàn màn hình).</span>
+        <span>Màn hình máy thuê</span>
         <Button size="sm" variant="ghost" onClick={onClose}>Đóng</Button>
       </div>
       <iframe title="Màn hình máy thuê" src={url} className="h-[480px] w-full rounded border-0 bg-black" sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock" allow="fullscreen; clipboard-read; clipboard-write; keyboard-map; autoplay" />
@@ -320,7 +335,7 @@ function BookingActions({ b, onChanged }: { b: LiveBooking; onChanged: () => voi
     setNote("");
     try {
       const r = await run(dev!);
-      setNote(`${what}: giao dịch ${r.txHash.slice(0, 12)}… đã được đối soát (${r.status}). Trạng thái cập nhật khi worker xử lý.`);
+      setNote(`${what} thành công (giao dịch ${r.txHash.slice(0, 10)}…). Trạng thái phiên sẽ tự cập nhật trong giây lát.`);
       onChanged();
     } catch (e) {
       setSignErr((e as Error).message);
@@ -329,7 +344,7 @@ function BookingActions({ b, onChanged }: { b: LiveBooking; onChanged: () => voi
     }
   };
   const needChain = async () => {
-    if (!b.chainBookingId) throw new Error("Chưa có mã booking trên chuỗi.");
+    if (!b.chainBookingId) throw new Error("Phiên này chưa sẵn sàng để thực hiện giao dịch. Hãy thử lại sau ít phút.");
     const ci = await getServerApi().chainInfo();
     return { bookingId: b.id, chainBookingId: b.chainBookingId as `0x${string}`, chain: { chainId: ci.chainId, escrow: ci.escrow as `0x${string}` } };
   };
@@ -354,24 +369,23 @@ function BookingActions({ b, onChanged }: { b: LiveBooking; onChanged: () => voi
         <p className="font-semibold" data-testid="phase-label">{ph.label}</p>
         <p className="text-ink-soft">{ph.detail}</p>
         <p className="mt-1 text-xs"><b>Nếu dừng ở bước này:</b> {ph.policyText}</p>
-        {ph.clockRunning && ph.remainingSec !== null && <p className="num mt-1 text-xs font-semibold">Còn lại theo thời điểm kết thúc trên chuỗi: {formatRemaining(ph.remainingSec)}</p>}
+        {ph.clockRunning && ph.remainingSec !== null && <p className="num mt-1 text-xs font-semibold">Còn lại: {formatRemaining(ph.remainingSec)}</p>}
       </div>
       {b.state === "active" && b.accessState === "granted" && (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="primary" onClick={open} disabled={busy || !serverApiConfigured()}>{busy ? "Đang mở…" : "Mở màn hình"}</Button>
-          {!serverApiConfigured() && <span className="text-xs text-ink-faint">Cần đặt VITE_API_BASE_URL để gọi máy chủ API.</span>}
+          {!serverApiConfigured() && <span className="text-xs text-ink-faint">Ứng dụng chưa kết nối máy chủ (Cài đặt → Kết nối máy chủ).</span>}
         </div>
       )}
       {b.state === "reserved" && (dev && serverApiConfigured()
-        ? <SignAction label={`Trả tiền PCP thử (${dev.kind === "dev" ? "ví giả lập" : "ví thử"})`} busy={busy} onClick={() => void sign("Trả tiền", (w) => w.pay(b.id, getServerApi()))} />
-        : <DisabledAction label="Thanh toán PCP thử" reason="cần ví đã liên kết để ký giao dịch (xem mục Ví); chưa hỗ trợ ký trong app" />)}
+        ? <SignAction label="Trả tiền" busy={busy} onClick={() => void sign("Thanh toán", (w) => w.pay(b.id, getServerApi()))} />
+        : <DisabledAction label="Trả tiền" reason="Hãy liên kết ví ở mục Ví trước." />)}
       {b.state === "funded" && (dev && serverApiConfigured()
         ? <SignAction label="Hủy trước khi kích hoạt (hoàn đủ)" busy={busy} onClick={() => void sign("Hủy", async (w) => w.cancelBeforeStart(await needChain(), getServerApi()))} />
-        : <DisabledAction label="Hủy trước khi kích hoạt (hoàn đủ)" reason="cần ví ký giao dịch cancelBeforeStart; chưa hỗ trợ ký trong app" />)}
+        : <DisabledAction label="Hủy trước khi kích hoạt (hoàn đủ)" reason="Hãy liên kết ví ở mục Ví trước." />)}
       {b.state === "active" && (dev && serverApiConfigured()
         ? <SignAction label="Kết thúc sớm (vẫn trả cả gói)" busy={busy} onClick={() => void sign("Kết thúc", async (w) => w.accept(await needChain(), getServerApi()))} />
-        : <DisabledAction label="Kết thúc sớm (vẫn trả cả gói)" reason="cần ví ký giao dịch accept; chưa hỗ trợ ký trong app" />)}
-      {dev && b.state !== "settled" && b.state !== "expired" && b.state !== "cancelled" && b.state !== "refunded" && <p className="text-xs text-ink-faint">{dev.label}.</p>}
+        : <DisabledAction label="Kết thúc sớm (vẫn trả cả gói)" reason="Hãy liên kết ví ở mục Ví trước." />)}
       {note && <Banner tone="ok" title="Đã gửi">{note}</Banner>}
       {signErr && <Banner tone="danger" title="Chưa thực hiện được">{signErr}</Banner>}
       {err && <Banner tone="danger" title="Không mở được màn hình">{err}</Banner>}
@@ -406,7 +420,7 @@ function SessionProgress({ steps }: { steps: StepView[] }) {
 function SignAction({ label, busy, onClick }: { label: string; busy: boolean; onClick: () => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="primary" onClick={onClick} disabled={busy}>{busy ? "Đang ký và gửi giao dịch…" : label}</Button>
+      <Button size="sm" variant="primary" onClick={onClick} disabled={busy}>{busy ? "Đang xử lý giao dịch…" : label}</Button>
     </div>
   );
 }
@@ -415,7 +429,7 @@ function DisabledAction({ label, reason }: { label: string; reason: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button size="sm" variant="secondary" disabled>{label}</Button>
-      <span className="text-xs text-ink-faint">Chưa dùng được: {reason}.</span>
+      <span className="text-xs text-ink-faint">{reason}</span>
     </div>
   );
 }
@@ -425,7 +439,6 @@ const isDone = (b: LiveBooking) => TERMINAL_MONEY.has(b.state) && (b.accessState
 
 export function LiveBookings() {
   const [tick, setTick] = useState(0);
-  const dev = getDevWallet();
   const state = useAsync(async () => {
     const api = getLiveApi();
     const [bookings, machines] = await Promise.all([api.bookings.listMine(), api.catalog.list()]);
@@ -441,17 +454,17 @@ export function LiveBookings() {
   }, [pending]);
   return (
     <div>
-      <PageHeader title="Đặt chỗ của tôi" subtitle={dev ? `Mỗi phiên đi qua bảy bước bên dưới và tự cập nhật. Thanh toán bằng ${dev.kind === "dev" ? "ví giả lập trên chuỗi Hardhat cục bộ" : "ví thử trên mạng thử Fuji"} (không phải tiền thật).` : "Dữ liệu thật từ máy chủ. Thanh toán, phiên và kết thúc cần ví ký giao dịch; bản này chưa kết nối ví."} />
+      <PageHeader title="Đặt chỗ của tôi" subtitle="Theo dõi các phiên thuê của bạn. Trạng thái tự cập nhật, không cần tải lại." />
       <Async state={state} isEmpty={(l) => l.length === 0} empty={<EmptyState title="Bạn chưa giữ máy nào" action={<Button onClick={() => navigate("/rent/discover")}>Khám phá máy</Button>} />}>
         {(list) => (
           <ul className="space-y-2">
-            {list.map(({ b, name }) => (
-              <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface p-3">
+            {list.map(({ b, name }, i) => (
+              <li key={b.id} style={stagger(i)} className="enter flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface p-3.5 shadow-[0_1px_2px_rgb(11_31_58/0.05)]">
                 <div>
                   <p className="font-semibold">{name}</p>
-                  <p className="text-xs text-ink-faint">Giữ lúc {fmt(b.createdAt)} · hạn thanh toán {fmt(b.fundBy)} · {formatUnits(b.priceUnits)} PCP thử</p>
+                  <p className="text-xs text-ink-faint">Giữ lúc {fmt(b.createdAt)} · hạn thanh toán {fmt(b.fundBy)} · <Amount units={b.priceUnits} suffix="PCP" inline /></p>
                 </div>
-                <Badge tone={BOOKING_TONE[b.state] ?? "neutral"} className="num" icon={false}>{b.state} / {b.accessState}</Badge>
+                <Badge tone={BOOKING_TONE[b.state] ?? "neutral"} icon={false}>{BOOKING_STATE_LABEL[b.state] ?? b.state}</Badge>
                 <BookingActions b={b} onChanged={() => setTick((n) => n + 1)} />
               </li>
             ))}
@@ -463,12 +476,11 @@ export function LiveBookings() {
 }
 
 /* ------------------------------------------------------------------ Host */
-const CATS: { v: Category; label: string }[] = [{ v: "game", label: "Game" }, { v: "graphics", label: "Đồ họa" }, { v: "dev", label: "Lập trình" }];
 const STATUS_LABEL: Record<HostMachineStatus, { text: string; tone: "neutral" | "warn" | "ok" | "info" }> = {
   draft: { text: "Nháp", tone: "neutral" },
-  review: { text: "Chờ duyệt", tone: "warn" },
-  approved: { text: "Đã duyệt", tone: "ok" },
-  suspended: { text: "Bị đình chỉ", tone: "warn" },
+  review: { text: "Đang chờ", tone: "warn" },
+  approved: { text: "Đã đăng", tone: "ok" },
+  suspended: { text: "Bị tạm khóa", tone: "warn" },
 };
 
 export function HostLive() {
@@ -486,19 +498,19 @@ export function HostLive() {
   };
   return (
     <div>
-      <PageHeader title="Máy của tôi" subtitle="Đăng máy, cam kết và lịch nhận thuê. Để máy thật sự nhận khách, vào Thiết lập & chạy máy và bấm Bắt đầu nhận thuê." actions={<Button variant="primary" onClick={() => navigate("/host/setup")}>Thiết lập & chạy máy</Button>} />
-      <Section title="Trạng thái host">
+      <PageHeader title="Máy của tôi" subtitle="Quản lý máy, giờ nhận thuê và trạng thái. Muốn máy nhận khách, vào Thiết lập & chạy máy rồi bấm Bắt đầu nhận thuê." actions={<Button variant="primary" onClick={() => navigate("/host/setup")}>Thiết lập & chạy máy</Button>} />
+      <Section title="Tài khoản host">
         {approval === "none" && (
           <div className="space-y-3">
-            <Banner tone="info" title="Bạn chưa là host">Gửi đăng ký để admin duyệt. Chọn chế độ Cho thuê máy không tự cấp quyền host.</Banner>
-            {err && <Banner tone="danger" title="Không gửi được">{err}</Banner>}
+            <Banner tone="info" title="Bạn chưa là host">Đăng ký làm host để cho thuê máy của bạn.</Banner>
+            {err && <Banner tone="danger" title="Không đăng ký được">{err}</Banner>}
             <Button variant="primary" onClick={apply}>Đăng ký làm host</Button>
           </div>
         )}
-        {approval === "pending" && <Banner tone="warn" title="Đang chờ admin duyệt">Bạn chưa thể đăng máy cho tới khi được duyệt (kiểm tra ở máy chủ).</Banner>}
-        {approval === "rejected" && <Banner tone="danger" title="Tài khoản host bị đình chỉ">Liên hệ admin.</Banner>}
-        {approval === "approved" && <Banner tone="ok" title="Host đã được duyệt">Bạn có thể đăng máy và gửi duyệt.</Banner>}
-        <Button variant="ghost" size="sm" className="mt-3" onClick={() => void refreshAccount()}>Tải lại trạng thái</Button>
+        {approval === "pending" && <Banner tone="warn" title="Hồ sơ host đang được xem xét">Bạn sẽ đăng được máy ngay khi hồ sơ được xác nhận.</Banner>}
+        {approval === "rejected" && <Banner tone="danger" title="Tài khoản host đang bị tạm khóa">Bạn chưa thể đăng máy hay nhận thuê. Hãy liên hệ người vận hành để biết thêm.</Banner>}
+        {approval === "approved" && <Banner tone="ok" title="Bạn đã là host">Thêm máy rồi bấm Quét & đăng máy để người thuê nhìn thấy máy của bạn.</Banner>}
+        <Button variant="ghost" size="sm" className="mt-3" onClick={() => void refreshAccount()}>Làm mới</Button>
       </Section>
       {approval === "approved" && <HostMachines />}
       {approval === "approved" && <HostSessions />}
@@ -509,7 +521,7 @@ export function HostLive() {
 export function HostSessionsPage() {
   return (
     <div>
-      <PageHeader title="Phiên trên máy của tôi" subtitle="Tự cập nhật mỗi vài giây. Bạn chỉ thấy trạng thái phiên, không thấy màn hình hay dữ liệu của khách." />
+      <PageHeader title="Phiên trên máy của tôi" subtitle="Các phiên trên máy của bạn, tự cập nhật. Bạn không thấy màn hình hay dữ liệu của người thuê." />
       <HostSessions />
     </div>
   );
@@ -521,7 +533,7 @@ function HostMachines() {
     <>
       <Section title="Máy của tôi">
         <Async state={state} isEmpty={(l) => l.length === 0} empty={<p className="text-sm text-ink-soft">Chưa có máy. Tạo máy ở bên dưới.</p>}>
-          {(list) => <div className="space-y-4">{list.map((m) => <MachinePanel key={m.id} m={m} onChange={state.retry} />)}</div>}
+          {(list) => <div className="space-y-4">{list.map((m, i) => <div key={m.id} className="enter" style={stagger(i)}><MachinePanel m={m} onChange={state.retry} /></div>)}</div>}
         </Async>
       </Section>
       <NewMachine onCreated={state.retry} />
@@ -529,8 +541,8 @@ function HostMachines() {
   );
 }
 
-function NewMachine({ onCreated }: { onCreated: () => void }) {
-  const [f, setF] = useState({ name: "", price: "20", cpu: "", cores: "8", ramGb: "16", gpu: "", vramGb: "0", storageGb: "256", networkMbps: "100", location: "Hồ Chí Minh", summary: "", cats: ["dev"] as Category[] });
+export function NewMachine({ onCreated }: { onCreated: () => void }) {
+  const [f, setF] = useState({ name: "", summary: "", price: "20", location: "Hồ Chí Minh" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const submit = async (e: FormEvent) => {
@@ -538,10 +550,11 @@ function NewMachine({ onCreated }: { onCreated: () => void }) {
     setBusy(true);
     setErr("");
     try {
-      const n = (v: string) => Math.max(0, Number(v) || 0);
-      const specs: DeclaredSpecs = { cpu: f.cpu, cores: n(f.cores), ramGb: n(f.ramGb), gpu: f.gpu || null, vramGb: n(f.vramGb), storageGb: n(f.storageGb), networkMbps: n(f.networkMbps), location: f.location, categories: f.cats, summary: f.summary, workspace: false };
+      // Chủ máy chỉ đặt tên và mô tả. CPU, số nhân, RAM, GPU, ổ đĩa và danh mục do app đọc từ máy khi bấm "Quét & đăng máy"
+      // (ghi danh thiết bị cần máy đã tồn tại, nên chưa thể đọc ở bước tạo).
+      const specs: DeclaredSpecs = { location: f.location.trim(), summary: f.summary.trim(), workspace: false };
       await getLiveApi().host.createMachine({ name: f.name, pricePcp: f.price.trim(), specs });
-      setF({ ...f, name: "" });
+      setF({ ...f, name: "", summary: "" });
       onCreated();
     } catch (ex) {
       setErr((ex as Error).message);
@@ -551,33 +564,23 @@ function NewMachine({ onCreated }: { onCreated: () => void }) {
   };
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   return (
-    <Section title="Đăng máy mới (nháp)">
+    <Section title="Thêm máy mới">
       <form onSubmit={submit} className="grid grid-cols-2 gap-3" noValidate>
-        <Field label="Tên máy" htmlFor="nm-name" className="col-span-2"><Input id="nm-name" value={f.name} onChange={set("name")} /></Field>
-        <Field label="Giá mỗi gói (PCP thử)" htmlFor="nm-price" hint="Số dương, tối đa 18 chữ số thập phân."><Input id="nm-price" inputMode="decimal" value={f.price} onChange={set("price")} /></Field>
-        <Field label="Vị trí" htmlFor="nm-loc"><Input id="nm-loc" value={f.location} onChange={set("location")} /></Field>
-        <Field label="CPU (tự khai)" htmlFor="nm-cpu"><Input id="nm-cpu" value={f.cpu} onChange={set("cpu")} /></Field>
-        <Field label="Số nhân" htmlFor="nm-cores"><Input id="nm-cores" inputMode="numeric" value={f.cores} onChange={set("cores")} /></Field>
-        <Field label="RAM (GB)" htmlFor="nm-ram"><Input id="nm-ram" inputMode="numeric" value={f.ramGb} onChange={set("ramGb")} /></Field>
-        <Field label="GPU (để trống nếu không có)" htmlFor="nm-gpu"><Input id="nm-gpu" value={f.gpu} onChange={set("gpu")} /></Field>
-        <Field label="VRAM (GB)" htmlFor="nm-vram"><Input id="nm-vram" inputMode="numeric" value={f.vramGb} onChange={set("vramGb")} /></Field>
-        <Field label="Ổ đĩa (GB)" htmlFor="nm-sto"><Input id="nm-sto" inputMode="numeric" value={f.storageGb} onChange={set("storageGb")} /></Field>
-        <Field label="Mạng (Mbps)" htmlFor="nm-net"><Input id="nm-net" inputMode="numeric" value={f.networkMbps} onChange={set("networkMbps")} /></Field>
-        <div className="col-span-2 flex flex-wrap gap-4">
-          {CATS.map((c) => (
-            <Checkbox key={c.v} label={c.label} checked={f.cats.includes(c.v)} onChange={(on) => setF({ ...f, cats: on ? [...f.cats, c.v] : f.cats.filter((x) => x !== c.v) })} />
-          ))}
-        </div>
-        <Field label="Mô tả ngắn" htmlFor="nm-sum" className="col-span-2"><Input id="nm-sum" value={f.summary} onChange={set("summary")} /></Field>
+        <p className="col-span-2 text-sm text-ink-soft" data-testid="new-machine-intro">Bạn chỉ cần đặt tên và viết vài dòng giới thiệu. Cấu hình máy (CPU, RAM, GPU, ổ đĩa) do app tự đọc từ máy của bạn khi bạn bấm <b>Quét & đăng máy</b>.</p>
+        <Field label="Tên máy" htmlFor="nm-name" className="col-span-2"><Input id="nm-name" maxLength={120} value={f.name} onChange={set("name")} /></Field>
+        <Field label="Mô tả ngắn" htmlFor="nm-sum" className="col-span-2" hint={`${f.summary.length}/200 ký tự. Hiện cho người thuê khi xem máy.`}>
+          <Input id="nm-sum" maxLength={200} value={f.summary} onChange={set("summary")} />
+        </Field>
+        <Field label="Giá mỗi gói (PCP)" htmlFor="nm-price" hint="Số dương, tối đa 18 chữ số thập phân."><Input id="nm-price" inputMode="decimal" value={f.price} onChange={set("price")} /></Field>
+        <Field label="Vị trí" htmlFor="nm-loc" hint="Hiện ở danh sách máy."><Input id="nm-loc" value={f.location} onChange={set("location")} /></Field>
         {err && <div className="col-span-2"><Banner tone="danger" title="Không tạo được máy">{err}</Banner></div>}
-        <p className="col-span-2 text-xs text-ink-faint">Cấu hình là do bạn tự khai; hệ thống chưa tự đo và chưa kiểm chứng.</p>
-        <div className="col-span-2"><Button type="submit" variant="primary" disabled={busy || f.name.trim().length === 0}><Plus className="h-4 w-4" aria-hidden />{busy ? "Đang tạo…" : "Tạo máy nháp"}</Button></div>
+        <div className="col-span-2"><Button type="submit" variant="primary" disabled={busy || f.name.trim().length === 0}><Plus className="h-4 w-4" aria-hidden />{busy ? "Đang tạo…" : "Tạo máy"}</Button></div>
       </form>
     </Section>
   );
 }
 
-function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => void }) {
+export function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => void }) {
   const api = getLiveApi().host;
   const detail = useAsync(async () => {
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: TZ });
@@ -598,37 +601,76 @@ function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => void })
       setErr((e as Error).message);
     }
   };
+  const [publishing, setPublishing] = useState(false);
+  const [rescanning, setRescanning] = useState(false);
+  const [note, setNote] = useState("");
+  /**
+   * Quét guest (app Windows) rồi đăng. Không còn admin duyệt: quét đạt là máy hiện công khai ngay.
+   * Cùng lần quét đó đọc thông số máy (CPU, RAM, GPU, ổ đĩa) và ghi vào máy trước khi đăng; chủ máy không tự gõ.
+   */
+  const publish = async () => {
+    setPublishing(true);
+    setNote("");
+    try {
+      await run(async () => {
+        const status = await scanAndPublish(api, m, defaultScanDeps());
+        if (status !== "approved") {
+          onChange();
+          throw new Error("Máy đã được gửi nhưng chưa hiển thị cho người thuê. Hãy thử lại sau hoặc liên hệ người vận hành.");
+        }
+      }, "list");
+    } finally {
+      setPublishing(false);
+    }
+  };
+  /** Đọc lại cấu hình từ máy (phần cứng có thể đã đổi). Không bắt máy phải đủ điều kiện đăng, vì máy đã đăng rồi. */
+  const rescan = async () => {
+    setRescanning(true);
+    setNote("");
+    try {
+      await run(async () => {
+        await rescanSpecs(api, m, defaultScanDeps());
+        setNote("Đã cập nhật cấu hình từ máy.");
+      }, "list");
+    } finally {
+      setRescanning(false);
+    }
+  };
   const st = STATUS_LABEL[m.status];
   return (
     <div className="rounded-lg border border-line p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <p className="font-bold">{m.name}</p>
-          <p className="text-xs text-ink-faint">{formatUnits(m.priceUnits)} PCP thử / gói · mã {m.machineKey}</p>
+          <p className="text-xs text-ink-faint">{formatUnits(m.priceUnits)} PCP / gói</p>
+          {m.specs.summary && <p className="mt-1 text-sm text-ink-soft">{m.specs.summary}</p>}
+          <p className="mt-1 text-xs text-ink-soft" data-testid="machine-specs">{specsSummary(m.specs) ?? "Cấu hình sẽ được đọc từ máy của bạn khi bạn bấm Quét & đăng máy."}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge tone={st.tone}>{st.text}</Badge>
-          {m.status === "draft" && <Button size="sm" variant="primary" onClick={() => void run(() => api.submitForReview(m.id), "list")}>Gửi duyệt</Button>}
+          {m.status === "draft" && <Button size="sm" variant="primary" loading={publishing} onClick={() => void publish()}>Quét & đăng máy</Button>}
+          {m.status === "approved" && <Button size="sm" variant="ghost" loading={rescanning} onClick={() => void rescan()}>Đọc lại cấu hình</Button>}
         </div>
       </div>
+      {note && <Banner tone="ok" className="mt-3" title="Đã cập nhật">{note}</Banner>}
       {err && <Banner tone="danger" className="mt-3" title="Thao tác không thành công">{err}</Banner>}
       <Async state={detail} skeleton={<p className="mt-3 text-sm text-ink-faint">Đang tải…</p>}>
         {(d) => (
           <div className="mt-3 grid gap-4 md:grid-cols-2">
             <div>
-              <p className="mb-1 text-sm font-semibold">Cam kết (tối thiểu 4 giờ)</p>
-              {d.commitments.length === 0 ? <p className="text-sm text-ink-soft">Chưa có. Không có cam kết thì không ai giữ được máy.</p> : (
+              <p className="mb-1 text-sm font-semibold">Cam kết cho thuê (tối thiểu 4 giờ)</p>
+              {d.commitments.length === 0 ? <p className="text-sm text-ink-soft">Chưa có. Cần ít nhất một cam kết để người thuê giữ được máy.</p> : (
                 <ul className="space-y-1 text-sm">{d.commitments.map((c) => <li key={c.id}>{fmt(c.startsAt)} → {fmt(c.endsAt)}</li>)}</ul>
               )}
               <div className="mt-2 flex items-end gap-2">
-                <Field label="Số giờ kể từ 1 giờ trước" htmlFor={`h-${m.id}`}>
+                <Field label="Thời lượng cam kết" htmlFor={`h-${m.id}`}>
                   <Select id={`h-${m.id}`} value={hours} onChange={(e) => setHours(e.target.value)}>
                     {[4, 8, 12, 24].map((h) => <option key={h} value={h}>{h} giờ</option>)}
                   </Select>
                 </Field>
                 <Button size="sm" variant="secondary" onClick={() => void run(() => api.addCommitment(m.id, new Date(Date.now() - 3_600_000), new Date(Date.now() - 3_600_000 + Number(hours) * 3_600_000)))}>Thêm cam kết</Button>
               </div>
-              <p className="mt-1 text-xs text-ink-faint">Cam kết không thể bị rút/xóa khi đang bảo đảm một booking còn hiệu lực (máy chủ chặn).</p>
+              <p className="mt-1 text-xs text-ink-faint">Không rút được cam kết khi đang có phiên thuê dựa trên cam kết đó.</p>
             </div>
             <div>
               <p className="mb-1 text-sm font-semibold">Lịch nhận thuê hằng tuần (GMT+7)</p>
@@ -654,13 +696,13 @@ function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => void })
                   await api.addRule(m.id, Number(rule.weekday), a, b);
                 })}>Thêm</Button>
               </div>
-              <p className="mt-1 text-xs text-ink-faint">Bội của 15 phút, tối thiểu 30 phút, không qua nửa đêm (tách khung), không chồng nhau. Lịch không tự bật nguồn máy.</p>
+              <p className="mt-1 text-xs text-ink-faint">Mỗi khung dài tối thiểu 30 phút, tính theo mốc 15 phút, không qua nửa đêm và không chồng nhau. Lịch chỉ là giờ bạn sẵn sàng; máy chỉ nhận khách khi bạn đã bắt đầu nhận thuê.</p>
             </div>
             <div className="md:col-span-2">
               <KeyValue items={[
-                { k: "Nhận phiên mới (host chọn)", v: <Switch id={`acc-${m.id}`} label="Nhận phiên mới" checked={d.accepting} onCheckedChange={(v) => void run(() => api.setAccepting(m.id, v))} /> },
-                { k: "Heartbeat của thiết bị", v: d.health === "unknown" ? "Chưa có (máy chưa ghi danh hoặc agent chưa chạy)" : d.health === "ok" ? "Ổn (dưới 30 giây)" : d.health === "suspect" ? "Chậm (quá 30 giây)" : "Mất (quá 90 giây)" },
-                { k: "Khung nhận thuê 7 ngày tới", v: d.windows.length ? d.windows.map((w) => `${w.day} ${fmt(w.startsAt).split(" ")[0]}–${fmt(w.endsAt).split(" ")[0]}`).join("; ") : "Chưa có" },
+                { k: "Nhận phiên mới", v: <Switch id={`acc-${m.id}`} label="Nhận phiên mới" checked={d.accepting} onCheckedChange={(v) => void run(() => api.setAccepting(m.id, v))} /> },
+                { k: "Kết nối của máy", v: d.health === "unknown" ? "Chưa kết nối (hãy ghi danh và bắt đầu nhận thuê)" : d.health === "ok" ? "Đang kết nối" : d.health === "suspect" ? "Kết nối chậm" : "Mất kết nối" },
+                { k: "Khung nhận thuê 7 ngày tới", v: d.windows.length ? d.windows.map(windowLabel).join("; ") : "Chưa có" },
               ]} />
             </div>
           </div>

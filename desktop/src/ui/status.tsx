@@ -1,3 +1,4 @@
+import { isLive } from "@/api/env";
 import type { SessionPhase } from "@/domain/session";
 import type { HostApproval, HostMachineState, MachineState, SupportLevel } from "@/domain/types";
 import { Badge } from "./badge";
@@ -12,6 +13,13 @@ export function MachineStateBadge({ state }: { state: MachineState }) {
       return <Badge tone="neutral">Offline</Badge>;
     case "blocked":
       return <Badge tone="warn">Đang xử lý sự cố</Badge>;
+    case "online":
+      return (
+        <Badge tone="ok" icon={false}>
+          <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-ok" aria-hidden />
+          Đang online
+        </Badge>
+      );
     case "unverified":
       return <Badge tone="neutral">Chưa xác minh online</Badge>;
   }
@@ -56,9 +64,11 @@ export const APPROVAL_LABEL: Record<HostApproval, string> = {
   rejected: "Bị từ chối",
   approved: "Đã duyệt",
 };
+/** Bản thật: không còn bước duyệt của admin, nên nhãn nói về trạng thái tài khoản host. */
+const LIVE_APPROVAL_LABEL: Record<HostApproval, string> = { none: "Chưa đăng ký", pending: "Đang xem xét", rejected: "Bị tạm khóa", approved: "Đang hoạt động" };
 export function ApprovalBadge({ approval }: { approval: HostApproval }) {
   const tone = approval === "approved" ? "ok" : approval === "rejected" ? "danger" : approval === "pending" ? "warn" : "neutral";
-  return <Badge tone={tone}>{APPROVAL_LABEL[approval]}</Badge>;
+  return <Badge tone={tone}>{(isLive() ? LIVE_APPROVAL_LABEL : APPROVAL_LABEL)[approval]}</Badge>;
 }
 
 export const HOST_STATE_LABEL: Record<HostMachineState, string> = {

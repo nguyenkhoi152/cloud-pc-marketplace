@@ -5,9 +5,10 @@
  */
 import { AlertTriangle, CheckCircle2, CircleDashed, ClipboardCopy, Info, Lock, Play, RefreshCw, Square, Wrench } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiBase, getDevWallet, getLiveApi } from "@/api";
+import { apiBase, getDevWallet, getLiveApi, getServerApi } from "@/api";
 import { hostNative, hostNativeAvailable, viewerOrigins } from "@/api/hostNative";
-import { formatUnits, splitFeeUnits, type HostMachine, type LiveBooking } from "@/api/live";
+import { splitFeeUnits, type HostMachine, type LiveBooking } from "@/api/live";
+import { BOOKING_STATE_LABEL } from "@/domain/adminData";
 import { buildSteps, gpuNote, guestError, interpretWsl, interpretWslInstall, nextStep, parseProbe, RECOMMENDED_DISTRO, type GuestProbe, type Overview, type SetupStep, type StepStatus } from "@/domain/hostEnv";
 import { startHosting, stopHosting, type TunnelInfo } from "@/domain/hostStart";
 import { cpuChoices, limitWarning, loadLimits, ramChoicesGb, saveLimits, toLimitInput, type Limits } from "@/domain/hostLimits";
@@ -18,14 +19,15 @@ import { Button } from "@/ui/button";
 import { Checkbox, Field, Input, Select } from "@/ui/controls";
 import { Banner } from "@/ui/feedback";
 import { KeyValue, PageHeader, Section } from "@/ui/page";
+import { Amount } from "./Amount";
 
 const SHARE_KEY = "cpm.hostShare.v1";
 const TZ = "Asia/Ho_Chi_Minh";
-const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: TZ, hour12: false });
+const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: TZ, hour12: false, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 const STATUS_UI: Record<StepStatus, { icon: typeof CheckCircle2; cls: string; label: string }> = {
   ok: { icon: CheckCircle2, cls: "text-ok", label: "Xong" },
-  action: { icon: Wrench, cls: "text-teal-dark", label: "Cần làm trong app" },
+  action: { icon: Wrench, cls: "text-teal-dark", label: "Làm ngay trong ứng dụng" },
   manual: { icon: AlertTriangle, cls: "text-warn", label: "Bạn cần tự làm" },
   blocked: { icon: Lock, cls: "text-ink-faint", label: "Chưa tới" },
   info: { icon: Info, cls: "text-info", label: "Thông tin" },
@@ -125,14 +127,13 @@ export function HostSessions({ machineId, pollMs = 5000 }: { machineId?: string 
             <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line p-2.5 text-sm">
               <div>
                 <p className="font-semibold">{l.text}</p>
-                <p className="text-xs text-ink-faint">Phiên {b.id.slice(0, 8)} · giữ lúc {fmt(b.createdAt)} · bạn nhận {formatUnits(host)} PCP thử nếu hoàn tất · <span className="num">{b.state} / {b.accessState}</span></p>
+                <p className="text-xs text-ink-faint">Phiên {b.id.slice(0, 8)} · giữ lúc {fmt(b.createdAt)} · bạn nhận <Amount units={host} suffix="PCP" inline /> khi hoàn tất · {BOOKING_STATE_LABEL[b.state] ?? b.state}</p>
               </div>
               <Badge tone={l.tone}>{l.live ? "Đang diễn ra" : "Đã xong"}</Badge>
             </li>
           );
         })}
       </ul>
-      <p className="mt-2 text-xs text-ink-faint">PCP là điểm thử trên chuỗi mô phỏng cục bộ, không có giá trị tiền. Màn Thu nhập chưa có.</p>
     </Section>
   );
 }
@@ -149,6 +150,9 @@ export function HostSetup() {
   const [err, setErr] = useState("");
   const [note, setNote] = useState("");
   const [token, setToken] = useState("");
+  // Ghi danh tự động: máy (đã đăng) được chọn, và có thay thiết bị cũ của máy đó không (thiết bị cũ sẽ ngừng hoạt động).
+  const [enrollMachine, setEnrollMachine] = useState("");
+  const [replaceOld, setReplaceOld] = useState(false);
   const [distro, setDistro] = useState("");
   const [dedicated, setDedicated] = useState(false);
   const [consent, setConsent] = useState(false);
@@ -255,9 +259,9 @@ export function HostSetup() {
   if (!native)
     return (
       <div>
-        <PageHeader title="Thiết lập & chạy máy cho thuê" subtitle="Biến máy Windows này thành máy cho thuê bằng một guest Linux (WSL2) chạy desktop Selkies." />
+        <PageHeader title="Thiết lập & chạy máy cho thuê" subtitle="Biến máy Windows này thành máy cho thuê: cài môi trường Linux, ghi danh máy và bắt đầu nhận thuê." />
         <Banner tone="info" title="Chỉ có trong app Windows đã cài">
-          Kiểm tra WSL2, cài thành phần trong guest và chạy agent cần lớp native của app. Bạn đang mở giao diện trong trình duyệt nên phần này không hoạt động (và không hiện kết quả giả). Hãy mở app Cloud PC Companion đã cài.
+          Phần này cần ứng dụng Cloud PC Companion trên Windows. Bạn đang mở bằng trình duyệt nên chưa dùng được. Hãy mở ứng dụng đã cài trên máy.
         </Banner>
       </div>
     );
@@ -272,15 +276,15 @@ export function HostSetup() {
 
   const doInstall = () =>
     act("install", async () => {
-      if (!api) throw new Error("App chưa có địa chỉ máy chủ API (VITE_API_BASE_URL) nên chưa cấu hình được agent.");
+      if (!api) throw new Error("Ứng dụng chưa kết nối máy chủ. Vào Cài đặt → Kết nối máy chủ trước.");
       must(await hostNative.installAgent());
       must(await hostNative.configure({ apiBase: api, frameAncestors }));
       await refresh();
-      return "Đã cài agent vào guest và ghi cấu hình.";
+      return "Đã cài dịch vụ cho thuê và ghi cấu hình.";
     });
   const doProvision = () =>
     act("provision", async () => {
-      if (!probe?.user) throw new Error("Chưa biết user trong guest; bấm Kiểm tra lại.");
+      if (!probe?.user) throw new Error("Chưa xác định được người dùng Linux; bấm Kiểm tra lại.");
       await hostNative.provisionStart(probe.user);
       await loadOverview();
     });
@@ -289,16 +293,34 @@ export function HostSetup() {
       must(await hostNative.enroll(token));
       setToken("");
       await refresh();
-      return "Đã ghi danh. Credential của thiết bị chỉ nằm trong guest; app không giữ và không hiển thị.";
+      return "Đã ghi danh máy. Bạn có thể bắt đầu nhận thuê.";
+    });
+  /** Không còn admin cấp mã: app xin mã một lần cho máy ĐÃ ĐĂNG của chính bạn rồi đưa thẳng vào guest (không hiển thị, không lưu, không log). */
+  const publishedMachines = machines.filter((m) => m.status === "approved");
+  const chosenMachine = publishedMachines.some((m) => m.id === enrollMachine) ? enrollMachine : (publishedMachines[0]?.id ?? "");
+  const doEnrollAuto = () =>
+    act("enroll", async () => {
+      if (!chosenMachine) throw new Error("Chưa có máy nào đã đăng. Vào Máy của tôi, tạo máy rồi bấm Quét & đăng máy.");
+      const server = getServerApi();
+      if (replaceOld) await server.revokeMyDevice(chosenMachine);
+      let t: string | null = await server.createMyEnrollment(chosenMachine);
+      try {
+        must(await hostNative.enroll(t));
+      } finally {
+        t = null; // không giữ mã sau khi dùng
+      }
+      await refresh();
+      setReplaceOld(false);
+      return "Đã ghi danh máy. Bạn có thể bắt đầu nhận thuê.";
     });
   const doStart = () =>
     act("start", async () => {
-      if (!api) throw new Error("App chưa có địa chỉ máy chủ API: vào Cài đặt → Kết nối máy chủ để nhập mã kết nối.");
+      if (!api) throw new Error("Ứng dụng chưa kết nối máy chủ. Vào Cài đặt → Kết nối máy chủ để nhập địa chỉ.");
       // Ghi lại cấu hình MỖI lần bắt đầu: địa chỉ API và địa chỉ tunnel có thể đã đổi từ lần chạy trước.
       const r = await startHosting({ ...hostNative, sleep: (ms) => new Promise((ok) => setTimeout(ok, ms)) }, { apiBase: api, frameAncestors, share, ...toLimitInput(limits, probe?.memTotalMb ?? null, probe?.cpuCount ?? null) });
       await loadOverview();
       void hostNative.tunnelState().then(setTunnel, () => undefined);
-      return `Đang khởi động agent: tạo môi trường khách sạch rồi bắt đầu gửi heartbeat. Có thể mất một hai phút.${r.publicUrl ? ` Địa chỉ công khai của máy (đổi mỗi lần bắt đầu): ${r.publicUrl}` : " Chỉ người dùng ngay trên máy này vào được (chưa bật chia sẻ ra Internet)."}`;
+      return `Đang khởi động: chuẩn bị môi trường sạch cho khách và kết nối với máy chủ. Có thể mất một hai phút.${r.publicUrl ? ` Địa chỉ truy cập của máy (đổi mỗi lần bắt đầu): ${r.publicUrl}` : " Hiện chỉ người dùng ngay trên máy này truy cập được (bạn chưa bật chia sẻ ra Internet)."}`;
     });
   const doStop = () =>
     act("stop", async () => {
@@ -307,13 +329,13 @@ export function HostSetup() {
       void hostNative.tunnelState().then(setTunnel, () => undefined);
       await refresh();
       must(c);
-      return "Đã dừng nhận thuê: mọi phiên xem bị cắt, container khách đã bị xoá (guest sạch).";
+      return "Đã dừng nhận thuê: các phiên xem đã ngắt và môi trường của khách đã được dọn sạch.";
     });
   const doCleanup = () =>
     act("cleanup", async () => {
       must(await hostNative.cleanup());
       await refresh();
-      return "Đã dọn guest: container khách bị xoá.";
+      return "Đã dọn môi trường của khách.";
     });
   const doInstallWsl = () =>
     act("wslfeat", async () => {
@@ -334,21 +356,21 @@ export function HostSetup() {
     });
 
   const distros = wsl?.kind === "ready" ? wsl.distros.filter((d) => d.version !== 1) : [];
-  const healthText = health === "ok" ? "Máy chủ đang nhận heartbeat (ổn)" : health === "suspect" ? "Heartbeat chậm (quá 30 giây)" : health === "incident" ? "Mất heartbeat (quá 90 giây)" : "Máy chủ chưa nhận heartbeat nào";
+  const healthText = health === "ok" ? "Đang kết nối với máy chủ" : health === "suspect" ? "Kết nối chậm" : health === "incident" ? "Mất kết nối với máy chủ" : "Chưa kết nối với máy chủ";
 
   return (
     <div>
       <PageHeader
         title="Thiết lập & chạy máy cho thuê"
-        subtitle="Máy Windows của bạn chạy một guest Linux (WSL2). Trong guest, mỗi khách dùng một desktop Selkies riêng trong container; khách không vào Windows của bạn."
+        subtitle="Máy Windows của bạn chạy một bản Linux (WSL2). Mỗi khách dùng một desktop riêng trong bản Linux đó và không vào được Windows của bạn."
         actions={<Button onClick={() => void act("refresh", refresh)} loading={busy === "refresh"}><RefreshCw className="h-4 w-4" aria-hidden />Kiểm tra lại</Button>}
       />
       {err && <Banner tone="danger" className="mb-3" title="Chưa thực hiện được">{err}</Banner>}
       {note && <Banner tone="ok" className="mb-3" title="Đã xong">{note}</Banner>}
-      {ov?.backendError && <Banner tone="danger" className="mb-3" title="Cấu hình guest của app bị lỗi">{ov.backendError}</Banner>}
+      {ov?.backendError && <Banner tone="danger" className="mb-3" title="Cấu hình môi trường Linux bị lỗi">{ov.backendError}</Banner>}
       {ov?.backend?.kind === "ssh-dev" && (
-        <Banner tone="warn" className="mb-3" title="Đang dùng GUEST THỬ: máy ảo Linux qua SSH — không phải WSL2">
-          Bản thử dùng một máy ảo Linux không GPU ({ov.backend.target}) để kiểm cùng một luồng khi máy chưa có WSL2. Không đại diện cho hiệu năng; với máy cho thuê thật, guest là WSL2 trên chính máy này.
+        <Banner tone="warn" className="mb-3" title="Đang dùng máy ảo Linux qua SSH thay cho WSL2">
+          Máy ảo Linux ({ov.backend.target}) được dùng khi máy này chưa có WSL2. Hiệu năng có thể khác so với WSL2 chạy ngay trên máy.
         </Banner>
       )}
 
@@ -356,8 +378,8 @@ export function HostSetup() {
         <p className="text-sm text-ink-faint" role="status">Đang kiểm tra máy…</p>
       ) : (
         <>
-          <Section title="Các bước" aside={probing ? <Badge tone="info">Đang kiểm tra guest…</Badge> : next ? <Badge tone="info">Việc tiếp theo: {next.title}</Badge> : <Badge tone="ok">Mọi bước đã xong</Badge>}>
-            {probing && ov.backend && <p className="mb-2 text-sm text-ink-soft" role="status">Đang kiểm tra guest (chỉ đọc, có thể mất vài giây). Các bước sau sẽ hiện trạng thái thật khi có kết quả.</p>}
+          <Section title="Các bước" aside={probing ? <Badge tone="info">Đang kiểm tra…</Badge> : next ? <Badge tone="info">Việc tiếp theo: {next.title}</Badge> : <Badge tone="ok">Mọi bước đã xong</Badge>}>
+            {probing && ov.backend && <p className="mb-2 text-sm text-ink-soft" role="status">Đang kiểm tra máy (có thể mất vài giây). Trạng thái từng bước sẽ hiện khi có kết quả.</p>}
             <ol className="space-y-2" data-testid="host-steps" data-probing={probing ? "1" : "0"}>
               {steps.map((s) => {
                 const current = next?.id === s.id;
@@ -374,14 +396,14 @@ export function HostSetup() {
                     {current && s.assist === "install_distro" && (
                       <div className="mt-3 space-y-2" data-testid="assist-distro">
                         <Banner tone="info" title="App sẽ làm gì">
-                          Mở một cửa sổ riêng chạy <span className="num">wsl --install -d {RECOMMENDED_DISTRO}</span>. Lần đầu bản Linux hỏi tên người dùng và mật khẩu: bạn tự nhập trong cửa sổ đó, app không điền thay. Tính năng này chưa được kiểm trên máy thật.
+                          Mở một cửa sổ riêng chạy <span className="num">wsl --install -d {RECOMMENDED_DISTRO}</span>. Lần đầu bản Linux hỏi tên người dùng và mật khẩu: bạn tự nhập trong cửa sổ đó.
                         </Banner>
                         <Button variant="primary" loading={busy === "wsldistro"} onClick={doInstallDistro}>Mở cửa sổ cài {RECOMMENDED_DISTRO}</Button>
                       </div>
                     )}
                     {current && s.action === "choose_distro" && (
                       <div className="mt-3 space-y-2">
-                        <Field label="Bản Linux (WSL 2) dùng làm guest" htmlFor="hs-distro" hint={`Khuyến nghị một bản riêng tên ${RECOMMENDED_DISTRO}: wsl --install -d ${RECOMMENDED_DISTRO}`}>
+                        <Field label="Bản Linux (WSL 2) dùng để cho thuê" htmlFor="hs-distro" hint={`Khuyến nghị một bản riêng tên ${RECOMMENDED_DISTRO}: wsl --install -d ${RECOMMENDED_DISTRO}`}>
                           <Select id="hs-distro" value={distro} onChange={(e) => setDistro(e.target.value)} className="max-w-xs">
                             <option value="">— chọn —</option>
                             {distros.map((d) => <option key={d.name} value={d.name}>{d.name}{d.isDefault ? " (mặc định)" : ""}</option>)}
@@ -393,39 +415,59 @@ export function HostSetup() {
                     )}
                     {current && s.action === "provision" && (
                       <div className="mt-3 space-y-2">
-                        <Banner tone="info" title="App sẽ làm gì trong guest">
-                          Chạy bằng quyền root <b>của guest Linux</b> (không phải quyền quản trị Windows): cài gói <span className="num">docker.io</span> và <span className="num">nodejs</span> nếu thiếu, bật dịch vụ Docker, thêm user <span className="num">{probe?.user || "?"}</span> vào nhóm docker, và tải image desktop Selkies (khoảng 8 GB, một lần) nếu chưa có. Không cài gì lên Windows.
+                        <Banner tone="info" title="Ứng dụng sẽ cài những gì">
+                          Cài <span className="num">Docker</span> và <span className="num">Node.js</span> nếu còn thiếu, bật Docker, cấp quyền dùng Docker cho người dùng <span className="num">{probe?.user || "?"}</span>, và tải môi trường desktop cho khách (khoảng 8 GB, chỉ một lần). Mọi thứ được cài trong bản Linux, không cài gì lên Windows.
                         </Banner>
-                        <Checkbox checked={consent} onChange={setConsent} label="Tôi đồng ý cài các thành phần trên vào guest và dùng dung lượng/mạng tương ứng." />
-                        <Button variant="primary" disabled={!consent || provisioning} loading={busy === "provision" || provisioning} onClick={doProvision}>{provisioning ? "Đang cài trong guest…" : "Cài thành phần trong guest"}</Button>
+                        <Checkbox checked={consent} onChange={setConsent} label="Tôi đồng ý cài các thành phần trên và dùng dung lượng/mạng tương ứng." />
+                        <Button variant="primary" disabled={!consent || provisioning} loading={busy === "provision" || provisioning} onClick={doProvision}>{provisioning ? "Đang cài đặt…" : "Cài đặt các thành phần"}</Button>
                       </div>
                     )}
                     {current && s.action === "install" && (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Button variant="primary" loading={busy === "install"} disabled={!api} onClick={doInstall}>Cài/cập nhật agent trong guest</Button>
-                        {!api && <span className="text-xs text-ink-faint">App chưa có địa chỉ máy chủ API.</span>}
+                        <Button variant="primary" loading={busy === "install"} disabled={!api} onClick={doInstall}>Cài hoặc cập nhật dịch vụ cho thuê</Button>
+                        {!api && <span className="text-xs text-ink-faint">Ứng dụng chưa kết nối máy chủ.</span>}
                       </div>
                     )}
                     {current && s.action === "enroll" && (
-                      <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); doEnroll(); }}>
-                        <Field label="Mã ghi danh (admin cấp, dùng một lần)" htmlFor="hs-token" hint="Mã đi thẳng vào guest để đổi lấy credential; app không lưu mã.">
-                          <Input id="hs-token" type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value.trim())} className="w-80" />
-                        </Field>
-                        <Button type="submit" variant="primary" disabled={token.length < 20} loading={busy === "enroll"}>Ghi danh</Button>
-                      </form>
+                      <div className="mt-3 space-y-3">
+                        {publishedMachines.length === 0 ? (
+                          <Banner tone="info" title="Chưa có máy nào đã đăng">Vào <b>Máy của tôi</b>, tạo máy rồi bấm <b>Quét & đăng máy</b>. Xong quay lại đây để ghi danh.</Banner>
+                        ) : (
+                          <>
+                            <div className="flex flex-wrap items-end gap-2">
+                              <Field label="Máy của bạn đã đăng" htmlFor="hs-machine" hint="Ứng dụng tự lấy mã ghi danh cho máy này; bạn không phải nhập hay dán gì.">
+                                <Select id="hs-machine" value={chosenMachine} onChange={(e) => setEnrollMachine(e.target.value)} className="w-80">
+                                  {publishedMachines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                </Select>
+                              </Field>
+                              <Button variant="primary" disabled={!chosenMachine} loading={busy === "enroll"} onClick={doEnrollAuto}>Ghi danh máy này</Button>
+                            </div>
+                            <Checkbox checked={replaceOld} onChange={setReplaceOld} label="Máy này đã từng ghi danh trên một bản Linux khác (ví dụ tôi cài lại): thay thiết bị cũ. Thiết bị cũ sẽ ngừng hoạt động ngay." />
+                          </>
+                        )}
+                        <details className="text-sm">
+                          <summary className="cursor-pointer text-ink-soft">Có mã ghi danh? Dán thủ công</summary>
+                          <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); doEnroll(); }}>
+                            <Field label="Mã ghi danh (dùng một lần)" htmlFor="hs-token" hint="Mã được dùng ngay để ghi danh và không được lưu lại.">
+                              <Input id="hs-token" type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value.trim())} className="w-80" />
+                            </Field>
+                            <Button type="submit" variant="secondary" disabled={token.length < 20} loading={busy === "enroll"}>Ghi danh bằng mã</Button>
+                          </form>
+                        </details>
+                      </div>
                     )}
                     {current && s.action === "start" && (
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         <div className="w-full space-y-2" data-testid="limits">
                           <p className="text-sm font-semibold">Giới hạn tài nguyên cho khách</p>
                           <div className="flex flex-wrap items-end gap-3">
-                            <Field label="RAM tối đa" htmlFor="hs-ram" hint={probe?.memTotalMb ? `Máy guest có ${(probe.memTotalMb / 1024).toFixed(1)} GB` : "Chưa đọc được RAM của guest"}>
+                            <Field label="RAM tối đa" htmlFor="hs-ram" hint={probe?.memTotalMb ? `Bản Linux có ${(probe.memTotalMb / 1024).toFixed(1)} GB` : "Chưa đọc được RAM"}>
                               <Select id="hs-ram" value={limits.ramGb ?? ""} onChange={(e) => setLimits({ ...limits, ramGb: e.target.value ? Number(e.target.value) : null })} className="w-40">
                                 <option value="">Không giới hạn</option>
                                 {ramChoicesGb(probe?.memTotalMb ?? null).map((g) => <option key={g} value={g}>{g} GB</option>)}
                               </Select>
                             </Field>
-                            <Field label="CPU tối đa" htmlFor="hs-cpu" hint={probe?.cpuCount ? `Máy guest có ${probe.cpuCount} CPU` : "Chưa đọc được số CPU của guest"}>
+                            <Field label="CPU tối đa" htmlFor="hs-cpu" hint={probe?.cpuCount ? `Bản Linux có ${probe.cpuCount} CPU` : "Chưa đọc được số CPU"}>
                               <Select id="hs-cpu" value={limits.cpus ?? ""} onChange={(e) => setLimits({ ...limits, cpus: e.target.value ? Number(e.target.value) : null })} className="w-40">
                                 <option value="">Không giới hạn</option>
                                 {cpuChoices(probe?.cpuCount ?? null).map((c) => <option key={c} value={c}>{c} CPU</option>)}
@@ -433,24 +475,24 @@ export function HostSetup() {
                             </Field>
                           </div>
                           {limitWarning(limits) && <p className="text-xs text-warn">{limitWarning(limits)}</p>}
-                          <p className="text-xs text-ink-faint">Áp dụng cho container khách ở lần bắt đầu tiếp theo (RAM tính cả swap). Chưa có giới hạn dung lượng đĩa. Chưa đo tác động tới hiệu năng.</p>
+                          <p className="text-xs text-ink-faint">Áp dụng cho khách ở lần bắt đầu tiếp theo (RAM tính cả bộ nhớ đệm swap). Chưa giới hạn được dung lượng đĩa.</p>
                         </div>
                         <div className="w-full space-y-2" data-testid="share-online">
-                          <Checkbox checked={share} onChange={setShare} label="Cho phép người ở mạng khác thuê máy này (mở kênh ra Internet qua Cloudflare)" />
+                          <Checkbox checked={share} onChange={setShare} label="Cho phép người ở mạng khác thuê máy này (chia sẻ ra Internet)" />
                           {share && (
-                            <Banner tone="warn" title="Điều này làm gì">
-                              App chạy <span className="num">cloudflared</span> (Cloudflare quick tunnel): chỉ kết nối <b>ra</b> Cloudflare và nhận một địa chỉ https ngẫu nhiên (…trycloudflare.com) trỏ về cổng xem của máy này. Không mở cổng trên router/tường lửa. Địa chỉ đổi mỗi lần bắt đầu. Cổng xem chỉ trả hình khi có quyền xem theo phiên do máy chủ cấp (không có token thì bị từ chối). Hình ảnh và thao tác của khách đi qua Cloudflare, bên trung gian có thể thấy lưu lượng. Dịch vụ tunnel nhanh không có cam kết hoạt động và chưa đo độ trễ qua tunnel. Tunnel đóng khi bạn dừng nhận thuê hoặc đóng app.
+                            <Banner tone="warn" title="Khi bật chia sẻ">
+                              Máy sẽ nhận một địa chỉ https ngẫu nhiên để người ở mạng khác truy cập; địa chỉ đổi mỗi lần bạn bắt đầu nhận thuê. Ứng dụng chỉ kết nối ra ngoài và không mở cổng trên router hay tường lửa của bạn. Chỉ người có quyền xem của phiên thuê mới xem được màn hình. Hình ảnh và thao tác của khách đi qua dịch vụ trung gian (Cloudflare). Kết nối đóng khi bạn dừng nhận thuê hoặc đóng ứng dụng.
                             </Banner>
                           )}
                         </div>
                         <Button variant="primary" size="lg" loading={busy === "start"} onClick={doStart}><Play className="h-4 w-4" aria-hidden />Bắt đầu nhận thuê</Button>
-                        {probe?.container && probe.container !== "missing" && <Button variant="ghost" loading={busy === "cleanup"} onClick={doCleanup}>Dọn guest (xoá container khách còn sót)</Button>}
+                        {probe?.container && probe.container !== "missing" && <Button variant="ghost" loading={busy === "cleanup"} onClick={doCleanup}>Dọn môi trường của khách còn sót</Button>}
                       </div>
                     )}
                     {s.id === "packages" && (provisioning || ov.provision.state === "exited") && (
                       <>
-                        {ov.provision.state === "exited" && ov.provision.exitCode !== 0 && <Banner tone="danger" className="mt-2" title="Cài trong guest chưa xong">{guestError({ code: ov.provision.exitCode ?? 1, stdout: ov.provision.logTail, stderr: "" })}</Banner>}
-                        <LogTail title="Nhật ký cài đặt trong guest" text={ov.provision.logTail} />
+                        {ov.provision.state === "exited" && ov.provision.exitCode !== 0 && <Banner tone="danger" className="mt-2" title="Cài đặt chưa xong">{guestError({ code: ov.provision.exitCode ?? 1, stdout: ov.provision.logTail, stderr: "" })}</Banner>}
+                        <LogTail title="Nhật ký cài đặt" text={ov.provision.logTail} />
                       </>
                     )}
                   </StepRow>
@@ -463,19 +505,19 @@ export function HostSetup() {
             <Section title="Nhận thuê" bordered className="mt-4">
               <div data-testid="host-run">
                 {agentRunning ? (
-                  <Banner tone={health === "ok" ? "ok" : "info"} title={health === "ok" ? "Máy đang nhận thuê" : "Agent đang chạy, chờ máy chủ xác nhận"}>
-                    {healthText}. Đóng app hoặc bấm Dừng thì máy ngừng nhận thuê, phiên đang chạy bị cắt và guest được dọn.
+                  <Banner tone={health === "ok" ? "ok" : "info"} title={health === "ok" ? "Máy đang nhận thuê" : "Đang khởi động, chờ kết nối với máy chủ"}>
+                    {healthText}. Đóng ứng dụng hoặc bấm Dừng thì máy ngừng nhận thuê, phiên đang chạy bị ngắt và môi trường của khách được dọn sạch.
                   </Banner>
                 ) : (
-                  <Banner tone={ov.agent.exitCode === 0 ? "info" : "danger"} title={ov.agent.exitCode === 0 ? "Agent đã dừng" : "Agent dừng bất thường"}>
-                    {ov.agent.exitCode === 0 ? "Máy không còn nhận thuê." : `Tiến trình agent thoát với mã ${ov.agent.exitCode}. Xem nhật ký bên dưới.`}
+                  <Banner tone={ov.agent.exitCode === 0 ? "info" : "danger"} title={ov.agent.exitCode === 0 ? "Đã dừng nhận thuê" : "Dừng nhận thuê bất thường"}>
+                    {ov.agent.exitCode === 0 ? "Máy không còn nhận thuê." : `Dịch vụ cho thuê dừng với mã ${ov.agent.exitCode}. Xem nhật ký bên dưới.`}
                   </Banner>
                 )}
                 <KeyValue className="mt-3" items={[
-                  { k: "Máy", v: myMachine ? `${myMachine.name} (${myMachine.status === "approved" ? "đã duyệt" : myMachine.status})` : machineId ? `Máy ${machineId.slice(0, 8)}… (không thuộc tài khoản đang đăng nhập)` : "Chưa ghi danh" },
-                  { k: "Heartbeat (máy chủ ghi nhận)", v: <span data-testid="host-health" data-health={health ?? "unknown"}>{healthText}</span> },
-                  { k: "Cổng xem của khách", v: tunnel?.state === "running" && tunnel.url ? <span data-testid="host-public-url">{tunnel.url} (qua Cloudflare tunnel; chỉ vào được bằng quyền xem theo phiên)</span> : `http://127.0.0.1:${ov.gatewayPort} trên máy này (chỉ vào được bằng quyền xem theo phiên)` },
-                  { k: "Môi trường khách", v: probe ? `container ${probe.container}${probe.containerHealth ? ` / ${probe.containerHealth}` : ""}` : "?" },
+                  { k: "Máy", v: myMachine ? `${myMachine.name} (${myMachine.status === "approved" ? "đã đăng" : myMachine.status})` : machineId ? `Máy ${machineId.slice(0, 8)}… (không thuộc tài khoản đang đăng nhập)` : "Chưa ghi danh" },
+                  { k: "Kết nối với máy chủ", v: <span data-testid="host-health" data-health={health ?? "unknown"}>{healthText}</span> },
+                  { k: "Địa chỉ truy cập của khách", v: tunnel?.state === "running" && tunnel.url ? <span data-testid="host-public-url">{tunnel.url} (chỉ truy cập được bằng quyền xem của phiên thuê)</span> : `http://127.0.0.1:${ov.gatewayPort} (chỉ trên máy này, cần quyền xem của phiên thuê)` },
+                  { k: "Môi trường của khách", v: probe ? (probe.container === "running" ? "Đang chạy" : probe.container === "missing" ? "Chưa tạo" : "Chưa rõ") : "?" },
                 ]} />
                 {agentRunning && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -483,15 +525,15 @@ export function HostSetup() {
                       <Button variant="danger-outline" onClick={() => setConfirmStop(true)} disabled={busy !== ""}><Square className="h-4 w-4" aria-hidden />Dừng nhận thuê</Button>
                     ) : (
                       <>
-                        <span className="text-sm font-semibold text-danger">Dừng ngay? Phiên đang chạy (nếu có) sẽ bị cắt và dữ liệu trong container khách bị xoá.</span>
-                        <Button variant="danger" loading={busy === "stop"} onClick={doStop}>Dừng và dọn guest</Button>
+                        <span className="text-sm font-semibold text-danger">Dừng ngay? Phiên đang chạy (nếu có) sẽ bị ngắt và dữ liệu trong môi trường của khách bị xóa.</span>
+                        <Button variant="danger" loading={busy === "stop"} onClick={doStop}>Dừng và dọn dẹp</Button>
                         <Button variant="ghost" onClick={() => setConfirmStop(false)}>Không</Button>
                       </>
                     )}
-                    <Button variant="ghost" onClick={() => void act("refresh", refresh)}>Cập nhật trạng thái guest</Button>
+                    <Button variant="ghost" onClick={() => void act("refresh", refresh)}>Làm mới trạng thái</Button>
                   </div>
                 )}
-                <LogTail title="Nhật ký agent (không chứa credential)" text={ov.agent.logTail} />
+                <LogTail title="Nhật ký dịch vụ cho thuê" text={ov.agent.logTail} />
               </div>
             </Section>
           )}
@@ -501,19 +543,19 @@ export function HostSetup() {
           <Section title="Thông tin máy" bordered className="mt-4">
             <KeyValue items={[
               { k: "WSL trên Windows", v: wsl?.kind === "ready" ? `Đã cài${wsl.version ? ` (${wsl.version})` : ""}; ${wsl.distros.length} bản Linux` : wsl?.kind === "no_distro" ? "Đã cài, chưa có bản Linux" : wsl?.kind === "not_installed" ? "Chưa cài" : "Không áp dụng" },
-              { k: "Guest đang dùng", v: ov.backend ? (ov.backend.kind === "wsl" ? `WSL2: ${ov.backend.distro}` : `Máy ảo thử qua SSH (${ov.backend.target})`) : "Chưa chọn" },
-              { k: "CPU / RAM / đĩa trống trong guest", v: probe ? `${probe.cpuCount ?? "?"} CPU · ${probe.memTotalMb ? (probe.memTotalMb / 1024).toFixed(1) : "?"} GB RAM · ${probe.diskFreeGb ?? "?"} GB trống (máy tự đọc, không phải đo hiệu năng)` : "Chưa đọc được" },
-              { k: "GPU trong guest", v: gpu.text },
-              { k: "Agent đi kèm app", v: <span className="num">{ov.agentSha256.slice(0, 16)}…</span> },
+              { k: "Bản Linux đang dùng", v: ov.backend ? (ov.backend.kind === "wsl" ? `WSL2: ${ov.backend.distro}` : `Máy ảo qua SSH (${ov.backend.target})`) : "Chưa chọn" },
+              { k: "CPU / RAM / đĩa trống", v: probe ? `${probe.cpuCount ?? "?"} CPU · ${probe.memTotalMb ? (probe.memTotalMb / 1024).toFixed(1) : "?"} GB RAM · ${probe.diskFreeGb ?? "?"} GB trống` : "Chưa đọc được" },
+              { k: "GPU", v: gpu.text },
+              { k: "Phiên bản dịch vụ cho thuê", v: <span className="num">{ov.agentSha256.slice(0, 16)}…</span> },
             ]} />
           </Section>
 
-          <Banner tone="warn" className="mt-4" title="Giới hạn của bản thử — đọc trước khi cho thuê">
+          <Banner tone="warn" className="mt-4" title="Lưu ý trước khi cho thuê">
             <ul className="list-disc space-y-1 pl-4">
-              <li>Chưa kiểm chứng mã hoá hình ảnh bằng GPU trong WSL2; bản này chạy desktop bằng CPU và chưa đo độ trễ/FPS.</li>
-              <li>App phải mở trong lúc cho thuê; chưa có chạy nền. Đóng app là dừng nhận thuê.</li>
-              <li>Khách ở máy khác chỉ vào được khi bạn bật “Cho phép người ở mạng khác thuê máy này” (tunnel Cloudflare, chưa đo độ trễ). Nếu tắt, chỉ người dùng ngay trên máy này vào được. App không đổi tường lửa/router.</li>
-              <li>WSL2/Docker không phải chứng nhận cô lập. Bạn là quản trị máy nên nền tảng không thể bảo vệ dữ liệu của khách khỏi chủ máy; chỉ cho thuê cho người thử tin cậy.</li>
+              <li>Hình ảnh được xử lý bằng CPU nên chất lượng phụ thuộc cấu hình máy của bạn.</li>
+              <li>Hãy giữ ứng dụng chạy trong lúc cho thuê. Đóng hẳn ứng dụng là dừng nhận thuê.</li>
+              <li>Khách ở mạng khác chỉ truy cập được khi bạn bật “Cho phép người ở mạng khác thuê máy này”. Nếu tắt, chỉ người dùng ngay trên máy này truy cập được. Ứng dụng không thay đổi tường lửa hay router.</li>
+              <li>Bạn là người quản trị máy nên không thể bảo vệ dữ liệu của khách khỏi chính bạn: chỉ cho thuê với người bạn tin.</li>
             </ul>
           </Banner>
         </>

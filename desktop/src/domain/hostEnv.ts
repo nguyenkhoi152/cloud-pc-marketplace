@@ -84,24 +84,24 @@ export function parseKv(text: string): Record<string, string> {
 }
 
 const GUEST_ERRORS: Record<string, string> = {
-  need_root: "Bước cài cần quyền root trong guest.",
-  bad_user: "Tên user trong guest không hợp lệ.",
-  no_such_user: "User không tồn tại trong guest.",
-  unsupported_distro: "Chỉ hỗ trợ guest Debian/Ubuntu (cần apt).",
-  node_too_old: "Node trong guest quá cũ (cần 18 trở lên; dùng Ubuntu 24.04).",
-  docker_start_failed: "Không khởi động được dịch vụ Docker trong guest.",
-  image_missing_after_pull: "Tải image Selkies chưa xong hoặc thất bại.",
-  agent_checksum_mismatch: "Tệp agent chép vào guest bị sai checksum; thử cài lại.",
-  config_bad_format: "Cấu hình agent sai định dạng.",
-  config_key_not_allowed: "Cấu hình agent có mục không được phép.",
-  no_node: "Guest chưa có Node.",
-  agent_not_installed: "Guest chưa có agent.",
-  not_configured: "Agent trong guest chưa được cấu hình.",
-  agent_running: "Agent đang chạy; hãy dừng trước.",
-  enroll_failed: "Ghi danh thất bại: mã không hợp lệ, đã dùng, hết hạn, hoặc guest không gọi được máy chủ API.",
-  docker_unavailable: "Docker trong guest chưa chạy hoặc user chưa thuộc nhóm docker.",
-  image_missing: "Guest chưa có image Selkies.",
-  container_still_present: "Chưa xoá được container khách.",
+  need_root: "Bước cài cần quyền quản trị trong bản Linux.",
+  bad_user: "Tên người dùng trong bản Linux không hợp lệ.",
+  no_such_user: "Người dùng này không tồn tại trong bản Linux.",
+  unsupported_distro: "Chỉ hỗ trợ bản Linux Debian hoặc Ubuntu.",
+  node_too_old: "Node.js trong bản Linux quá cũ (cần bản 18 trở lên; hãy dùng Ubuntu 24.04).",
+  docker_start_failed: "Không khởi động được Docker trong bản Linux.",
+  image_missing_after_pull: "Tải môi trường desktop chưa xong hoặc thất bại.",
+  agent_checksum_mismatch: "Tệp cài đặt bị lỗi (sai checksum); hãy thử cài lại.",
+  config_bad_format: "Cấu hình dịch vụ cho thuê sai định dạng.",
+  config_key_not_allowed: "Cấu hình dịch vụ cho thuê có mục không được phép.",
+  no_node: "Bản Linux chưa có Node.js.",
+  agent_not_installed: "Bản Linux chưa có dịch vụ cho thuê.",
+  not_configured: "Dịch vụ cho thuê chưa được cấu hình.",
+  agent_running: "Dịch vụ cho thuê đang chạy; hãy dừng trước.",
+  enroll_failed: "Ghi danh thất bại: mã không hợp lệ, đã dùng, đã hết hạn, hoặc máy chưa kết nối được tới máy chủ.",
+  docker_unavailable: "Docker chưa chạy hoặc người dùng chưa có quyền dùng Docker.",
+  image_missing: "Bản Linux chưa có môi trường desktop.",
+  container_still_present: "Chưa dọn được môi trường của khách.",
   bad_arg: "Tham số không hợp lệ.",
   unsupported_action: "Hành động không được hỗ trợ.",
 };
@@ -112,14 +112,14 @@ export function guestError(c: Captured): string | null {
   const code = parseKv(c.stdout).error;
   if (code && GUEST_ERRORS[code]) return GUEST_ERRORS[code]!;
   const all = `${c.stdout}\n${c.stderr}`;
-  if (c.code === -2) return "Guest không trả lời kịp (hết giờ chờ).";
-  if (c.code === -1) return "Không chạy được công cụ kết nối guest trên máy này (wsl.exe/ssh.exe).";
-  if (/no distribution with the supplied name|WSL_E_DISTRO_NOT_FOUND/i.test(all)) return "Không tìm thấy distro WSL đã chọn.";
+  if (c.code === -2) return "Bản Linux không trả lời kịp (hết giờ chờ).";
+  if (c.code === -1) return "Không chạy được công cụ kết nối tới bản Linux trên máy này.";
+  if (/no distribution with the supplied name|WSL_E_DISTRO_NOT_FOUND/i.test(all)) return "Không tìm thấy bản Linux đã chọn trong WSL.";
   if (/not installed/i.test(all) && /Windows Subsystem for Linux/i.test(all)) return "Windows chưa cài WSL.";
-  if (/Connection (refused|timed out|reset)|Could not resolve|Permission denied \(publickey/i.test(all)) return "Không kết nối được guest qua SSH (máy ảo chưa bật hoặc khoá không đúng).";
-  if (/a password is required|sudo:/i.test(all)) return "Guest đòi mật khẩu sudo; bước này cần root không mật khẩu trong guest.";
+  if (/Connection (refused|timed out|reset)|Could not resolve|Permission denied \(publickey/i.test(all)) return "Không kết nối được tới máy ảo qua SSH (máy ảo chưa bật hoặc khoá không đúng).";
+  if (/a password is required|sudo:/i.test(all)) return "Bản Linux đòi mật khẩu quản trị; bước này cần quyền quản trị không cần mật khẩu.";
   const tail = lines(c.stderr).pop() ?? lines(c.stdout).pop() ?? "";
-  return `Lệnh trong guest thất bại (mã ${c.code})${tail ? `: ${tail.slice(0, 160)}` : ""}.`;
+  return `Lệnh trong bản Linux thất bại (mã ${c.code})${tail ? `: ${tail.slice(0, 160)}` : ""}.`;
 }
 
 export interface GuestProbe {
@@ -130,6 +130,8 @@ export interface GuestProbe {
   systemd: boolean;
   user: string;
   cpuCount: number | null;
+  /** Tên CPU (rỗng nếu bản quét cũ hoặc guest không cho đọc). */
+  cpuModel: string;
   memTotalMb: number | null;
   diskFreeGb: number | null;
   dockerCli: string;
@@ -150,6 +152,8 @@ export interface GuestProbe {
   gpuDxg: boolean;
   gpuRenderNode: boolean;
   gpuNvidia: string;
+  /** VRAM (MiB) của GPU đã đọc được tên; null nếu không có GPU hoặc bản quét cũ. */
+  gpuVramMb: number | null;
   dockerNvidiaRuntime: boolean;
   apiReachable: boolean | null;
 }
@@ -162,12 +166,13 @@ export function parseProbe(c: Captured): GuestProbe {
   const major = Number(/^(\d+)\./.exec(kv.node ?? "")?.[1] ?? 0);
   return {
     ok: done,
-    error: done ? null : (guestError(c) ?? "Kết quả kiểm tra guest không đầy đủ."),
+    error: done ? null : (guestError(c) ?? "Kết quả kiểm tra không đầy đủ."),
     isWsl: kv.is_wsl === "1",
     os: [kv.os_id, kv.os_version].filter(Boolean).join(" "),
     systemd: kv.systemd === "1",
     user: kv.user ?? "",
     cpuCount: int(kv.cpu_count),
+    cpuModel: (kv.cpu_model ?? "").trim(),
     memTotalMb: int(kv.mem_total_mb),
     diskFreeGb: int(kv.disk_free_gb),
     dockerCli: kv.docker_cli ?? "",
@@ -188,9 +193,27 @@ export function parseProbe(c: Captured): GuestProbe {
     gpuDxg: kv.gpu_dxg === "1",
     gpuRenderNode: kv.gpu_render_node === "1",
     gpuNvidia: kv.gpu_nvidia ?? "",
+    gpuVramMb: int(kv.gpu_vram_mb),
     dockerNvidiaRuntime: kv.docker_nvidia_runtime === "1",
     apiReachable: kv.api_reachable === "1" ? true : kv.api_reachable === "0" ? false : null,
   };
+}
+
+/**
+ * "Máy đủ điều kiện để đăng": kết quả quét guest đọc được và guest đã đủ thành phần để chạy một phiên thuê
+ * (Docker dùng được, Node ≥ 18, image Selkies, agent đã cài). Không còn admin duyệt, nên đây là cổng DUY NHẤT trước khi máy hiện công khai.
+ * Chỉ chạy ở app (máy chủ không kiểm chứng được kết quả quét): xem docs/SECURITY.md. Trả về danh sách còn thiếu bằng tiếng Việt.
+ */
+export function machineEligibility(p: GuestProbe | null): { ok: boolean; missing: string[] } {
+  if (!p) return { ok: false, missing: ["chưa quét được máy"] };
+  if (!p.ok) return { ok: false, missing: [p.error ?? "không đọc được trạng thái máy"] };
+  const missing = [
+    !p.dockerAccess && "Docker dùng được",
+    !p.nodeOk && "Node từ bản 18 trở lên",
+    !p.imagePresent && "môi trường desktop cho khách",
+    !p.agentInstalled && "dịch vụ cho thuê của Cloud PC",
+  ].filter((m): m is string => !!m);
+  return { ok: missing.length === 0, missing };
 }
 
 export type StepStatus = "ok" | "action" | "manual" | "blocked" | "info";
@@ -261,7 +284,7 @@ export function buildSteps(i: StepInput): SetupStep[] {
       id: "wsl", title: "Windows có WSL2", status: viaWsl ? "manual" : "info",
       detail: `Windows báo: "${i.wsl.message.slice(0, 160)}". Cần cài WSL một lần.`,
       manual: {
-        why: "Cài WSL bật tính năng ảo hoá của Windows, cần quyền quản trị và khởi động lại máy. App không tự làm việc này.",
+        why: "Cài WSL bật tính năng ảo hoá của Windows, cần quyền quản trị và khởi động lại máy.",
         where: "PowerShell (Run as administrator)",
         commands: ["wsl --install --no-distribution", "# Khởi động lại Windows khi được yêu cầu, rồi mở lại app và bấm Kiểm tra lại."],
         needsAdmin: true, needsRestart: true,
@@ -274,7 +297,7 @@ export function buildSteps(i: StepInput): SetupStep[] {
   if (viaWsl) {
     if (i.wsl.kind === "no_distro")
       steps.push({
-        id: "distro", title: "Guest Linux riêng cho việc cho thuê", status: "manual", detail: "WSL chưa có bản Linux nào.",
+        id: "distro", title: "Bản Linux dành riêng cho việc cho thuê", status: "manual", detail: "WSL chưa có bản Linux nào.",
         manual: {
           why: "Bản Linux đầu tiên hỏi bạn đặt tên người dùng và mật khẩu Linux trong cửa sổ riêng; app không điền thay bạn.",
           where: "PowerShell",
@@ -285,15 +308,15 @@ export function buildSteps(i: StepInput): SetupStep[] {
       });
     else if (i.wsl.kind === "ready") {
       const chosen = i.backend?.distro ? i.wsl.distros.find((d) => d.name === i.backend!.distro) : undefined;
-      if (!i.backend) steps.push({ id: "distro", title: "Guest Linux riêng cho việc cho thuê", status: "action", action: "choose_distro", detail: `Chọn bản Linux dùng RIÊNG cho việc cho thuê (không dùng bản bạn làm việc cá nhân). Có: ${i.wsl.distros.map((d) => d.name).join(", ")}.` });
-      else if (!chosen) steps.push({ id: "distro", title: "Guest Linux riêng cho việc cho thuê", status: "action", action: "choose_distro", detail: `Không còn thấy bản "${i.backend.distro}" trong WSL. Chọn lại.` });
+      if (!i.backend) steps.push({ id: "distro", title: "Bản Linux dành riêng cho việc cho thuê", status: "action", action: "choose_distro", detail: `Chọn bản Linux dùng RIÊNG cho việc cho thuê (không dùng bản bạn làm việc cá nhân). Có: ${i.wsl.distros.map((d) => d.name).join(", ")}.` });
+      else if (!chosen) steps.push({ id: "distro", title: "Bản Linux dành riêng cho việc cho thuê", status: "action", action: "choose_distro", detail: `Không còn thấy bản "${i.backend.distro}" trong WSL. Chọn lại.` });
       else if (chosen.version === 1)
         steps.push({
-          id: "distro", title: "Guest Linux riêng cho việc cho thuê", status: "manual", detail: `"${chosen.name}" đang là WSL 1; cần WSL 2 để chạy Docker.`,
+          id: "distro", title: "Bản Linux dành riêng cho việc cho thuê", status: "manual", detail: `"${chosen.name}" đang là WSL 1; cần WSL 2 để chạy Docker.`,
           manual: { why: "Chuyển phiên bản WSL thay đổi cách bản Linux đó chạy; bạn tự quyết định.", where: "PowerShell", commands: [`wsl --set-version ${chosen.name} 2`], needsAdmin: false, needsRestart: false },
         });
-      else steps.push({ id: "distro", title: "Guest Linux riêng cho việc cho thuê", status: "ok", detail: `Dùng "${chosen.name}" (WSL 2).` });
-    } else steps.push({ id: "distro", title: "Guest Linux riêng cho việc cho thuê", status: "blocked", detail: "Cần WSL trước." });
+      else steps.push({ id: "distro", title: "Bản Linux dành riêng cho việc cho thuê", status: "ok", detail: `Dùng "${chosen.name}" (WSL 2).` });
+    } else steps.push({ id: "distro", title: "Bản Linux dành riêng cho việc cho thuê", status: "blocked", detail: "Cần WSL trước." });
   }
 
   const upstreamReady = steps.every((s) => s.status === "ok" || s.status === "info") && !!i.backend;
@@ -301,22 +324,22 @@ export function buildSteps(i: StepInput): SetupStep[] {
 
   // 3. Kết nối guest
   if (!upstreamReady || !p) {
-    steps.push(pending("connect", "Kết nối được guest"));
+    steps.push(pending("connect", "Kết nối với bản Linux"));
   } else if (!p.ok) {
-    steps.push({ id: "connect", title: "Kết nối được guest", status: "blocked", detail: p.error ?? "Không đọc được trạng thái guest." });
+    steps.push({ id: "connect", title: "Kết nối với bản Linux", status: "blocked", detail: p.error ?? "Không đọc được trạng thái của bản Linux." });
   } else {
     const res = [p.cpuCount !== null && `${p.cpuCount} CPU`, p.memTotalMb !== null && `${(p.memTotalMb / 1024).toFixed(1)} GB RAM`, p.diskFreeGb !== null && `còn ${p.diskFreeGb} GB đĩa`].filter(Boolean).join(", ");
-    steps.push({ id: "connect", title: "Kết nối được guest", status: "ok", detail: `${p.os || "Linux"}, user ${p.user || "?"}${res ? ` · ${res}` : ""}${viaWsl && !p.isWsl ? " · (không phải nhân WSL)" : ""}.` });
+    steps.push({ id: "connect", title: "Kết nối với bản Linux", status: "ok", detail: `${p.os || "Linux"}, người dùng ${p.user || "?"}${res ? ` · ${res}` : ""}${viaWsl && !p.isWsl ? " · (không phải nhân WSL)" : ""}.` });
   }
   const connected = !!p?.ok && upstreamReady;
 
   // 4. systemd (để Docker tự chạy khi guest khởi động) — chỉ là điều kiện khi Docker chưa chạy
   if (viaWsl) {
-    if (!connected) steps.push(pending("systemd", "systemd trong guest"));
-    else if (p!.systemd) steps.push({ id: "systemd", title: "systemd trong guest", status: "ok", detail: "Đang bật: dịch vụ Docker tự chạy khi guest khởi động." });
+    if (!connected) steps.push(pending("systemd", "Dịch vụ nền Linux (systemd)"));
+    else if (p!.systemd) steps.push({ id: "systemd", title: "Dịch vụ nền Linux (systemd)", status: "ok", detail: "Đã bật: Docker tự chạy khi bản Linux khởi động." });
     else
       steps.push({
-        id: "systemd", title: "systemd trong guest", status: "manual", detail: "Chưa bật. Không có systemd thì Docker không tự chạy mỗi lần guest khởi động.",
+        id: "systemd", title: "Dịch vụ nền Linux (systemd)", status: "manual", detail: "Chưa bật. Nếu không bật, Docker sẽ không tự chạy mỗi khi bản Linux khởi động.",
         manual: {
           why: "Sửa /etc/wsl.conf và tắt mọi bản WSL đang chạy là thay đổi cấu hình WSL của bạn.",
           where: "PowerShell",
@@ -328,40 +351,40 @@ export function buildSteps(i: StepInput): SetupStep[] {
   const baseOk = connected && steps.every((s) => s.status === "ok" || s.status === "info");
 
   // 5. Docker + Node
-  if (!baseOk) steps.push(pending("packages", "Docker và Node trong guest"));
-  else if (p!.dockerAccess && p!.nodeOk) steps.push({ id: "packages", title: "Docker và Node trong guest", status: "ok", detail: `Docker ${p!.dockerCli}, Node ${p!.node}.` });
+  if (!baseOk) steps.push(pending("packages", "Docker và Node.js"));
+  else if (p!.dockerAccess && p!.nodeOk) steps.push({ id: "packages", title: "Docker và Node.js", status: "ok", detail: `Docker ${p!.dockerCli}, Node ${p!.node}.` });
   else {
     const miss = [!p!.dockerCli && "Docker", p!.dockerCli && !p!.dockerSock && "bật dịch vụ Docker", p!.dockerSock && !p!.dockerAccess && "quyền dùng Docker cho user", !p!.node && "Node", p!.node && !p!.nodeOk && `Node ≥ 18 (đang ${p!.node})`].filter(Boolean).join(", ");
-    steps.push({ id: "packages", title: "Docker và Node trong guest", status: "action", action: "provision", detail: `Còn thiếu: ${miss}. App cài bằng quyền root CỦA GUEST (không phải quyền admin Windows).` });
+    steps.push({ id: "packages", title: "Docker và Node.js", status: "action", action: "provision", detail: `Còn thiếu: ${miss}. Ứng dụng cài bằng quyền quản trị của bản Linux (không phải quyền quản trị Windows).` });
   }
 
   // 6. Image Selkies
-  if (!baseOk) steps.push(pending("image", "Image desktop Selkies"));
-  else if (p!.imagePresent) steps.push({ id: "image", title: "Image desktop Selkies", status: "ok", detail: "Đã có đúng bản đã ghim (2.2.1, theo digest)." });
-  else if (p!.diskFreeGb !== null && p!.diskFreeGb < MIN_FREE_GB) steps.push({ id: "image", title: "Image desktop Selkies", status: "blocked", detail: `Guest chỉ còn ${p!.diskFreeGb} GB trống; cần khoảng ${MIN_FREE_GB} GB để tải và giải nén image (~8 GB).` });
-  else steps.push({ id: "image", title: "Image desktop Selkies", status: "action", action: "provision", detail: "Chưa có. Tải một lần, khoảng 8 GB qua mạng của bạn." });
+  if (!baseOk) steps.push(pending("image", "Môi trường desktop cho khách"));
+  else if (p!.imagePresent) steps.push({ id: "image", title: "Môi trường desktop cho khách", status: "ok", detail: "Đã tải xong." });
+  else if (p!.diskFreeGb !== null && p!.diskFreeGb < MIN_FREE_GB) steps.push({ id: "image", title: "Môi trường desktop cho khách", status: "blocked", detail: `Bản Linux chỉ còn ${p!.diskFreeGb} GB trống; cần khoảng ${MIN_FREE_GB} GB để tải và giải nén môi trường desktop (khoảng 8 GB).` });
+  else steps.push({ id: "image", title: "Môi trường desktop cho khách", status: "action", action: "provision", detail: "Chưa có. Tải một lần, khoảng 8 GB qua mạng của bạn." });
 
   const provisioned = baseOk && steps.every((s) => s.status === "ok" || s.status === "info");
 
   // 7. Agent
-  if (!provisioned) steps.push(pending("agent", "Agent của Cloud PC trong guest"));
-  else if (p!.agentInstalled && p!.configured && p!.agentSha256 === i.appAgentSha256) steps.push({ id: "agent", title: "Agent của Cloud PC trong guest", status: "ok", detail: `Đúng bản đi kèm app (${i.appAgentSha256.slice(0, 12)}…).` });
-  else steps.push({ id: "agent", title: "Agent của Cloud PC trong guest", status: "action", action: "install", detail: !p!.agentInstalled ? "Chưa cài. Agent chỉ ghi vào thư mục riêng ~/.cpm-host trong guest." : p!.agentSha256 !== i.appAgentSha256 ? "Bản trong guest khác bản đi kèm app; cần cập nhật." : "Chưa có cấu hình." });
+  if (!provisioned) steps.push(pending("agent", "Dịch vụ cho thuê của Cloud PC"));
+  else if (p!.agentInstalled && p!.configured && p!.agentSha256 === i.appAgentSha256) steps.push({ id: "agent", title: "Dịch vụ cho thuê của Cloud PC", status: "ok", detail: `Đã cài đúng phiên bản.` });
+  else steps.push({ id: "agent", title: "Dịch vụ cho thuê của Cloud PC", status: "action", action: "install", detail: !p!.agentInstalled ? "Chưa cài. Dịch vụ chỉ ghi vào một thư mục riêng trong bản Linux." : p!.agentSha256 !== i.appAgentSha256 ? "Phiên bản đang cài khác phiên bản của ứng dụng; cần cập nhật." : "Chưa có cấu hình." });
   const agentOk = provisioned && steps[steps.length - 1]!.status === "ok";
 
   // 8. Mạng tới máy chủ API (control plane)
-  if (!agentOk) steps.push(pending("network", "Guest gọi được máy chủ API"));
-  else if (p!.apiReachable === true) steps.push({ id: "network", title: "Guest gọi được máy chủ API", status: "ok", detail: "Agent chỉ kết nối RA NGOÀI tới máy chủ; không mở cổng vào từ Internet." });
-  else if (p!.apiReachable === null) steps.push({ id: "network", title: "Guest gọi được máy chủ API", status: "info", detail: "Chưa kiểm tra được (app chưa có địa chỉ máy chủ API)." });
+  if (!agentOk) steps.push(pending("network", "Kết nối tới máy chủ"));
+  else if (p!.apiReachable === true) steps.push({ id: "network", title: "Kết nối tới máy chủ", status: "ok", detail: "Dịch vụ chỉ kết nối ra ngoài tới máy chủ, không mở cổng vào từ Internet." });
+  else if (p!.apiReachable === null) steps.push({ id: "network", title: "Kết nối tới máy chủ", status: "info", detail: "Chưa kiểm tra được (ứng dụng chưa có địa chỉ máy chủ)." });
   else
     steps.push({
-      id: "network", title: "Guest gọi được máy chủ API", status: viaWsl ? "manual" : "blocked",
-      detail: viaWsl ? "Guest không gọi được máy chủ API. Nếu máy chủ API chạy ngay trên máy Windows này (demo cục bộ), WSL ở chế độ mạng mặc định (NAT) không thấy 127.0.0.1 của Windows." : "Guest không gọi được máy chủ API (máy chủ chưa chạy?).",
+      id: "network", title: "Kết nối tới máy chủ", status: viaWsl ? "manual" : "blocked",
+      detail: viaWsl ? "Máy chưa kết nối được tới máy chủ. Nếu máy chủ chạy ngay trên máy Windows này, WSL ở chế độ mạng mặc định (NAT) không thấy được 127.0.0.1 của Windows." : "Máy chưa kết nối được tới máy chủ (máy chủ chưa chạy?).",
       manual: viaWsl
         ? {
             why: "Đổi chế độ mạng của WSL là thay đổi cấu hình WSL của bạn (tệp .wslconfig, cần Windows 11 22H2 trở lên).",
             where: "PowerShell",
-            commands: ["# Chỉ cần cho demo cục bộ khi máy chủ API chạy trên chính máy này:", `Add-Content "$env:USERPROFILE\\.wslconfig" "[wsl2]\`nnetworkingMode=mirrored"`, "wsl --shutdown", "# Nếu máy chủ API ở nơi khác: kiểm tra máy chủ đang chạy và mạng của máy này."],
+            commands: ["# Chỉ cần khi máy chủ chạy ngay trên máy này:", `Add-Content "$env:USERPROFILE\\.wslconfig" "[wsl2]\`nnetworkingMode=mirrored"`, "wsl --shutdown", "# Nếu máy chủ ở nơi khác: kiểm tra máy chủ đang chạy và mạng của máy này."],
             needsAdmin: false, needsRestart: false,
           }
         : undefined,
@@ -370,16 +393,16 @@ export function buildSteps(i: StepInput): SetupStep[] {
 
   // 9. Ghi danh thiết bị
   if (!netOk) steps.push(pending("enroll", "Ghi danh thiết bị"));
-  else if (p!.enrolled) steps.push({ id: "enroll", title: "Ghi danh thiết bị", status: "ok", detail: `Guest đã có credential riêng cho máy ${p!.machineId?.slice(0, 8) ?? "?"}… (chỉ lưu trong guest).` });
-  else steps.push({ id: "enroll", title: "Ghi danh thiết bị", status: "action", action: "enroll", detail: "Dán mã ghi danh một lần do admin cấp sau khi máy được duyệt." });
+  else if (p!.enrolled) steps.push({ id: "enroll", title: "Ghi danh thiết bị", status: "ok", detail: `Đã ghi danh cho máy ${p!.machineId?.slice(0, 8) ?? "?"}….` });
+  else steps.push({ id: "enroll", title: "Ghi danh thiết bị", status: "action", action: "enroll", detail: "Chọn máy bạn đã đăng rồi bấm ghi danh. (Cần đăng máy ở mục Máy của tôi trước.)" });
   const enrolled = netOk && steps[steps.length - 1]!.status === "ok";
 
   // 10. Nhận thuê
   if (!enrolled) steps.push(pending("run", "Nhận thuê"));
   else if (i.agentRunning || p!.agentRunning) {
     const h = i.health;
-    steps.push({ id: "run", title: "Nhận thuê", status: "ok", detail: h === "ok" ? "Agent đang chạy; máy chủ nhận được heartbeat." : h === "suspect" || h === "incident" ? "Agent đang chạy nhưng máy chủ chưa nhận heartbeat gần đây." : "Agent đang chạy; đang chờ heartbeat đầu tiên." });
-  } else steps.push({ id: "run", title: "Nhận thuê", status: "action", action: "start", detail: "Sẵn sàng. Bấm Bắt đầu nhận thuê để chạy agent; app phải mở trong lúc cho thuê." });
+    steps.push({ id: "run", title: "Nhận thuê", status: "ok", detail: h === "ok" ? "Đang nhận thuê; máy đang kết nối với máy chủ." : h === "suspect" || h === "incident" ? "Đang chạy nhưng máy chưa kết nối được với máy chủ trong ít phút gần đây." : "Đang khởi động; chờ kết nối đầu tiên với máy chủ." });
+  } else steps.push({ id: "run", title: "Nhận thuê", status: "action", action: "start", detail: "Sẵn sàng. Bấm Bắt đầu nhận thuê và giữ ứng dụng mở trong lúc cho thuê." });
   return steps;
 }
 
@@ -394,6 +417,6 @@ export interface GpuNote {
 export function gpuNote(p: GuestProbe | null): GpuNote {
   if (!p?.ok) return { detected: false, text: "Chưa kiểm tra." };
   const bits = [p.gpuNvidia && `NVIDIA: ${p.gpuNvidia}`, p.gpuDxg && "có /dev/dxg (GPU ảo hoá của WSL)", p.gpuRenderNode && "có /dev/dri/renderD128", p.dockerNvidiaRuntime && "Docker có runtime nvidia"].filter(Boolean);
-  if (bits.length === 0) return { detected: false, text: "Guest không thấy GPU. Selkies sẽ dựng hình và mã hoá bằng CPU." };
-  return { detected: true, text: `Guest thấy: ${bits.join("; ")}. Bản thử này vẫn chạy Selkies bằng CPU: mã hoá bằng GPU trong WSL2 CHƯA được kiểm chứng.` };
+  if (bits.length === 0) return { detected: false, text: "Không phát hiện GPU. Hình ảnh sẽ được xử lý bằng CPU." };
+  return { detected: true, text: `Phát hiện: ${bits.join("; ")}. Hiện tại hình ảnh vẫn được xử lý bằng CPU; tăng tốc bằng GPU chưa được hỗ trợ.` };
 }

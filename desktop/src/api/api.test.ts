@@ -49,7 +49,7 @@ describe("tiền: chuỗi đơn vị nhỏ nhất, không number", () => {
   });
   it("mapMachine từ chối tiền ở dạng number (JSON number có thể đã mất chính xác)", () => {
     const row = { id: "m1", name: "Máy", declared_specs: {}, price_units: 20000000000000000000 as unknown as string, created_at: "2026-11-09T00:00:00Z" };
-    expect(() => mapMachine(row)).toThrow(/dạng chuỗi/);
+    expect(() => mapMachine(row)).toThrow(/Không đọc được số tiền/);
     expect(mapMachine({ ...row, price_units: "20000000000000000000" }).pricePer15).toBe(20);
   });
   it("mapMachine: specs thiếu/sai kiểu có mặc định an toàn, trạng thái 'chưa xác minh'", () => {
@@ -162,6 +162,28 @@ describe("client API server", () => {
     await expect(mk(() => Response.json({ error: { code: "unauthorized" } }, { status: 401 })).connect("b")).rejects.toMatchObject({ code: "auth" });
     await expect(mk(() => Response.json({ error: { code: "internal" } }, { status: 500 })).connect("b")).rejects.toMatchObject({ code: "server" });
     await expect(mk(() => { throw new TypeError("fetch failed"); }).connect("b")).rejects.toMatchObject({ code: "offline" });
+  });
+  it("chủ máy tự xin mã ghi danh và thu hồi thiết bị: đúng đường /host/* (không phải /admin/*), chỉ gửi machineId, trả đúng mã", async () => {
+    const seen: { url: string; body: unknown }[] = [];
+    const api = mk((url, init) => {
+      seen.push({ url, body: JSON.parse(String(init.body)) });
+      return url.endsWith("/host/enrollments") ? Response.json({ enrollmentToken: "t".repeat(43), ttlSeconds: 600 }, { status: 201 }) : Response.json({ revoked: true });
+    });
+    expect(await api.createMyEnrollment("m-1")).toBe("t".repeat(43));
+    expect(await api.revokeMyDevice("m-1")).toEqual({ revoked: true });
+    expect(seen).toEqual([
+      { url: "https://api.test/api/host/enrollments", body: { machineId: "m-1", ttlSeconds: 600 } },
+      { url: "https://api.test/api/host/devices/revoke", body: { machineId: "m-1" } },
+    ]);
+    expect(seen.some((s) => s.url.includes("/admin/"))).toBe(false);
+  });
+  it("lỗi 403/409 của enrollment: thông báo CỤ THỂ của máy chủ đi qua nguyên văn; mã chung `forbidden` không bị bảng thông báo chung đè (workspace dùng cùng mã)", async () => {
+    const msg403 = "Chỉ chủ máy (host đã đăng ký) hoặc quản trị viên mới ghi danh được máy này.";
+    const msg409 = 'Máy chưa được đăng hoặc đã có thiết bị đang hoạt động. Nếu bạn cài lại bản Linux, hãy tick "thay thiết bị cũ" rồi ghi danh lại.';
+    await expect(mk(() => Response.json({ error: { code: "forbidden", message: msg403 } }, { status: 403 })).createMyEnrollment("m")).rejects.toMatchObject({ code: "rejected", message: msg403 });
+    await expect(mk(() => Response.json({ error: { code: "unavailable", message: msg409 } }, { status: 409 })).createMyEnrollment("m")).rejects.toMatchObject({ code: "rejected", message: msg409 });
+    const ws = "Bạn không có quyền với workspace/booking này.";
+    await expect(mk(() => Response.json({ error: { code: "forbidden", message: ws } }, { status: 403 })).connect("b")).rejects.toMatchObject({ message: ws });
   });
   it("reconcile phân biệt 202 (đang chờ xác nhận) với đã áp dụng", async () => {
     expect(await mk(() => Response.json({ status: "pending" }, { status: 202 })).reconcile("b", "0x1")).toMatchObject({ pending: true });

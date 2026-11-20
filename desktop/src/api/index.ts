@@ -50,7 +50,7 @@ let server: ServerApi | null = null;
 /** Client API server; báo rõ khi chưa cấu hình (VITE_API_BASE_URL hoặc mã kết nối) thay vì giả thành công. */
 export function getServerApi(): ServerApi {
   const base = apiBase();
-  if (!base) throw new ServiceError("unsupported", "Chưa cấu hình địa chỉ máy chủ API (VITE_API_BASE_URL hoặc mã kết nối trong Cài đặt).");
+  if (!base) throw new ServiceError("unsupported", "Ứng dụng chưa kết nối máy chủ. Vào Cài đặt → Kết nối máy chủ để nhập địa chỉ.");
   server ??= createServerApi({ baseUrl: base, getToken: () => getLiveApi().accessToken() });
   return server;
 }
@@ -95,13 +95,13 @@ export async function initTestnetWallet(): Promise<void> {
   if (!base) return;
   const info = await fetchChainInfo(base);
   if (!info) {
-    walletIssue = "Không đọc được thông tin chuỗi từ máy chủ API (máy chủ tắt hoặc mạng lỗi).";
+    walletIssue = "Chưa đọc được thông tin mạng từ máy chủ (máy chủ đang tắt hoặc mạng lỗi). Hãy thử lại sau.";
     return;
   }
   if (!info.rpcUrl) return; // máy chủ không khai RPC công khai: không có ví thử, đó là cấu hình hợp lệ
   const rpc = testnetRpc(info.rpcUrl);
   if (!rpc) {
-    walletIssue = "Máy chủ dùng RPC chưa được phép trong bản app này (chỉ api.avax-test.network hoặc avalanche-fuji-c-chain-rpc.publicnode.com), nên không bật được ví thử.";
+    walletIssue = "Máy chủ đang dùng một mạng không được ứng dụng này hỗ trợ nên ví chưa hoạt động.";
     return;
   }
   try {
@@ -122,7 +122,7 @@ type MockService = typeof mockService;
  * từ chối với ServiceError("unsupported") — KHÔNG trả dữ liệu mẫu, KHÔNG báo thành công giả.
  */
 function makeLiveService(): MockService {
-  const unsupported = (what: string) => new ServiceError("unsupported", `${what} chưa được nối dữ liệu thật ở bản này.`);
+  const unsupported = (what: string) => new ServiceError("unsupported", `${what} đang được hoàn thiện.`);
   const real = {
     listMachines: () => getLiveApi().catalog.list(),
     getMachine: (id: string) => getLiveApi().catalog.get(id).then((r) => r?.machine ?? null),

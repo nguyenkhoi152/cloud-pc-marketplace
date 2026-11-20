@@ -12,22 +12,24 @@ export interface ServerApiOptions {
 }
 
 const MESSAGES: Record<string, string> = {
-  unauthorized: "Cần đăng nhập lại.",
-  wallet_required: "Cần liên kết ví đã xác minh trước.",
-  host_wallet_required: "Host chưa liên kết ví nhận tiền.",
-  quote_expired: "Hết hạn giữ máy; hãy giữ máy lại.",
-  invalid_state: "Booking không còn ở trạng thái phù hợp.",
-  no_grant: "Chưa có quyền xem: phiên chưa Active/chưa được cấp, đã nhận hoặc đã hết hạn.",
-  rate_limited: "Quá nhiều yêu cầu, thử lại sau ít phút.",
-  server_not_configured: "Máy chủ API chưa được cấu hình.",
-  wallet_taken: "Ví này đã thuộc tài khoản khác.",
-  wallet_change_blocked: "Không đổi ví khi còn booking chưa kết thúc.",
-  bad_signature: "Chữ ký không khớp ví.",
-  invalid_challenge: "Yêu cầu xác minh đã hết hạn hoặc đã dùng.",
-  machine_occupied_onchain: "Máy đang bị chiếm trên chuỗi.",
-  chain_unavailable: "Máy chủ chưa đọc được chuỗi khối.",
-  faucet_disabled: "Máy chủ này không bật vòi testnet.",
-  faucet_chain_error: "Vòi testnet gặp lỗi khi gọi chuỗi; thử lại sau ít phút.",
+  unauthorized: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.",
+  wallet_required: "Hãy liên kết ví trước (Ví → Liên kết ví).",
+  host_wallet_required: "Chủ máy chưa liên kết ví nhận tiền nên chưa thể thuê máy này.",
+  quote_expired: "Hết thời gian giữ máy. Hãy giữ máy lại.",
+  invalid_state: "Phiên thuê không còn ở trạng thái phù hợp để thực hiện việc này.",
+  no_grant: "Chưa có quyền xem màn hình: phiên chưa bắt đầu, đã kết thúc hoặc đã hết hạn.",
+  rate_limited: "Quá nhiều yêu cầu, hãy thử lại sau ít phút.",
+  server_not_configured: "Dịch vụ chưa sẵn sàng. Hãy thử lại sau.",
+  wallet_taken: "Ví này đã được liên kết với tài khoản khác.",
+  wallet_change_blocked: "Chưa thể đổi ví khi còn phiên thuê chưa kết thúc.",
+  bad_signature: "Chữ ký không khớp với ví. Hãy thử lại.",
+  invalid_challenge: "Yêu cầu xác minh đã hết hạn hoặc đã dùng. Hãy bắt đầu lại.",
+  machine_occupied_onchain: "Máy đang có giao dịch khác chưa hoàn tất. Hãy thử lại sau ít phút.",
+  chain_unavailable: "Chưa đọc được dữ liệu từ mạng blockchain. Hãy thử lại sau.",
+  faucet_disabled: "Hiện chưa phát PCP miễn phí.",
+  faucet_chain_error: "Chưa nhận được PCP lúc này. Hãy thử lại sau ít phút.",
+  // Cố ý KHÔNG khai `forbidden`/`unavailable` ở đây: bảng này áp cho MỌI endpoint (workspace, quote…), còn mỗi endpoint đã tự trả thông báo
+  // cụ thể trong `error.message` (ví dụ enrollment: "Chỉ chủ máy…"). Khai chung sẽ đè thông báo đúng bằng thông báo sai ngữ cảnh.
 };
 
 export interface ChainInfoPublic {
@@ -64,12 +66,12 @@ export function createServerApi(o: ServerApiOptions) {
     try {
       r = await f(`${base}${path}`, { method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
     } catch {
-      throw new ServiceError("offline", "Không kết nối được máy chủ API.");
+      throw new ServiceError("offline", "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.");
     }
     const data = (await r.json().catch(() => ({}))) as T & { error?: { code?: string; message?: string } };
     if (r.status >= 400) {
       const code = data.error?.code ?? "server";
-      throw new ServiceError(r.status === 401 ? "auth" : r.status >= 500 ? "server" : "rejected", MESSAGES[code] ?? data.error?.message ?? `Máy chủ trả lỗi ${r.status}.`);
+      throw new ServiceError(r.status === 401 ? "auth" : r.status >= 500 ? "server" : "rejected", MESSAGES[code] ?? data.error?.message ?? "Có lỗi xảy ra. Hãy thử lại sau ít phút.");
     }
     return { status: r.status, data };
   }
@@ -82,6 +84,13 @@ export function createServerApi(o: ServerApiOptions) {
     /** Xin PCP thử + một ít AVAX gas cho ví ĐÃ LIÊN KẾT của chính mình (máy chủ tự lấy địa chỉ, client không chọn). */
     faucet: () => call<{ address: string; pcp: { claimed: boolean; minted: boolean; txHash?: string }; gas: { balanceWei: string; sent: boolean; txHash?: string; reason?: string } }>("POST", "/faucet").then((r) => r.data),
     connect: (bookingId: string) => call<{ viewerUrl: string }>("POST", `/bookings/${bookingId}/connect`).then((r) => r.data),
+    /**
+     * Chủ máy tự xin mã ghi danh thiết bị cho máy ĐÃ ĐĂNG của mình (không cần admin). Mã dùng một lần, hết hạn sau 10 phút; trả về CHỈ để đưa
+     * thẳng vào guest (hostNative.enroll). Người gọi không được hiển thị, ghi log hay lưu mã này.
+     */
+    createMyEnrollment: (machineId: string) => call<{ enrollmentToken: string }>("POST", "/host/enrollments", { machineId, ttlSeconds: 600 }).then((r) => r.data.enrollmentToken),
+    /** Chủ máy thu hồi thiết bị đang ghi danh của máy mình (thiết bị cũ ngừng hoạt động ngay). Cần trước khi ghi danh lại. */
+    revokeMyDevice: (machineId: string) => call<{ revoked: boolean }>("POST", "/host/devices/revoke", { machineId }).then((r) => r.data),
   };
 }
 export type ServerApi = ReturnType<typeof createServerApi>;

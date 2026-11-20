@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSteps, gpuNote, guestError, interpretWsl, interpretWslInstall, nextStep, parseKv, parseProbe, type BackendInfo, type Captured, type GuestProbe, type WslState } from "./hostEnv";
+import { buildSteps, gpuNote, guestError, interpretWsl, interpretWslInstall, machineEligibility, nextStep, parseKv, parseProbe, type BackendInfo, type Captured, type GuestProbe, type WslState } from "./hostEnv";
 
 const cap = (code: number, stdout = "", stderr = ""): Captured => ({ code, stdout, stderr });
 const SHA = "88bfd111192d15883e4c271bdf7ea268e7eeeafa2cd7e04394fa86815f700025";
@@ -90,7 +90,7 @@ describe("parseProbe / guestError", () => {
     expect(parseProbe(cap(0, "docker_daemon=1\n"))).toMatchObject({ ok: false });
     const p = parseProbe(cap(1, "", "There is no distribution with the supplied name.\nError code: Wsl/Service/WSL_E_DISTRO_NOT_FOUND"));
     expect(p.ok).toBe(false);
-    expect(p.error).toBe("Không tìm thấy distro WSL đã chọn.");
+    expect(p.error).toBe("Không tìm thấy bản Linux đã chọn trong WSL.");
     expect(parseProbe(cap(-2, "", "hết giờ chờ")).error).toContain("hết giờ");
   });
   it("Node cũ hơn 18 bị coi là chưa đạt; machine_id sai dạng bị bỏ", () => {
@@ -115,6 +115,25 @@ const wslBackend: BackendInfo = { kind: "wsl", distro: "Ubuntu-24.04", label: nu
 const vmBackend: BackendInfo = { kind: "ssh-dev", distro: null, label: "VM thử", target: "cpm@127.0.0.1", agentApiBase: "http://10.0.2.2:3000/api", gatewayBind: "0.0.0.0" };
 const probe = (over: Partial<GuestProbe> = {}): GuestProbe => ({ ...parseProbe(cap(0, PROBE_VM)), isWsl: true, apiReachable: true, ...over });
 const status = (steps: ReturnType<typeof buildSteps>) => Object.fromEntries(steps.map((s) => [s.id, s.status]));
+
+describe("machineEligibility (cổng duy nhất trước khi đăng máy, không còn admin)", () => {
+  it("guest đủ thành phần ⇒ đạt, không thiếu gì", () => {
+    expect(machineEligibility(probe())).toEqual({ ok: true, missing: [] });
+  });
+  it("chưa quét hoặc quét lỗi ⇒ KHÔNG đạt (không suy ra tốt), kèm lý do", () => {
+    expect(machineEligibility(null).ok).toBe(false);
+    const bad = machineEligibility(parseProbe(cap(1, "", "There is no distribution with the supplied name.")));
+    expect(bad.ok).toBe(false);
+    expect(bad.missing).toEqual(["Không tìm thấy bản Linux đã chọn trong WSL."]);
+  });
+  it("thiếu từng thành phần ⇒ liệt kê đúng thứ thiếu", () => {
+    expect(machineEligibility(probe({ dockerAccess: false })).missing).toEqual(["Docker dùng được"]);
+    expect(machineEligibility(probe({ nodeOk: false })).missing).toEqual(["Node từ bản 18 trở lên"]);
+    expect(machineEligibility(probe({ imagePresent: false })).missing).toEqual(["môi trường desktop cho khách"]);
+    expect(machineEligibility(probe({ agentInstalled: false })).missing).toEqual(["dịch vụ cho thuê của Cloud PC"]);
+    expect(machineEligibility(probe({ dockerAccess: false, imagePresent: false, agentInstalled: false })).missing).toHaveLength(3);
+  });
+});
 const base = { appAgentSha256: SHA, agentRunning: false, health: null };
 
 describe("interpretWslInstall (kết quả bước cài WSL giúp người dùng)", () => {
@@ -165,7 +184,7 @@ describe("buildSteps", () => {
   });
   it("không kết nối được guest ⇒ nêu lý do, không đoán các bước sau", () => {
     const steps = buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: parseProbe(cap(1, "", "There is no distribution with the supplied name.")) });
-    expect(nextStep(steps)).toMatchObject({ id: "connect", status: "blocked", detail: "Không tìm thấy distro WSL đã chọn." });
+    expect(nextStep(steps)).toMatchObject({ id: "connect", status: "blocked", detail: "Không tìm thấy bản Linux đã chọn trong WSL." });
   });
   it("WSL chưa bật systemd ⇒ hướng dẫn sửa wsl.conf (người dùng tự làm)", () => {
     const n = nextStep(buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: probe({ systemd: false }) }))!;
@@ -206,9 +225,9 @@ describe("buildSteps", () => {
     expect(nextStep(buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled }))).toMatchObject({ id: "run", action: "start" });
     const running = buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled, agentRunning: true, health: "ok" });
     expect(nextStep(running)).toBeNull();
-    expect(running.find((s) => s.id === "run")!.detail).toContain("heartbeat");
+    expect(running.find((s) => s.id === "run")!.detail).toContain("kết nối với máy chủ");
     const waiting = buildSteps({ ...base, wsl: wslReady, backend: wslBackend, probe: enrolled, agentRunning: true, health: "unknown" });
-    expect(waiting.find((s) => s.id === "run")!.detail).toContain("chờ heartbeat");
+    expect(waiting.find((s) => s.id === "run")!.detail).toContain("chờ kết nối đầu tiên");
   });
   it("backend VM thử: không đòi WSL, nhưng vẫn BÁO trạng thái WSL của máy (không che việc máy chưa cài WSL)", () => {
     const steps = buildSteps({ ...base, wsl: interpretWsl(notInstalled), backend: vmBackend, probe: probe({ isWsl: false, enrolled: true, machineId: "11111111-2222-3333-4444-555555555555" }) });
@@ -224,7 +243,7 @@ describe("gpuNote", () => {
     expect(gpuNote(probe({ gpuRenderNode: false })).text).toContain("CPU");
     const g = gpuNote(probe({ gpuDxg: true, gpuNvidia: "NVIDIA GeForce RTX 5070 Laptop GPU", dockerNvidiaRuntime: true }));
     expect(g.detected).toBe(true);
-    expect(g.text).toContain("CHƯA được kiểm chứng");
+    expect(g.text).toContain("chưa được hỗ trợ");
     expect(g.text).toContain("RTX 5070");
   });
 });

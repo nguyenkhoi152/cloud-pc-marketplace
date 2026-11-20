@@ -7,6 +7,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { hostNativeAvailable, viewerOrigins } from "@/api/hostNative";
 import { envFacts } from "@/api/envFacts";
+import { networkLabel } from "@/domain/envLabels";
 import { About } from "./About";
 import { HostSetup } from "./HostSetup";
 
@@ -20,12 +21,27 @@ describe("màn hình host khi KHÔNG ở trong app Windows đã cài", () => {
   });
 });
 
-describe("Bản thử này gồm gì (chế độ xem trước trong test)", () => {
-  it("nêu rõ không có tiền thật; ở bản xem trước mọi thứ là dữ liệu mẫu", () => {
+describe("Giới thiệu (chế độ xem trước trong test)", () => {
+  it("ở bản xem trước nói rõ mọi thứ là dữ liệu mẫu và không nêu tên mạng nào", () => {
     expect(envFacts()).toEqual({ mode: "preview", apiBase: null, wallet: null, native: false });
     const h = renderToString(<About />);
-    expect(h).toContain("Không có tiền thật");
-    expect(h).toContain("data-kind=\"simulated\"");
+    expect(h).toContain("Dữ liệu mẫu");
+    expect(h).not.toContain("Avalanche Fuji");
+  });
+});
+
+describe("nhãn mạng suy từ cấu hình thật (không ghi cứng)", () => {
+  const live = { mode: "live" as const, apiBase: "https://x.trycloudflare.com/api", native: true };
+  it("ví thử trên chuỗi công khai ⇒ Avalanche Fuji; ví cục bộ ⇒ KHÔNG gọi là Fuji; chưa có ví ⇒ chỉ nói testnet, không gọi tên mạng; bản xem trước ⇒ không nêu", () => {
+    expect(networkLabel({ ...live, wallet: { kind: "testnet", rpc: "https://api.avax-test.network/ext/bc/C/rpc" } })).toMatchObject({ chip: "Testnet", footer: expect.stringContaining("Avalanche Fuji") });
+    const local = networkLabel({ ...live, wallet: { kind: "dev", rpc: "http://127.0.0.1:8545" } })!;
+    expect(local.footer).not.toContain("Fuji");
+    expect(local.note).toContain("không có giá trị quy đổi");
+    const noWallet = networkLabel({ ...live, wallet: null })!;
+    expect(noWallet.chip).toBe("Testnet");
+    expect(noWallet.footer).not.toMatch(/Fuji|Hardhat|cục bộ/);
+    expect(noWallet.note).toContain("không có giá trị quy đổi");
+    expect(networkLabel({ mode: "preview", apiBase: null, wallet: null, native: false })).toBeNull();
   });
 });
 

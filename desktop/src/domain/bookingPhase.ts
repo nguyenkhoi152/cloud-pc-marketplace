@@ -33,25 +33,25 @@ export function bookingPhase(b: PhaseInput, nowMs: number = Date.now()): Booking
   });
   switch (b.state) {
     case "reserved":
-      return mk("reserved", "Đang giữ máy, chờ thanh toán", "Máy bị giữ tới hạn thanh toán; chưa tốn PCP nào.", "release_free", "Không thanh toán thì máy được nhả sau khi máy chủ đối soát chuỗi; không mất gì.");
+      return mk("reserved", "Đang giữ máy, chờ thanh toán", "Máy bị giữ tới hạn thanh toán; chưa tốn PCP nào.", "release_free", "Nếu không thanh toán, máy sẽ được nhả và bạn không mất gì.");
     case "funded": {
       const ready = b.accessState === "ready";
-      return mk("funded", ready ? "Đã thanh toán, chờ kích hoạt" : "Đã thanh toán, đang chuẩn bị máy", ready ? "Máy đã sẵn sàng; hệ thống sẽ kích hoạt. Đồng hồ gói CHƯA chạy." : "Đang chuẩn bị môi trường. Đồng hồ gói CHƯA chạy.", "full_refund_on_cancel", "Hủy trước khi kích hoạt: hoàn đủ PCP đã trả.");
+      return mk("funded", ready ? "Đã thanh toán, chờ kích hoạt" : "Đã thanh toán, đang chuẩn bị máy", ready ? "Máy đã sẵn sàng và sắp được kích hoạt. Thời gian thuê chưa bắt đầu." : "Đang chuẩn bị máy cho bạn. Thời gian thuê chưa bắt đầu.", "full_refund_on_cancel", "Hủy trước khi kích hoạt: hoàn đủ PCP đã trả.");
     }
     case "active": {
       // Hết giờ (hoặc dừng sớm): watchdog/worker thu hồi quyền trong khi tiền còn `active` (chờ accept/claim được ghi nhận).
       if (["revoking", "revoked", "resetting", "reset_verified"].includes(b.accessState))
-        return mk("active_ending", "Đã hết giờ, đang thu hồi và dọn máy", "Quyền vào máy đã/đang bị thu hồi; máy được reset rồi mới nhận khách khác. Việc thanh toán chốt khi giao dịch được ghi nhận trên chuỗi.", "full_package_charged", "Đã dùng hết gói/kết thúc: đã trả cả gói (không hoàn phần chưa dùng).");
+        return mk("active_ending", "Đã hết giờ, đang thu hồi và dọn máy", "Quyền vào máy đã được thu hồi; máy được dọn sạch rồi mới nhận khách khác. Thanh toán sẽ được chốt trong giây lát.", "full_package_charged", "Đã dùng hết gói/kết thúc: đã trả cả gói (không hoàn phần chưa dùng).");
       if (b.accessState === "granted")
-        return mk("active_granted", "Đang dùng", "Phiên đang mở. Đồng hồ gói chạy theo thời điểm kết thúc trên chuỗi.", "full_package_charged", "Kết thúc sớm sau khi đã kích hoạt: vẫn trả cả gói (không hoàn phần chưa dùng).", true);
+        return mk("active_granted", "Đang dùng", "Phiên đang mở. Thời gian thuê đang được tính.", "full_package_charged", "Kết thúc sớm sau khi đã kích hoạt: vẫn trả cả gói (không hoàn phần chưa dùng).", true);
       if (b.accessState === "unknown" || b.accessState === "failed")
-        return mk("active_blocked", "Đã kích hoạt nhưng chưa vào được", "Đồng hồ gói ĐÃ chạy nhưng việc cấp quyền gặp sự cố; có thể mở tranh chấp nếu không dùng được.", "full_package_charged", "Đã kích hoạt: nếu không tự giải quyết được, dùng tranh chấp thay vì mong hoàn tự động.", true);
-      return mk("active_pending_grant", "Đã kích hoạt, đang cấp quyền vào máy", "Đồng hồ gói ĐÃ chạy (từ lúc kích hoạt), kể cả khi chưa mở viewer.", "full_package_charged", "Từ lúc kích hoạt, dừng sớm vẫn trả cả gói.", true);
+        return mk("active_blocked", "Đã kích hoạt nhưng chưa vào được", "Thời gian thuê đã bắt đầu nhưng việc cấp quyền vào máy gặp sự cố. Bạn có thể mở tranh chấp nếu không dùng được.", "full_package_charged", "Đã kích hoạt: nếu không dùng được, hãy mở tranh chấp thay vì chờ hoàn tiền tự động.", true);
+      return mk("active_pending_grant", "Đã kích hoạt, đang cấp quyền vào máy", "Thời gian thuê đã bắt đầu (từ lúc kích hoạt), kể cả khi bạn chưa mở màn hình.", "full_package_charged", "Từ lúc kích hoạt, dừng sớm vẫn trả cả gói.", true);
     }
     case "settled":
       return mk("settled", "Đã kết thúc và thanh toán", "Đã trả cả gói cho host.", "settled", "Không hoàn.");
     case "refunded":
-      return mk("refunded", "Đã hoàn", "Booking đã hoàn tiền.", "refunded", "Đã hoàn.");
+      return mk("refunded", "Đã hoàn", "Phiên thuê đã được hoàn tiền.", "refunded", "Đã hoàn.");
     case "disputed":
       return mk("disputed", "Đang tranh chấp", "Tiền được giữ chờ trọng tài; quyền truy cập đã thu hồi.", "dispute", "Kết quả do trọng tài quyết định (hết hạn không giải quyết: hoàn đủ).");
     case "resolved":

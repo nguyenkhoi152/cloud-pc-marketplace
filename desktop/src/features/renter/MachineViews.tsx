@@ -4,6 +4,7 @@ import { addDays, DEMO_DATE, formatDateVi, formatDuration, TIMEZONE_LABEL } from
 import { currentWindow, maxBookableMinutes } from "@/domain/pricing";
 import type { Machine } from "@/domain/types";
 import { service } from "@/api";
+import { isLive } from "@/api/env";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
 import { Badge, DemoTag } from "@/ui/badge";
@@ -30,7 +31,7 @@ export function Compare() {
           };
           const rows: { label: string; render: (m: Machine) => React.ReactNode; best?: (m: Machine) => boolean }[] = [
             { label: "Giá / 15 phút", render: (m) => <b className="num">{m.pricePer15} PCP thử</b>, best: (m) => m.pricePer15 === best((x) => x.pricePer15, "min") },
-            { label: "CPU", render: (m) => <span className="num">{m.cpu} · {m.cores} nhân</span>, best: (m) => m.cores === best((x) => x.cores, "max") },
+            { label: "CPU", render: (m) => <span className="num">{m.cpu ? `${m.cpu} · ` : ""}{m.cores} nhân</span>, best: (m) => m.cores === best((x) => x.cores, "max") },
             { label: "RAM", render: (m) => <span className="num">{m.ramGb} GB</span>, best: (m) => m.ramGb === best((x) => x.ramGb, "max") },
             { label: "GPU", render: (m) => m.gpu ?? "Không có GPU" },
             { label: "VRAM", render: (m) => <span className="num">{m.vramGb ? `${m.vramGb} GB` : "—"}</span>, best: (m) => m.vramGb > 0 && m.vramGb === best((x) => x.vramGb, "max") },
@@ -92,6 +93,7 @@ export function MachineDetail({ id }: { id: string }) {
   const toggle = useAppStore((s) => s.toggleCompare);
   const session = useAppStore((s) => s.session);
   const online = useAppStore((s) => s.online);
+  const live = isLive();
   return (
     <Async state={state} isEmpty={(m) => m === null} empty={<EmptyState title="Không tìm thấy máy" action={<Button onClick={() => navigate("/rent/discover")}>Về danh sách</Button>} />}>
       {(m) => {
@@ -114,22 +116,35 @@ export function MachineDetail({ id }: { id: string }) {
 
                 <Section title="Cấu hình">
                   <KeyValue items={[
-                    { k: "CPU", v: `${m.cpu} · ${m.cores} nhân` },
+                    { k: "CPU", v: m.cpu ? `${m.cpu} · ${m.cores} nhân` : `${m.cores} nhân` },
                     { k: "RAM", v: `${m.ramGb} GB` },
                     { k: "GPU", v: m.gpu ? `${m.gpu} · ${m.vramGb} GB VRAM` : "Không có GPU rời" },
                     { k: "Ổ lưu trữ cho phiên", v: `${m.storageGb} GB` },
-                    { k: "Mạng host (mô phỏng)", v: `${m.networkMbps} Mbps` },
-                    { k: "Lưu workspace", v: m.workspace ? "Có (tùy chọn khi thuê)" : "Không hỗ trợ" },
+                    // Bản thật: chỉ hiện khi có số đo; app không đo được tốc độ mạng nên máy mới không có dòng này.
+                    ...(live && !m.networkMbps ? [] : [{ k: live ? "Mạng" : "Mạng host (mô phỏng)", v: `${m.networkMbps} Mbps` }]),
+                    ...(live ? [] : [{ k: "Lưu workspace", v: m.workspace ? "Có (tùy chọn khi thuê)" : "Không hỗ trợ" }]),
                   ]} />
                 </Section>
 
                 <Section title="Môi trường sử dụng">
-                  <p className="text-sm">Mỗi phiên là một <b>desktop Linux riêng</b>, hiển thị trong app. Máy chủ là Windows của host, chia sẻ tài nguyên qua WSL/Docker và truyền hình ảnh bằng Selkies.</p>
-                  <Banner tone="warn" className="mt-3" title="Hướng này đang được kiểm chứng">
-                    WSL/Docker/Selkies chưa được tích hợp thật trong bản xem trước. Chủ máy có quyền quản trị Windows, nên đừng nhập mật khẩu hay dữ liệu nhạy cảm; bản xem trước không hứa dữ liệu được bảo vệ tuyệt đối khỏi chủ máy.
-                  </Banner>
+                  {live ? (
+                    <>
+                      <p className="text-sm">Mỗi phiên chạy trong một <b>desktop Linux riêng</b> và hiển thị ngay trong app.</p>
+                      <Banner tone="info" className="mt-3" title="Lưu ý khi dùng">
+                        Chủ máy có quyền quản trị máy của họ: đừng nhập mật khẩu hay dữ liệu nhạy cảm. Dữ liệu trong máy thuê bị xóa khi phiên kết thúc.
+                      </Banner>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm">Mỗi phiên là một <b>desktop Linux riêng</b>, hiển thị trong app. Máy chủ là Windows của host, chia sẻ tài nguyên qua WSL/Docker và truyền hình ảnh bằng Selkies.</p>
+                      <Banner tone="warn" className="mt-3" title="Hướng này đang được kiểm chứng">
+                        WSL/Docker/Selkies chưa được tích hợp thật trong bản xem trước. Chủ máy có quyền quản trị Windows, nên đừng nhập mật khẩu hay dữ liệu nhạy cảm; bản xem trước không hứa dữ liệu được bảo vệ tuyệt đối khỏi chủ máy.
+                      </Banner>
+                    </>
+                  )}
                 </Section>
 
+                {(!live || m.apps.length > 0) && (
                 <Section title="Ứng dụng và game tương thích" aside={<span className="text-xs text-ink-faint">{m.apps.length} mục</span>}>
                   <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
                     {m.apps.map((a) => (
@@ -141,7 +156,9 @@ export function MachineDetail({ id }: { id: string }) {
                   </ul>
                   <p className="mt-2 flex items-start gap-1.5 text-xs text-ink-faint"><ShieldQuestion className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />Mức hỗ trợ được ghi cho từng mục. Không phải game Windows nào cũng chạy trên Linux, nhất là game có anti-cheat.</p>
                 </Section>
+                )}
 
+                {(!live || m.windows.length > 0) && (
                 <Section title="Khoảng thời gian có thể thuê" aside={<span className="text-xs text-ink-faint">Giờ {TIMEZONE_LABEL}</span>}>
                   <ul className="space-y-1.5">
                     {m.windows.map((x) => {
@@ -156,13 +173,14 @@ export function MachineDetail({ id }: { id: string }) {
                   </ul>
                   <p className="mt-2 text-xs text-ink-faint">Thời lượng thuê không vượt quá khung giờ host. Lịch của host không tự bật máy: máy phải đang online mới nhận phiên.</p>
                 </Section>
+                )}
               </div>
 
               <aside className="sticky top-0 h-fit space-y-4 rounded-lg border border-line bg-surface p-5" aria-label="Thuê máy này">
                 <div>
                   <p className="text-xs text-ink-faint">Giá</p>
-                  <p><span className="num text-2xl font-bold">{m.pricePer15}</span> <span className="text-sm text-ink-soft">PCP thử / 15 phút</span></p>
-                  <p className="text-xs text-ink-faint">Đã gồm phí nền tảng 10%. PCP thử không phải tiền thật.</p>
+                  <p><span className="num text-2xl font-bold">{m.pricePer15}</span> <span className="text-sm text-ink-soft">{live ? "PCP" : "PCP thử"} / 15 phút</span></p>
+                  <p className="text-xs text-ink-faint">{live ? "Đã gồm phí nền tảng 10%." : "Đã gồm phí nền tảng 10%. PCP thử không phải tiền thật."}</p>
                 </div>
                 <div className="border-t border-line pt-3 text-sm">
                   <p className="font-semibold">{r.text}</p>

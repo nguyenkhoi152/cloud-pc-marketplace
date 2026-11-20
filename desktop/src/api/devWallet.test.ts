@@ -132,9 +132,11 @@ describe("provider EIP-1193", () => {
 
 describe("dịch lỗi và quote", () => {
   it("lỗi hợp đồng thành thông báo tiếng Việt; lỗi mạng nói rõ chuỗi cục bộ chưa chạy", () => {
-    expect(mapChainError(new Error("reverted\n\nError: InvalidQuote()\n")).message).toMatch(/không khớp cấu hình escrow/);
-    expect(mapChainError(new Error("Error: BadSignature()")).message).toMatch(/người ký/);
-    expect(mapChainError(new Error("Error: Lạ()")).message).toMatch(/Lạ|lỗi/i);
+    expect(mapChainError(new Error("reverted\n\nError: InvalidQuote()\n")).message).toMatch(/Báo giá không còn hợp lệ/);
+    expect(mapChainError(new Error("Error: BadSignature()")).message).toMatch(/Không xác thực được báo giá/);
+    // Lỗi hợp đồng không có trong bảng: không lộ tên lỗi kỹ thuật, chỉ nói giao dịch bị từ chối.
+    expect(mapChainError(new Error("Error: SomethingNew()")).message).toBe("Giao dịch bị từ chối. Hãy thử lại sau.");
+    expect(mapChainError(new Error("Error: SomethingNew()")).message).not.toContain("SomethingNew");
     expect(mapChainError(new Error("fetch failed")).message).toMatch(/chuỗi cục bộ/);
     const se = new ServiceError("rejected", "giữ nguyên");
     expect(mapChainError(se)).toBe(se);
@@ -174,13 +176,13 @@ describe("gửi giao dịch: nonce cũ từ RPC công khai (Fuji)", () => {
   });
   it("nonce cũ kéo dài: dừng sau số lần thử có hạn và báo lỗi tiếng Việt", async () => {
     const t = send(pubOk, [new Error(NONCE_MSG)]);
-    await expect(t.run()).rejects.toMatchObject({ message: expect.stringMatching(/Giao dịch lỗi: Nonce/) });
+    await expect(t.run()).rejects.toMatchObject({ message: expect.stringMatching(/Giao dịch chưa thực hiện được/) });
     expect(t.calls()).toBe(5);
     expect(t.waits).toHaveLength(4);
   });
   it("lỗi khác KHÔNG được thử lại (không che lỗi hợp đồng, không gửi trùng)", async () => {
     const t = send(pubOk, [new Error("reverted\n\nError: InvalidQuote()\n"), tx]);
-    await expect(t.run()).rejects.toMatchObject({ message: expect.stringMatching(/không khớp cấu hình escrow/) });
+    await expect(t.run()).rejects.toMatchObject({ message: expect.stringMatching(/Báo giá không còn hợp lệ/) });
     expect(t.calls()).toBe(1);
     expect(t.waits).toEqual([]);
   });

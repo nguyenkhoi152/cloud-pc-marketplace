@@ -312,7 +312,7 @@ export const useAppStore = create<AppState>((set, get) => {
     toasts: [],
 
     signIn: (name, email) => set((s) => ({ authed: true, account: { ...s.account, name: name?.trim() || s.account.name, email: email?.trim() || s.account.email } })),
-    applyLiveAccount: (a) => set((s) => ({ authed: true, account: { ...s.account, name: a.name, email: a.email, hostApproval: a.hostApproval } })),
+    applyLiveAccount: (a) => set((s) => ({ authed: true, account: { ...s.account, name: a.name, email: a.email, hostApproval: a.hostApproval, isAdmin: a.isAdmin } })),
     liveBooting: isLiveMode(),
     bootstrapLive: async () => {
       if (!isLiveMode()) return;

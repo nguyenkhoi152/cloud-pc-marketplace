@@ -12,6 +12,7 @@ import {
   Server,
   Settings,
   ShieldAlert,
+  ShieldCheck,
   SlidersHorizontal,
   Wallet,
   type LucideIcon,
@@ -50,12 +51,15 @@ export const HOST_NAV: NavItem[] = [
 /** Mục điều hướng đã nối dữ liệu thật ở chế độ live; mục khác bị ẩn (route vẫn trả màn "chưa nối"). */
 export const LIVE_NAV = new Set(["/rent/discover", "/rent/history", "/host", "/host/setup", "/host/sessions", "/host/earnings", "/wallet", "/settings", "/about"]);
 
+/** Chỉ hiện ở chế độ live cho tài khoản admin (xem Sidebar). Không thuộc LIVE_NAV vì không phải mục của người thuê/host. */
+export const ADMIN_NAV: NavItem = { to: "/admin", label: "Quản trị", icon: ShieldCheck, liveOnly: true };
+
 export const COMMON_NAV: NavItem[] = [
   { to: "/wallet", label: "Số dư & giao dịch", liveLabel: "Ví", icon: Wallet },
   { to: "/notifications", label: "Thông báo", icon: Bell },
   { to: "/support", label: "Hỗ trợ", icon: LifeBuoy },
   { to: "/settings", label: "Cài đặt", icon: Settings },
-  { to: "/about", label: "Bản thử này gồm gì", icon: BadgeInfo },
+  { to: "/about", label: "Giới thiệu", icon: BadgeInfo },
 ];
 
 export const isActive = (item: NavItem, path: string) => {
@@ -63,3 +67,6 @@ export const isActive = (item: NavItem, path: string) => {
   if (item.match) return item.match.some((m) => p === m || p.startsWith(`${m}/`));
   return item.to === "/host" ? p === "/host" : p === item.to || p.startsWith(`${item.to}/`);
 };
+
+/** Biểu tượng của màn đang xem (theo mục điều hướng khớp đường dẫn); dùng cho huy hiệu ở đầu trang. Không khớp thì không có. */
+export const iconForPath = (path: string): LucideIcon | undefined => [...RENT_NAV, ...HOST_NAV, ADMIN_NAV, ...COMMON_NAV].find((i) => isActive(i, path))?.icon;

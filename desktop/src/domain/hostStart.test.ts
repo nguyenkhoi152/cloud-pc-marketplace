@@ -50,13 +50,13 @@ describe("startHosting", () => {
   });
   it("tunnel thoát trước khi có địa chỉ ⇒ lỗi rõ, tunnel được dừng, agent KHÔNG chạy, KHÔNG ghi cấu hình", async () => {
     const { d, log } = fake({ states: [{ state: "exited", url: null, exitCode: 1, logTail: "ERR failed to connect to the edge" }] });
-    await expect(startHosting(d, { ...base, share: true })).rejects.toThrow(/Tunnel thoát \(mã 1\).*failed to connect/);
+    await expect(startHosting(d, { ...base, share: true })).rejects.toThrow(/Chưa tạo được địa chỉ truy cập từ xa \(mã 1\).*failed to connect/);
     expect(log).toContain("tunnelStop");
     expect(log.some((x) => x.startsWith("configure") || x === "agentStart")).toBe(false);
   });
   it("quá hạn chờ địa chỉ ⇒ lỗi + đóng tunnel", async () => {
     const { d, log } = fake({ states: [{ state: "running", url: null, exitCode: null, logTail: "" }] });
-    await expect(startHosting(d, { ...base, share: true, timeoutMs: 3000 })).rejects.toThrow(/chưa có địa chỉ sau 3 giây/);
+    await expect(startHosting(d, { ...base, share: true, timeoutMs: 3000 })).rejects.toThrow(/Chưa tạo được địa chỉ truy cập từ xa sau 3 giây/);
     expect(log.filter((x) => x === "tunnelStop")).toHaveLength(1);
     expect(log).not.toContain("agentStart");
   });
@@ -78,7 +78,7 @@ describe("startHosting", () => {
   });
   it("địa chỉ tunnel không đúng dạng (nhật ký bị đầu độc) không bao giờ được dùng", async () => {
     const { d, log } = fake({ states: [{ state: "running", url: "https://evil.example.com", exitCode: null, logTail: "" }] });
-    await expect(waitForTunnelUrl(d, 2000)).rejects.toThrow(/chưa có địa chỉ/);
+    await expect(waitForTunnelUrl(d, 2000)).rejects.toThrow(/Chưa tạo được địa chỉ truy cập từ xa/);
     expect(log.some((x) => x.startsWith("configure"))).toBe(false);
   });
 });

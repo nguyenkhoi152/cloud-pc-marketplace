@@ -6,6 +6,7 @@ import type { Category, Machine } from "@/domain/types";
 import { LOCATIONS } from "@/mock/fixtures";
 import { service } from "@/api";
 import { isLive } from "@/api/env";
+import { stagger } from "@/lib/utils";
 import { useFilters } from "@/state/filtersStore";
 import { useAppStore } from "@/state/store";
 import { useAsync } from "@/state/useAsync";
@@ -36,7 +37,7 @@ export function Discover() {
     <div className={compare.length ? "pb-16" : ""}>
       <PageHeader
         title="Khám phá máy"
-        subtitle={<>Chọn theo nhu cầu rồi lọc theo cấu hình, giá và khung giờ. Mọi máy, giá, trạng thái online và ứng dụng đều là <DemoTag /> .</>}
+        subtitle={live ? <>Chọn theo nhu cầu rồi lọc theo cấu hình và giá. Thông số do chủ máy cung cấp; trạng thái online được cập nhật liên tục.</> :<>Chọn theo nhu cầu rồi lọc theo cấu hình, giá và khung giờ. Mọi máy, giá, trạng thái online và ứng dụng đều là <DemoTag /> .</>}
       />
       <Tabs
         value={filters.category}
@@ -108,7 +109,7 @@ export function Discover() {
           state={state}
           skeleton={<SkeletonRows rows={5} />}
           isEmpty={(d) => d.length === 0}
-          empty={<EmptyState icon={Cpu} title="Chưa có máy nào được đăng">{live ? "Chưa có máy nào được admin duyệt." : "Trong kịch bản này, danh sách máy đang trống."} Khi có host được duyệt, máy sẽ hiện ở đây.</EmptyState>}
+          empty={<EmptyState icon={Cpu} title="Chưa có máy nào được đăng">{live ? "Chưa có máy nào được đăng." : "Trong kịch bản này, danh sách máy đang trống."} Khi có host đăng máy, máy sẽ hiện ở đây.</EmptyState>}
         >
           {() =>
             list.length === 0 ? (
@@ -137,9 +138,9 @@ export function Discover() {
 
 function MachineTable({ machines, compare, onToggle }: { machines: Machine[]; compare: string[]; onToggle: (id: string) => void }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface">
+    <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(11_31_58/0.05)]">
       <table className="w-full table-fixed border-collapse text-left text-sm">
-        <caption className="sr-only">Danh sách máy cho thuê (dữ liệu mô phỏng)</caption>
+        <caption className="sr-only">{isLive() ? "Danh sách máy cho thuê" : "Danh sách máy cho thuê (dữ liệu mô phỏng)"}</caption>
         <thead className="border-b border-line bg-subtle text-xs text-ink-faint">
           <tr>
             <th scope="col" className="w-[84px] px-3 py-2 font-semibold">So sánh</th>
@@ -151,10 +152,10 @@ function MachineTable({ machines, compare, onToggle }: { machines: Machine[]; co
           </tr>
         </thead>
         <tbody>
-          {machines.map((m) => {
+          {machines.map((m, i) => {
             const r = rentability(m);
             return (
-              <tr key={m.id} className="border-b border-line last:border-0 hover:bg-subtle/70">
+              <tr key={m.id} style={stagger(i)} className="enter border-b border-line transition-colors last:border-0 hover:bg-teal-tint/30">
                 <td className="px-3 py-3 align-top">
                   <Checkbox checked={compare.includes(m.id)} onChange={() => onToggle(m.id)} label={<span className="sr-only">So sánh {m.name}</span>} />
                 </td>
@@ -167,7 +168,7 @@ function MachineTable({ machines, compare, onToggle }: { machines: Machine[]; co
                   <p className="num">{m.cores} nhân · {m.ramGb} GB RAM</p>
                   <p className="num">{m.gpu ? `${m.gpu.replace("NVIDIA ", "").replace("AMD ", "")} · ${m.vramGb} GB` : "Không GPU"}</p>
                 </td>
-                <td className="px-3 py-3 text-right align-top"><span className="num text-base font-bold">{m.pricePer15}</span><span className="block text-[11px] text-ink-faint">PCP thử</span></td>
+                <td className="px-3 py-3 text-right align-top"><span className="num text-base font-bold">{m.pricePer15}</span><span className="block text-[11px] text-ink-faint">{isLive() ? "PCP" : "PCP thử"}</span></td>
                 <td className="px-3 py-3 align-top text-xs leading-5"><p className="font-semibold">{r.text}</p>{r.sub && <p className="text-ink-faint">{r.sub}</p>}</td>
                 <td className="px-3 py-3 align-top"><MachineStateBadge state={m.state} /></td>
               </tr>

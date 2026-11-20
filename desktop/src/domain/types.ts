@@ -11,6 +11,8 @@ export interface Account {
   mode: Mode;
   /** Quyền host chỉ đổi qua duyệt, không đổi khi chuyển chế độ. */
   hostApproval: HostApproval;
+  /** Chế độ live: tài khoản có role admin (chỉ để hiện màn Quản trị; quyền thật do DB kiểm). Bản xem trước không có. */
+  isAdmin?: boolean;
 }
 
 export interface AppCompat {
@@ -27,8 +29,12 @@ export interface OfferWindow {
   end: string; // HH:mm
 }
 
-/** `unverified` = chế độ live: danh mục công khai chưa có heartbeat/lịch; máy chủ quyết định khi giữ máy. */
-export type MachineState = "available" | "busy" | "offline" | "blocked" | "unverified";
+/**
+ * `online` = chế độ live: agent của host đang gửi heartbeat (máy chủ đo, không phải host tự khai) và máy không có phiên.
+ * `unverified` = chế độ live nhưng DB chưa áp migration 20261120000002 (danh mục chưa có cột availability): không biết online hay không.
+ * `available` chỉ dùng ở bản xem trước (dữ liệu mẫu, có khung giờ mô phỏng).
+ */
+export type MachineState = "available" | "busy" | "offline" | "blocked" | "unverified" | "online";
 
 export interface Machine {
   id: string;

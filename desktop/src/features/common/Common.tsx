@@ -2,7 +2,7 @@ import { Bell, Coins, Mail, MessageSquareText, ShieldCheck } from "lucide-react"
 import { useState } from "react";
 import { navigate } from "@/app/router";
 import type { Transaction, TxKind } from "@/domain/types";
-import { service } from "@/api";
+import { getLiveApi, service } from "@/api";
 import { isLive } from "@/api/env";
 import { HostBackgroundRow } from "@/features/live/HostBackgroundRow";
 import { ServerConnection } from "@/features/live/ServerConnection";
@@ -150,19 +150,23 @@ export function SettingsScreen() {
   );
   return (
     <>
-      <PageHeader title="Cài đặt" subtitle="Các lựa chọn chỉ có tác dụng trong bản xem trước." />
+      <PageHeader title="Cài đặt" subtitle={isLive() ? "Tùy chỉnh ứng dụng và kết nối." : "Các lựa chọn chỉ có tác dụng trong bản xem trước."} />
       <div className="max-w-2xl divide-y divide-line">
         <Section title="Giao diện" className="pb-4"><Row id="rm" title="Giảm chuyển động" desc="Tắt hiệu ứng chuyển cảnh. App cũng tự theo cài đặt hệ thống “giảm chuyển động”." value={s.reduceMotion} onChange={(v) => up({ reduceMotion: v })} /></Section>
-        <Section title="Thông báo" className="py-4">
-          <Row id="nd" title="Thông báo trên máy" desc="Hiện thông báo khi phiên bắt đầu/kết thúc, máy được duyệt hoặc có sự cố (mô phỏng)." value={s.notifyDesktop} onChange={(v) => up({ notifyDesktop: v })} />
-          <Row id="ne" title="Thông báo qua email" desc="Không có email thật nào được gửi trong bản xem trước." value={s.notifyEmail} onChange={(v) => up({ notifyEmail: v })} />
-        </Section>
+        {!isLive() && (
+          <Section title="Thông báo" className="py-4">
+            <Row id="nd" title="Thông báo trên máy" desc="Hiện thông báo khi phiên bắt đầu/kết thúc, máy được duyệt hoặc có sự cố (mô phỏng)." value={s.notifyDesktop} onChange={(v) => up({ notifyDesktop: v })} />
+            <Row id="ne" title="Thông báo qua email" desc="Không có email thật nào được gửi trong bản xem trước." value={s.notifyEmail} onChange={(v) => up({ notifyEmail: v })} />
+          </Section>
+        )}
         <Section title="Cho thuê máy" className="py-4">{isLive() ? <HostBackgroundRow /> : <Row id="bg" title="Chạy nền khi đóng cửa sổ" desc="Giữ dịch vụ cung cấp máy chạy ở khay hệ thống. Đóng cửa sổ không phải là dừng cung cấp." value={s.hostBackground} onChange={(v) => up({ hostBackground: v })} />}</Section>
         {isLive() && <ServerConnection />}
-        <Section title="Dữ liệu demo" className="pt-4">
-          <p className="mb-3 text-sm text-ink-soft">Đặt lại toàn bộ dữ liệu mô phỏng và kịch bản về mặc định.</p>
-          <Button variant="danger-outline" onClick={reset}>Đặt lại dữ liệu demo</Button>
-        </Section>
+        {!isLive() && (
+          <Section title="Dữ liệu demo" className="pt-4">
+            <p className="mb-3 text-sm text-ink-soft">Đặt lại toàn bộ dữ liệu mô phỏng và kịch bản về mặc định.</p>
+            <Button variant="danger-outline" onClick={reset}>Đặt lại dữ liệu demo</Button>
+          </Section>
+        )}
       </div>
     </>
   );
@@ -173,32 +177,54 @@ export function AccountScreen() {
   const a = useAppStore((s) => s.account);
   const signOut = useAppStore((s) => s.signOut);
   const toast = useAppStore((s) => s.toast);
+  const refreshAccount = useAppStore((s) => s.refreshAccount);
+  const live = isLive();
   const [name, setName] = useState(a.name);
   const [agree, setAgree] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!live) return toast("Đã lưu hồ sơ (mô phỏng).", "ok");
+    setSaving(true);
+    try {
+      await getLiveApi().auth.updateName(name);
+      await refreshAccount();
+      toast("Đã lưu hồ sơ.", "ok");
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <>
       <PageHeader title="Tài khoản" subtitle="Một tài khoản cho cả thuê máy và cho thuê máy." />
       <div className="grid max-w-3xl grid-cols-2 gap-10">
         <Section title="Hồ sơ">
-          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); toast("Đã lưu hồ sơ (mô phỏng).", "ok"); }}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void save(); }}>
             <Field label="Tên hiển thị" htmlFor="an"><Input id="an" value={name} onChange={(e) => setName(e.target.value)} /></Field>
             <Field label="Email" htmlFor="ae"><Input id="ae" value={a.email} readOnly /></Field>
-            <Button type="submit" variant="primary" disabled={!name.trim()}>Lưu</Button>
+            <Button type="submit" variant="primary" disabled={!name.trim() || (live && name.trim() === a.name)} loading={saving}>Lưu</Button>
           </form>
         </Section>
         <Section title="Trạng thái">
           <KeyValue items={[
             { k: "Chế độ hiện tại", v: a.mode === "rent" ? "Thuê máy" : "Cho thuê máy" },
-            { k: "Quyền host", v: <ApprovalBadge approval={a.hostApproval} /> },
+            { k: live ? "Tài khoản host" : "Quyền host", v: <ApprovalBadge approval={a.hostApproval} /> },
           ]} />
-          <p className="mt-3 flex items-start gap-1.5 text-xs text-ink-faint"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />Quyền host chỉ có khi máy được duyệt; đổi chế độ không thay đổi quyền.</p>
+          <p className="mt-3 flex items-start gap-1.5 text-xs text-ink-faint"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />{live ? "Đăng ký làm host ở màn Cho thuê máy. Đổi chế độ không ảnh hưởng tới tài khoản host." : "Quyền host chỉ có khi máy được duyệt; đổi chế độ không thay đổi quyền."}</p>
           <div className="mt-4 border-t border-line pt-4">
-            <Checkbox checked={agree} onChange={setAgree} label="Tôi muốn đăng xuất khỏi bản xem trước" />
-            <Button className="mt-2" variant="secondary" disabled={!agree} onClick={() => { signOut(); navigate("/welcome"); }}>Đăng xuất</Button>
+            {live ? (
+              <Button variant="secondary" onClick={() => { signOut(); navigate("/welcome"); }}>Đăng xuất</Button>
+            ) : (
+              <>
+                <Checkbox checked={agree} onChange={setAgree} label="Tôi muốn đăng xuất khỏi bản xem trước" />
+                <Button className="mt-2" variant="secondary" disabled={!agree} onClick={() => { signOut(); navigate("/welcome"); }}>Đăng xuất</Button>
+              </>
+            )}
           </div>
         </Section>
       </div>
-      <Banner tone="info" className="mt-6 max-w-3xl">Ví thật chưa được kết nối. PCP thử là điểm giả lập trong bản xem trước.</Banner>
+      {!live && <Banner tone="info" className="mt-6 max-w-3xl">Ví thật chưa được kết nối. PCP thử là điểm giả lập trong bản xem trước.</Banner>}
     </>
   );
 }
