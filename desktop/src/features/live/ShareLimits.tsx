@@ -36,13 +36,13 @@ export function ShareLimits({ probe, limits, onChange, agentRunning }: { probe: 
         <p className="text-sm text-ink-soft">Chọn bạn cho khách dùng tối đa bao nhiêu RAM và CPU của bản Linux. Con số này hiện trên thẻ máy để người thuê biết họ được dùng bao nhiêu.</p>
         <div className="flex flex-wrap items-end gap-3">
           <Field label="RAM tối đa" htmlFor="hs-ram" hint={probe?.memTotalMb ? `Bản Linux có ${(probe.memTotalMb / 1024).toFixed(1)} GB` : "Chưa đọc được RAM"}>
-            <Select id="hs-ram" value={limits.ramGb ?? ""} onChange={(e) => onChange({ ...limits, ramGb: e.target.value ? Number(e.target.value) : null })} className="w-40">
+            <Select id="hs-ram" value={limits.ramGb ?? ""} onChange={(e) => onChange({ ...limits, ramGb: e.target.value ? Number(e.target.value) : null })} className="w-48">
               <option value="">Không giới hạn</option>
               {ramChoicesGb(probe?.memTotalMb ?? null).map((g) => <option key={g} value={g}>{g} GB</option>)}
             </Select>
           </Field>
           <Field label="CPU tối đa" htmlFor="hs-cpu" hint={probe?.cpuCount ? `Bản Linux có ${probe.cpuCount} CPU` : "Chưa đọc được số CPU"}>
-            <Select id="hs-cpu" value={limits.cpus ?? ""} onChange={(e) => onChange({ ...limits, cpus: e.target.value ? Number(e.target.value) : null })} className="w-40">
+            <Select id="hs-cpu" value={limits.cpus ?? ""} onChange={(e) => onChange({ ...limits, cpus: e.target.value ? Number(e.target.value) : null })} className="w-48">
               <option value="">Không giới hạn</option>
               {cpuChoices(probe?.cpuCount ?? null).map((c) => <option key={c} value={c}>{c} CPU</option>)}
             </Select>

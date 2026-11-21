@@ -3,13 +3,14 @@
  * Mọi thao tác đi qua lớp native với tập lệnh cố định (api/hostNative.ts). App KHÔNG tự cài WSL, không xin quyền admin,
  * không khởi động lại máy: các bước đó hiện dưới dạng hướng dẫn kèm lệnh để người dùng tự chạy.
  */
-import { AlertTriangle, CheckCircle2, CircleDashed, ClipboardCopy, Info, Lock, Play, RefreshCw, Square, Wrench } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCopy, Info, Lock, Play, RefreshCw, ShieldCheck, Square, Wrench } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiBase, getDevWallet, getLiveApi, getServerApi } from "@/api";
 import { hostNative, hostNativeAvailable, viewerOrigins } from "@/api/hostNative";
 import { splitFeeUnits, type HostMachine, type LiveBooking } from "@/api/live";
 import { BOOKING_STATE_LABEL } from "@/domain/adminData";
-import { buildSteps, enrolledForOtherAccount, gpuNote, guestError, interpretWsl, interpretWslInstall, nextStep, parseProbe, RECOMMENDED_DISTRO, type GuestProbe, type Overview, type SetupStep, type StepStatus } from "@/domain/hostEnv";
+import { buildSteps, enrolledForOtherAccount, gpuNote, guestError, interpretWsl, interpretWslInstall, MIN_FREE_GB, nextStep, parseProbe, RECOMMENDED_DISTRO, type GuestProbe, type Overview, type SetupStep, type StepStatus } from "@/domain/hostEnv";
+import { WIZARD, wizardItems, type WizardId } from "@/domain/hostWizard";
 import { startHosting, stopHosting, type TunnelInfo } from "@/domain/hostStart";
 import { loadLimits, saveLimits, toLimitInput, type Limits } from "@/domain/hostLimits";
 import { hostSessionLabel } from "@/domain/sessionSteps";
@@ -21,9 +22,13 @@ import { Banner } from "@/ui/feedback";
 import { KeyValue, PageHeader, Section } from "@/ui/page";
 import { Amount } from "./Amount";
 import { defaultScanDeps, syncOwnMachineSpecs } from "./machineScan";
-import { ShareLimits, limitsSummary } from "./ShareLimits";
+import { Checklist, CheckTable, IndeterminateBar, WizardFooter, WizardNav, type CheckRowData, type CheckStatus, type ChecklistState } from "./HostWizard";
+import { ShareLimits, appliedLimits, limitsSummary } from "./ShareLimits";
 
 const SHARE_KEY = "cpm.hostShare.v1";
+/** Chủ máy đã xác nhận đọc quyền và trách nhiệm (chỉ ghi nhớ việc đã đọc, không phải một sự đồng ý pháp lý). */
+const INTRO_KEY = "cpm.hostIntro.v1";
+const loadIntro = () => { try { return localStorage.getItem(INTRO_KEY) === "1"; } catch { return false; } };
 const TZ = "Asia/Ho_Chi_Minh";
 const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: TZ, hour12: false, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
@@ -55,11 +60,12 @@ function CopyBlock({ lines }: { lines: string[] }) {
   );
 }
 
-function StepRow({ step, current, children }: { step: SetupStep; current: boolean; children?: React.ReactNode }) {
+/** Thẻ của một bước thật cần làm: tên bước, trạng thái, (chi tiết), hướng dẫn tự làm kèm lệnh, và nút hành động của app. */
+function ActionCard({ step, current, showDetail, children }: { step: SetupStep; current: boolean; showDetail: boolean; children?: React.ReactNode }) {
   const ui = STATUS_UI[step.status];
-  const Icon = step.status === "blocked" && !current ? CircleDashed : ui.icon;
+  const Icon = ui.icon;
   return (
-    <li data-step={step.id} data-status={step.status} className={cn("rounded-lg border p-3", current ? "border-teal bg-teal-tint/40" : "border-line bg-surface")}>
+    <div data-step={step.id} data-status={step.status} className={cn("mt-4 rounded-lg border p-4", current ? "border-line-strong bg-subtle" : "border-line bg-surface")}>
       <div className="flex items-start gap-2.5">
         <Icon className={cn("mt-0.5 h-[18px] w-[18px] shrink-0", ui.cls)} aria-hidden />
         <div className="min-w-0 flex-1">
@@ -67,7 +73,7 @@ function StepRow({ step, current, children }: { step: SetupStep; current: boolea
             {step.title}
             <span className={cn("text-xs font-semibold", ui.cls)}>{ui.label}</span>
           </p>
-          <p className="mt-0.5 text-sm text-ink-soft">{step.detail}</p>
+          {showDetail && <p className="mt-0.5 text-sm text-ink-soft">{step.detail}</p>}
           {step.manual && (step.status === "manual" || step.status === "info") && (
             <div className="mt-2">
               <p className="flex flex-wrap items-center gap-2 text-xs font-semibold">
@@ -82,7 +88,7 @@ function StepRow({ step, current, children }: { step: SetupStep; current: boolea
           {children}
         </div>
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -161,6 +167,11 @@ export function HostSetup() {
   const [dedicated, setDedicated] = useState(false);
   const [consent, setConsent] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
+  // Trình hướng dẫn: bước đang xem (null = tự theo bước hiện tại), và đã xác nhận đọc quyền/trách nhiệm chưa.
+  const [selected, setSelected] = useState<WizardId | null>(null);
+  const [introAck, setIntroAck] = useState(loadIntro);
+  const [introChecked, setIntroChecked] = useState(loadIntro);
+  const ackIntro = () => { setIntroAck(true); try { localStorage.setItem(INTRO_KEY, "1"); } catch { /* không lưu được: chỉ áp dụng phiên này */ } };
   // Cho phép người ở mạng khác thuê máy này (tunnel Cloudflare). Mặc định TẮT; lựa chọn được nhớ trên máy này.
   const [share, setShareState] = useState(() => { try { return localStorage.getItem(SHARE_KEY) === "1"; } catch { return false; } });
   const setShare = (v: boolean) => { setShareState(v); try { localStorage.setItem(SHARE_KEY, v ? "1" : "0"); } catch { /* không lưu được: chỉ áp dụng phiên này */ } };
@@ -366,12 +377,156 @@ export function HostSetup() {
   const distros = wsl?.kind === "ready" ? wsl.distros.filter((d) => d.version !== 1) : [];
   const healthText = health === "ok" ? "Đang kết nối với máy chủ" : health === "suspect" ? "Kết nối chậm" : health === "incident" ? "Mất kết nối với máy chủ" : "Chưa kết nối với máy chủ (máy đang hiện offline)";
 
+  /* ---------------- Trình hướng dẫn: 10 bước thật gom thành 6 bước như video demo ---------------- */
+  const stepOf = (id: SetupStep["id"]) => steps.find((s) => s.id === id);
+  // Máy đã ghi danh nghĩa là chủ máy đã đi qua thiết lập trước đây: không bắt xác nhận lại để xem trạng thái hay dừng nhận thuê.
+  const introDone = introAck || (steps.length > 0 && stepOf("enroll")?.status === "ok");
+  const wiz = wizardItems(steps, introDone);
+  const chosen = wiz.items.find((i) => i.id === selected);
+  const sel: WizardId = chosen?.reachable ? chosen.id : (wiz.currentId ?? "run");
+  const idx = WIZARD.findIndex((w) => w.id === sel);
+  const go = (i: number) => setSelected(WIZARD[Math.max(0, Math.min(WIZARD.length - 1, i))]!.id);
+  const groupDone = wiz.items[idx]?.state === "done";
+  const groupSteps = (id: WizardId) => steps.filter((s) => WIZARD.find((w) => w.id === id)!.members.includes(s.id));
+  const footer = (over: { nextDisabled?: boolean; why?: string; onNext?: () => void; nextLabel?: string } = {}) => (
+    <WizardFooter onBack={idx > 0 ? () => go(idx - 1) : undefined} onNext={idx < WIZARD.length - 1 ? (over.onNext ?? (() => go(idx + 1))) : undefined} nextLabel={over.nextLabel} nextDisabled={over.nextDisabled ?? !groupDone} why={over.why ?? "Hoàn tất các mục trên để tiếp tục"} />
+  );
+  const rowStatus = (id: SetupStep["id"]): CheckStatus => {
+    const s = stepOf(id);
+    if (probing) return "pending";
+    if (!s || s.status === "ok" || s.status === "info") return "pass";
+    // blocked = chưa tới lượt (đang chờ bước trước), không phải lỗi; manual = bạn cần tự làm; action = app làm giúp được.
+    return s.status === "action" ? "warn" : s.status === "blocked" ? "wait" : "fail";
+  };
+  const probeRow = (label: string, ok: boolean, value: string, warn = false): CheckRowData => ({ label, value: probing ? "Đang đọc từ máy…" : ok ? value : "Chưa đọc được (cần xong các mục phía trên)", status: probing ? "pending" : !ok ? "warn" : warn ? "warn" : "pass" });
+  const checkRows: CheckRowData[] = [
+    { label: "Windows và WSL 2", value: stepOf("wsl")?.detail ?? "—", status: rowStatus("wsl") },
+    { label: "Bản Linux", value: stepOf("distro")?.detail ?? "—", status: rowStatus("distro") },
+    { label: "Kết nối với bản Linux", value: stepOf("connect")?.detail ?? "—", status: rowStatus("connect") },
+    probeRow("CPU", !!probe?.ok, `${probe?.cpuModel || "CPU"}${probe?.cpuCount ? ` · ${probe.cpuCount} nhân` : ""}`),
+    probeRow("RAM", !!probe?.ok && !!probe.memTotalMb, `${((probe?.memTotalMb ?? 0) / 1024).toFixed(1)} GB (của bản Linux)`),
+    probeRow("GPU", !!probe?.ok, gpu.text, !gpu.detected),
+    probeRow("Ổ đĩa trống", !!probe?.ok && probe.diskFreeGb !== null, `${probe?.diskFreeGb ?? "?"} GB trống`, (probe?.diskFreeGb ?? MIN_FREE_GB) < MIN_FREE_GB),
+    ...(stepOf("systemd") ? [{ label: "Dịch vụ nền (systemd)", value: stepOf("systemd")!.detail, status: rowStatus("systemd") }] : []),
+  ];
+  const card = (s: SetupStep, showDetail: boolean) => {
+    const cur = next?.id === s.id;
+    return (
+      <ActionCard key={s.id} step={s} current={cur} showDetail={showDetail}>
+        {renderActions(s, cur)}
+      </ActionCard>
+    );
+  };
+  const openSteps = (id: WizardId) => groupSteps(id).filter((s) => s.status !== "ok" && s.status !== "info");
+  const checklistState = (s: SetupStep): ChecklistState =>
+    s.status === "ok" || s.status === "info" ? "done" : (s.id === "packages" || s.id === "image") && provisioning && s.status === "action" ? "doing" : s.status === "manual" ? "warn" : "todo";
+
+  function renderActions(s: SetupStep, current: boolean) {
+    return (
+      <>
+        {current && s.assist === "install_wsl" && (
+          <div className="mt-3 space-y-2" data-testid="assist-wsl">
+            <Banner tone="info" title="App sẽ làm gì">
+              Chạy đúng lệnh <span className="num">wsl --install --no-distribution</span> với quyền quản trị: Windows hiện hộp thoại xác nhận (UAC), bạn bấm Có để đồng ý; bấm Không thì không có gì được cài. Có thể cần khởi động lại máy, app không tự khởi động lại. Tính năng này chưa được kiểm trên máy thật.
+            </Banner>
+            <Button variant="primary" loading={busy === "wslfeat"} onClick={doInstallWsl}>Cài WSL giúp tôi</Button>
+          </div>
+        )}
+        {current && s.assist === "install_distro" && (
+          <div className="mt-3 space-y-2" data-testid="assist-distro">
+            <Banner tone="info" title="App sẽ làm gì">
+              Mở một cửa sổ riêng chạy <span className="num">wsl --install -d {RECOMMENDED_DISTRO}</span>. Lần đầu bản Linux hỏi tên người dùng và mật khẩu: bạn tự nhập trong cửa sổ đó.
+            </Banner>
+            <Button variant="primary" loading={busy === "wsldistro"} onClick={doInstallDistro}>Mở cửa sổ cài {RECOMMENDED_DISTRO}</Button>
+          </div>
+        )}
+        {current && s.action === "choose_distro" && (
+          <div className="mt-3 space-y-2">
+            <Field label="Bản Linux (WSL 2) dùng để cho thuê" htmlFor="hs-distro" hint={`Khuyến nghị một bản riêng tên ${RECOMMENDED_DISTRO}: wsl --install -d ${RECOMMENDED_DISTRO}`}>
+              <Select id="hs-distro" value={distro} onChange={(e) => setDistro(e.target.value)} className="max-w-xs">
+                <option value="">— chọn —</option>
+                {distros.map((d) => <option key={d.name} value={d.name}>{d.name}{d.isDefault ? " (mặc định)" : ""}</option>)}
+              </Select>
+            </Field>
+            <Checkbox checked={dedicated} onChange={setDedicated} label="Bản Linux này chỉ dùng cho việc cho thuê; tôi không để dữ liệu cá nhân trong đó." />
+            <Button variant="primary" disabled={!distro || !dedicated} loading={busy === "distro"} onClick={chooseDistro}>Dùng bản này</Button>
+          </div>
+        )}
+        {current && s.action === "provision" && (
+          <div className="mt-3 space-y-2">
+            <Banner tone="info" title="Ứng dụng sẽ cài những gì">
+              Cài <span className="num">Docker</span> và <span className="num">Node.js</span> nếu còn thiếu, bật Docker, cấp quyền dùng Docker cho người dùng <span className="num">{probe?.user || "?"}</span>, và tải môi trường desktop cho khách (khoảng 8 GB, chỉ một lần). Mọi thứ được cài trong bản Linux, không cài gì lên Windows.
+            </Banner>
+            <Checkbox checked={consent} onChange={setConsent} label="Tôi đồng ý cài các thành phần trên và dùng dung lượng/mạng tương ứng." />
+            <Button variant="primary" disabled={!consent || provisioning} loading={busy === "provision" || provisioning} onClick={doProvision}>{provisioning ? "Đang cài đặt…" : "Cài đặt các thành phần"}</Button>
+          </div>
+        )}
+        {current && s.action === "install" && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button variant="primary" loading={busy === "install"} disabled={!api} onClick={doInstall}>Cài hoặc cập nhật dịch vụ cho thuê</Button>
+            {!api && <span className="text-xs text-ink-faint">Ứng dụng chưa kết nối máy chủ.</span>}
+          </div>
+        )}
+        {current && s.action === "enroll" && (
+          <div className="mt-3 space-y-3">
+            {publishedMachines.length === 0 ? (
+              <Banner tone="info" title="Chưa có máy nào đã đăng">Vào <b>Máy của tôi</b>, tạo máy rồi bấm <b>Quét & đăng máy</b>. Xong quay lại đây để ghi danh.</Banner>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-end gap-2">
+                  <Field label="Máy của bạn đã đăng" htmlFor="hs-machine" hint="Ứng dụng tự lấy mã ghi danh cho máy này; bạn không phải nhập hay dán gì.">
+                    <Select id="hs-machine" value={chosenMachine} onChange={(e) => setEnrollMachine(e.target.value)} className="w-80">
+                      {publishedMachines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </Select>
+                  </Field>
+                  <Button variant="primary" disabled={!chosenMachine} loading={busy === "enroll"} onClick={doEnrollAuto}>Ghi danh máy này</Button>
+                </div>
+                <Checkbox checked={replaceOld} onChange={setReplaceOld} label="Máy này đã từng ghi danh trên một bản Linux khác (ví dụ tôi cài lại): thay thiết bị cũ. Thiết bị cũ sẽ ngừng hoạt động ngay." />
+              </>
+            )}
+            <details className="text-sm">
+              <summary className="cursor-pointer text-ink-soft">Có mã ghi danh? Dán thủ công</summary>
+              <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); doEnroll(); }}>
+                <Field label="Mã ghi danh (dùng một lần)" htmlFor="hs-token" hint="Mã được dùng ngay để ghi danh và không được lưu lại.">
+                  <Input id="hs-token" type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value.trim())} className="w-80" />
+                </Field>
+                <Button type="submit" variant="secondary" disabled={token.length < 20} loading={busy === "enroll"}>Ghi danh bằng mã</Button>
+              </form>
+            </details>
+          </div>
+        )}
+        {current && s.action === "start" && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <p className="w-full text-sm text-ink-soft" data-testid="limits-summary">
+              Mức chia sẻ cho khách: <b>{limitsSummary(limits)}</b>. {share ? "Cho phép người ở mạng khác thuê máy này (chia sẻ ra Internet)." : "Chỉ người dùng ngay trên máy này truy cập được (chưa bật chia sẻ ra Internet)."} Đổi ở bước <b>Tài nguyên và chia sẻ</b>.
+            </p>
+            <Button variant="primary" size="lg" loading={busy === "start"} onClick={doStart}><Play className="h-4 w-4" aria-hidden />Bắt đầu nhận thuê</Button>
+            {probe?.container && probe.container !== "missing" && <Button variant="ghost" loading={busy === "cleanup"} onClick={doCleanup}>Dọn môi trường của khách còn sót</Button>}
+          </div>
+        )}
+        {s.id === "packages" && (provisioning || ov?.provision.state === "exited") && ov && (
+          <>
+            {ov.provision.state === "exited" && ov.provision.exitCode !== 0 && <Banner tone="danger" className="mt-2" title="Cài đặt chưa xong">{guestError({ code: ov.provision.exitCode ?? 1, stdout: ov.provision.logTail, stderr: "" })}</Banner>}
+            <LogTail title="Nhật ký cài đặt" text={ov.provision.logTail} />
+          </>
+        )}
+      </>
+    );
+  }
+
+  const next2 = next ? <Badge tone="info">Việc tiếp theo: {next.title}</Badge> : <Badge tone="ok">Mọi bước đã xong</Badge>;
+
   return (
     <div>
       <PageHeader
-        title="Thiết lập & chạy máy cho thuê"
+        title="Thiết lập cho thuê máy"
         subtitle="Máy Windows của bạn chạy một bản Linux (WSL2). Mỗi khách dùng một desktop riêng trong bản Linux đó và không vào được Windows của bạn."
-        actions={<Button onClick={() => void act("refresh", refresh)} loading={busy === "refresh"}><RefreshCw className="h-4 w-4" aria-hidden />Kiểm tra lại</Button>}
+        actions={
+          <>
+            {ov && (probing ? <Badge tone="info">Đang kiểm tra…</Badge> : next2)}
+            <Button onClick={() => void act("refresh", refresh)} loading={busy === "refresh"}><RefreshCw className="h-4 w-4" aria-hidden />Kiểm tra lại</Button>
+          </>
+        }
       />
       {err && <Banner tone="danger" className="mb-3" title="Chưa thực hiện được">{err}</Banner>}
       {note && <Banner tone="ok" className="mb-3" title="Đã xong">{note}</Banner>}
@@ -385,172 +540,169 @@ export function HostSetup() {
       {!ov ? (
         <p className="text-sm text-ink-faint" role="status">Đang kiểm tra máy…</p>
       ) : (
-        <>
-          <Section title="Các bước" aside={probing ? <Badge tone="info">Đang kiểm tra…</Badge> : next ? <Badge tone="info">Việc tiếp theo: {next.title}</Badge> : <Badge tone="ok">Mọi bước đã xong</Badge>}>
-            {probing && ov.backend && <p className="mb-2 text-sm text-ink-soft" role="status">Đang kiểm tra máy (có thể mất vài giây). Trạng thái từng bước sẽ hiện khi có kết quả.</p>}
-            <ol className="space-y-2" data-testid="host-steps" data-probing={probing ? "1" : "0"}>
-              {steps.map((s) => {
-                const current = next?.id === s.id;
-                return (
-                  <StepRow key={s.id} step={s} current={current}>
-                    {current && s.assist === "install_wsl" && (
-                      <div className="mt-3 space-y-2" data-testid="assist-wsl">
-                        <Banner tone="info" title="App sẽ làm gì">
-                          Chạy đúng lệnh <span className="num">wsl --install --no-distribution</span> với quyền quản trị: Windows hiện hộp thoại xác nhận (UAC), bạn bấm Có để đồng ý; bấm Không thì không có gì được cài. Có thể cần khởi động lại máy, app không tự khởi động lại. Tính năng này chưa được kiểm trên máy thật.
-                        </Banner>
-                        <Button variant="primary" loading={busy === "wslfeat"} onClick={doInstallWsl}>Cài WSL giúp tôi</Button>
-                      </div>
-                    )}
-                    {current && s.assist === "install_distro" && (
-                      <div className="mt-3 space-y-2" data-testid="assist-distro">
-                        <Banner tone="info" title="App sẽ làm gì">
-                          Mở một cửa sổ riêng chạy <span className="num">wsl --install -d {RECOMMENDED_DISTRO}</span>. Lần đầu bản Linux hỏi tên người dùng và mật khẩu: bạn tự nhập trong cửa sổ đó.
-                        </Banner>
-                        <Button variant="primary" loading={busy === "wsldistro"} onClick={doInstallDistro}>Mở cửa sổ cài {RECOMMENDED_DISTRO}</Button>
-                      </div>
-                    )}
-                    {current && s.action === "choose_distro" && (
-                      <div className="mt-3 space-y-2">
-                        <Field label="Bản Linux (WSL 2) dùng để cho thuê" htmlFor="hs-distro" hint={`Khuyến nghị một bản riêng tên ${RECOMMENDED_DISTRO}: wsl --install -d ${RECOMMENDED_DISTRO}`}>
-                          <Select id="hs-distro" value={distro} onChange={(e) => setDistro(e.target.value)} className="max-w-xs">
-                            <option value="">— chọn —</option>
-                            {distros.map((d) => <option key={d.name} value={d.name}>{d.name}{d.isDefault ? " (mặc định)" : ""}</option>)}
-                          </Select>
-                        </Field>
-                        <Checkbox checked={dedicated} onChange={setDedicated} label="Bản Linux này chỉ dùng cho việc cho thuê; tôi không để dữ liệu cá nhân trong đó." />
-                        <Button variant="primary" disabled={!distro || !dedicated} loading={busy === "distro"} onClick={chooseDistro}>Dùng bản này</Button>
-                      </div>
-                    )}
-                    {current && s.action === "provision" && (
-                      <div className="mt-3 space-y-2">
-                        <Banner tone="info" title="Ứng dụng sẽ cài những gì">
-                          Cài <span className="num">Docker</span> và <span className="num">Node.js</span> nếu còn thiếu, bật Docker, cấp quyền dùng Docker cho người dùng <span className="num">{probe?.user || "?"}</span>, và tải môi trường desktop cho khách (khoảng 8 GB, chỉ một lần). Mọi thứ được cài trong bản Linux, không cài gì lên Windows.
-                        </Banner>
-                        <Checkbox checked={consent} onChange={setConsent} label="Tôi đồng ý cài các thành phần trên và dùng dung lượng/mạng tương ứng." />
-                        <Button variant="primary" disabled={!consent || provisioning} loading={busy === "provision" || provisioning} onClick={doProvision}>{provisioning ? "Đang cài đặt…" : "Cài đặt các thành phần"}</Button>
-                      </div>
-                    )}
-                    {current && s.action === "install" && (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Button variant="primary" loading={busy === "install"} disabled={!api} onClick={doInstall}>Cài hoặc cập nhật dịch vụ cho thuê</Button>
-                        {!api && <span className="text-xs text-ink-faint">Ứng dụng chưa kết nối máy chủ.</span>}
-                      </div>
-                    )}
-                    {current && s.action === "enroll" && (
-                      <div className="mt-3 space-y-3">
-                        {publishedMachines.length === 0 ? (
-                          <Banner tone="info" title="Chưa có máy nào đã đăng">Vào <b>Máy của tôi</b>, tạo máy rồi bấm <b>Quét & đăng máy</b>. Xong quay lại đây để ghi danh.</Banner>
-                        ) : (
-                          <>
-                            <div className="flex flex-wrap items-end gap-2">
-                              <Field label="Máy của bạn đã đăng" htmlFor="hs-machine" hint="Ứng dụng tự lấy mã ghi danh cho máy này; bạn không phải nhập hay dán gì.">
-                                <Select id="hs-machine" value={chosenMachine} onChange={(e) => setEnrollMachine(e.target.value)} className="w-80">
-                                  {publishedMachines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                </Select>
-                              </Field>
-                              <Button variant="primary" disabled={!chosenMachine} loading={busy === "enroll"} onClick={doEnrollAuto}>Ghi danh máy này</Button>
-                            </div>
-                            <Checkbox checked={replaceOld} onChange={setReplaceOld} label="Máy này đã từng ghi danh trên một bản Linux khác (ví dụ tôi cài lại): thay thiết bị cũ. Thiết bị cũ sẽ ngừng hoạt động ngay." />
-                          </>
-                        )}
-                        <details className="text-sm">
-                          <summary className="cursor-pointer text-ink-soft">Có mã ghi danh? Dán thủ công</summary>
-                          <form className="mt-2 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); doEnroll(); }}>
-                            <Field label="Mã ghi danh (dùng một lần)" htmlFor="hs-token" hint="Mã được dùng ngay để ghi danh và không được lưu lại.">
-                              <Input id="hs-token" type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value.trim())} className="w-80" />
-                            </Field>
-                            <Button type="submit" variant="secondary" disabled={token.length < 20} loading={busy === "enroll"}>Ghi danh bằng mã</Button>
-                          </form>
-                        </details>
-                      </div>
-                    )}
-                    {current && s.action === "start" && (
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <p className="w-full text-sm text-ink-soft" data-testid="limits-summary">Mức chia sẻ cho khách: <b>{limitsSummary(limits)}</b>. Đổi ở mục <b>Chia sẻ cho khách</b> bên dưới.</p>
-                        <div className="w-full space-y-2" data-testid="share-online">
-                          <Checkbox checked={share} onChange={setShare} label="Cho phép người ở mạng khác thuê máy này (chia sẻ ra Internet)" />
-                          {share && (
-                            <Banner tone="warn" title="Khi bật chia sẻ">
-                              Máy sẽ nhận một địa chỉ https ngẫu nhiên để người ở mạng khác truy cập; địa chỉ đổi mỗi lần bạn bắt đầu nhận thuê. Ứng dụng chỉ kết nối ra ngoài và không mở cổng trên router hay tường lửa của bạn. Chỉ người có quyền xem của phiên thuê mới xem được màn hình. Hình ảnh và thao tác của khách đi qua dịch vụ trung gian (Cloudflare). Kết nối đóng khi bạn dừng nhận thuê hoặc đóng ứng dụng.
-                            </Banner>
-                          )}
-                        </div>
-                        <Button variant="primary" size="lg" loading={busy === "start"} onClick={doStart}><Play className="h-4 w-4" aria-hidden />Bắt đầu nhận thuê</Button>
-                        {probe?.container && probe.container !== "missing" && <Button variant="ghost" loading={busy === "cleanup"} onClick={doCleanup}>Dọn môi trường của khách còn sót</Button>}
-                      </div>
-                    )}
-                    {s.id === "packages" && (provisioning || ov.provision.state === "exited") && (
-                      <>
-                        {ov.provision.state === "exited" && ov.provision.exitCode !== 0 && <Banner tone="danger" className="mt-2" title="Cài đặt chưa xong">{guestError({ code: ov.provision.exitCode ?? 1, stdout: ov.provision.logTail, stderr: "" })}</Banner>}
-                        <LogTail title="Nhật ký cài đặt" text={ov.provision.logTail} />
-                      </>
-                    )}
-                  </StepRow>
-                );
-              })}
-            </ol>
-          </Section>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-10">
+          <WizardNav items={wiz.items} selected={sel} onSelect={(id) => setSelected(id)} />
+          <div className="min-w-0" data-testid="wizard-panel" data-panel={sel} data-probing={probing ? "1" : "0"}>
+            {sel === "intro" && (
+              <div className="max-w-3xl">
+                <h2 className="mb-3 text-lg font-bold">Trước khi bắt đầu: quyền và trách nhiệm của chủ máy</h2>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <section>
+                    <h3 className="mb-2 flex items-center gap-1.5 font-bold text-teal-ink"><ShieldCheck className="h-4 w-4" aria-hidden />Bạn có quyền</h3>
+                    <ul className="list-disc space-y-1.5 pl-5 text-sm">
+                      <li>Chọn phần RAM và CPU chia sẻ cho khách.</li>
+                      <li>Dừng nhận thuê bất cứ lúc nào: phiên đang chạy bị ngắt và môi trường của khách được dọn sạch.</li>
+                      <li>Chọn chỉ cho thuê trên chính máy này, hoặc cho người ở mạng khác thuê.</li>
+                      <li>Xem phiên và thu nhập của máy mình.</li>
+                    </ul>
+                  </section>
+                  <section>
+                    <h3 className="mb-2 flex items-center gap-1.5 font-bold text-warn"><AlertTriangle className="h-4 w-4" aria-hidden />Bạn chịu trách nhiệm</h3>
+                    <ul className="list-disc space-y-1.5 pl-5 text-sm">
+                      <li>Giữ ứng dụng chạy trong lúc cho thuê. Đóng hẳn ứng dụng là dừng nhận thuê.</li>
+                      <li>Chỉ cho thuê với người bạn tin: bạn là người quản trị máy nên không thể bảo vệ dữ liệu của khách khỏi chính bạn.</li>
+                      <li>Hình ảnh được xử lý bằng CPU nên chất lượng phụ thuộc cấu hình máy của bạn.</li>
+                      <li>Ứng dụng không thay đổi tường lửa hay router của bạn.</li>
+                    </ul>
+                  </section>
+                </div>
+                <Banner tone="warn" className="mt-6" title="Giới hạn cần biết">
+                  Môi trường khách (WSL, Docker, Selkies) đã chạy trọn một phiên trên một máy; chưa kiểm chứng hai máy ở hai mạng khác nhau, độ trễ và FPS. Đây là mạng thử nghiệm, PCP không có giá trị tiền.
+                </Banner>
+                <div className="mt-5">
+                  <Checkbox checked={introChecked} onChange={setIntroChecked} label="Tôi đã đọc và hiểu quyền, trách nhiệm và giới hạn ở trên." hint="Bước này chưa cài gì lên máy của bạn." />
+                </div>
+                {footer({ nextDisabled: !introChecked, why: "Cần xác nhận đã đọc", onNext: () => { ackIntro(); go(idx + 1); } })}
+              </div>
+            )}
 
-          {ov.backend && probe?.ok && <ShareLimits probe={probe} limits={limits} onChange={setLimits} agentRunning={!!agentRunning} />}
+            {sel === "check" && (
+              <div className="max-w-4xl">
+                <h2 className="text-lg font-bold">Kiểm tra máy</h2>
+                <p className="mb-3 mt-1 text-sm text-ink-soft">App tự đọc cấu hình từ máy của bạn: bạn không tự khai. Bấm <b>Kiểm tra lại</b> ở góc trên sau khi làm xong một mục.</p>
+                <CheckTable rows={checkRows} />
+                {groupDone ? (
+                  <Banner tone="ok" className="mt-4" title="Máy đủ điều kiện">Bản Linux đã sẵn sàng. Sang bước tiếp theo để cài các thành phần.</Banner>
+                ) : !probing && next && groupSteps("check").some((s) => s.id === next.id) ? (
+                  <Banner tone="warn" className="mt-4" title={`Cần làm: ${next.title}`}>{next.detail}</Banner>
+                ) : null}
+                {openSteps("check").map((s) => card(s, false))}
+                {footer()}
+              </div>
+            )}
 
-          {(agentRunning || ov.agent.state === "exited") && (
-            <Section title="Nhận thuê" bordered className="mt-4">
-              <div data-testid="host-run">
-                {agentRunning ? (
-                  <Banner tone={health === "ok" ? "ok" : "info"} title={health === "ok" ? "Máy đang nhận thuê" : "Đang khởi động, chờ kết nối với máy chủ"}>
-                    {healthText}. Đóng ứng dụng hoặc bấm Dừng thì máy ngừng nhận thuê, phiên đang chạy bị ngắt và môi trường của khách được dọn sạch.
-                  </Banner>
-                ) : (
-                  <Banner tone={ov.agent.exitCode === 0 ? "info" : "danger"} title={ov.agent.exitCode === 0 ? "Đã dừng nhận thuê" : "Dừng nhận thuê bất thường"}>
-                    {ov.agent.exitCode === 0 ? "Máy không còn nhận thuê." : `Dịch vụ cho thuê dừng với mã ${ov.agent.exitCode}. Xem nhật ký bên dưới.`}
-                  </Banner>
-                )}
-                <KeyValue className="mt-3" items={[
-                  { k: "Máy", v: myMachine ? `${myMachine.name} (${myMachine.status === "approved" ? "đã đăng" : myMachine.status})` : machineId ? `Máy ${machineId.slice(0, 8)}… (không thuộc tài khoản đang đăng nhập)` : "Chưa ghi danh" },
-                  { k: "Kết nối với máy chủ", v: <span data-testid="host-health" data-health={health ?? "unknown"}>{healthText}</span> },
-                  { k: "Địa chỉ truy cập của khách", v: tunnel?.state === "running" && tunnel.url ? <span data-testid="host-public-url">{tunnel.url} (chỉ truy cập được bằng quyền xem của phiên thuê)</span> : `http://127.0.0.1:${ov.gatewayPort} (chỉ trên máy này, cần quyền xem của phiên thuê)` },
-                  { k: "Môi trường của khách", v: probe ? (probe.container === "running" ? "Đang chạy" : probe.container === "missing" ? "Chưa tạo" : "Chưa rõ") : "?" },
-                ]} />
-                {agentRunning && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {!confirmStop ? (
-                      <Button variant="danger-outline" onClick={() => setConfirmStop(true)} disabled={busy !== ""}><Square className="h-4 w-4" aria-hidden />Dừng nhận thuê</Button>
-                    ) : (
-                      <>
-                        <span className="text-sm font-semibold text-danger">Dừng ngay? Phiên đang chạy (nếu có) sẽ bị ngắt và dữ liệu trong môi trường của khách bị xóa.</span>
-                        <Button variant="danger" loading={busy === "stop"} onClick={doStop}>Dừng và dọn dẹp</Button>
-                        <Button variant="ghost" onClick={() => setConfirmStop(false)}>Không</Button>
-                      </>
-                    )}
-                    <Button variant="ghost" onClick={() => void act("refresh", refresh)}>Làm mới trạng thái</Button>
+            {sel === "install" && (
+              <div className="max-w-4xl">
+                <h2 className="text-lg font-bold">Cài đặt thành phần</h2>
+                <p className="mb-4 mt-1 text-sm text-ink-soft">Mọi thứ được cài trong bản Linux (WSL2); app không cài gì lên Windows.</p>
+                {provisioning && (
+                  <div className="mb-4 space-y-1.5">
+                    <IndeterminateBar label="Đang cài đặt trong bản Linux" />
+                    <p className="text-xs text-ink-faint">Đang cài đặt. Việc này có thể mất vài phút (tải môi trường desktop khoảng 8 GB, chỉ một lần). App không đo được phần trăm nên chỉ cho thấy đang chạy.</p>
                   </div>
                 )}
-                <LogTail title="Nhật ký dịch vụ cho thuê" text={ov.agent.logTail} />
+                <Checklist items={groupSteps("install").map((s) => ({ id: s.id, label: s.title, state: checklistState(s) }))} />
+                {groupDone && <Banner tone="ok" className="mt-4" title="Đã cài xong các thành phần">Tiếp theo: ghi danh máy của bạn.</Banner>}
+                {openSteps("install").map((s) => card(s, true))}
+                {footer()}
               </div>
-            </Section>
-          )}
+            )}
 
-          {machineId && <HostSessions machineId={machineId} />}
+            {sel === "enroll" && (
+              <div className="max-w-4xl">
+                <h2 className="text-lg font-bold">Ghi danh máy</h2>
+                <p className="mb-3 mt-1 text-sm text-ink-soft">Ghi danh gắn bản Linux này với máy bạn đã đăng, để máy chủ biết đúng thiết bị nhận thuê.</p>
+                {groupSteps("enroll").map((s) => card(s, true))}
+                {footer()}
+              </div>
+            )}
 
-          <Section title="Thông tin máy" bordered className="mt-4">
-            <KeyValue items={[
-              { k: "WSL trên Windows", v: wsl?.kind === "ready" ? `Đã cài${wsl.version ? ` (${wsl.version})` : ""}; ${wsl.distros.length} bản Linux` : wsl?.kind === "no_distro" ? "Đã cài, chưa có bản Linux" : wsl?.kind === "not_installed" ? "Chưa cài" : "Không áp dụng" },
-              { k: "Bản Linux đang dùng", v: ov.backend ? (ov.backend.kind === "wsl" ? `WSL2: ${ov.backend.distro}` : `Máy ảo qua SSH (${ov.backend.target})`) : "Chưa chọn" },
-              { k: "CPU / RAM / đĩa trống", v: probe ? `${probe.cpuCount ?? "?"} CPU · ${probe.memTotalMb ? (probe.memTotalMb / 1024).toFixed(1) : "?"} GB RAM · ${probe.diskFreeGb ?? "?"} GB trống` : "Chưa đọc được" },
-              { k: "GPU", v: gpu.text },
-              { k: "Phiên bản dịch vụ cho thuê", v: <span className="num">{ov.agentSha256.slice(0, 16)}…</span> },
-            ]} />
-          </Section>
+            {sel === "share" && (
+              <div className="max-w-4xl">
+                <h2 className="text-lg font-bold">Tài nguyên và chia sẻ</h2>
+                <p className="mb-2 mt-1 text-sm text-ink-soft">Chọn phần máy bạn cho khách dùng và có chia sẻ ra Internet hay không. Mức chọn áp dụng ở lần bắt đầu nhận thuê tới.</p>
+                {ov.backend && probe?.ok ? <ShareLimits probe={probe} limits={limits} onChange={setLimits} agentRunning={!!agentRunning} /> : <Banner tone="info" className="mt-3" title="Chưa chọn được mức chia sẻ">Cần kiểm tra xong bản Linux (bước Kiểm tra máy) để biết máy có bao nhiêu RAM và CPU.</Banner>}
+                <Section title="Chia sẻ ra Internet" bordered className="mt-4">
+                  <div className="space-y-2" data-testid="share-online">
+                    <Checkbox checked={share} onChange={setShare} label="Cho phép người ở mạng khác thuê máy này (chia sẻ ra Internet)" hint="Mặc định tắt: chỉ người dùng ngay trên máy này truy cập được." />
+                    {share && (
+                      <Banner tone="warn" title="Khi bật chia sẻ">
+                        Máy sẽ nhận một địa chỉ https ngẫu nhiên để người ở mạng khác truy cập; địa chỉ đổi mỗi lần bạn bắt đầu nhận thuê. Ứng dụng chỉ kết nối ra ngoài và không mở cổng trên router hay tường lửa của bạn. Chỉ người có quyền xem của phiên thuê mới xem được màn hình. Hình ảnh và thao tác của khách đi qua dịch vụ trung gian (Cloudflare). Kết nối đóng khi bạn dừng nhận thuê hoặc đóng ứng dụng.
+                      </Banner>
+                    )}
+                  </div>
+                </Section>
+                {footer({ nextDisabled: !groupDone })}
+              </div>
+            )}
 
-          <Banner tone="warn" className="mt-4" title="Lưu ý trước khi cho thuê">
-            <ul className="list-disc space-y-1 pl-4">
-              <li>Hình ảnh được xử lý bằng CPU nên chất lượng phụ thuộc cấu hình máy của bạn.</li>
-              <li>Hãy giữ ứng dụng chạy trong lúc cho thuê. Đóng hẳn ứng dụng là dừng nhận thuê.</li>
-              <li>Khách ở mạng khác chỉ truy cập được khi bạn bật “Cho phép người ở mạng khác thuê máy này”. Nếu tắt, chỉ người dùng ngay trên máy này truy cập được. Ứng dụng không thay đổi tường lửa hay router.</li>
-              <li>Bạn là người quản trị máy nên không thể bảo vệ dữ liệu của khách khỏi chính bạn: chỉ cho thuê với người bạn tin.</li>
-            </ul>
-          </Banner>
-        </>
+            {sel === "run" && (
+              <div className="max-w-4xl">
+                <h2 className="text-lg font-bold">Nhận thuê</h2>
+                <p className="mb-3 mt-1 text-sm text-ink-soft">Bật hoặc dừng nhận thuê, xem trạng thái kết nối và các phiên trên máy của bạn.</p>
+                {groupSteps("run").filter((s) => s.status !== "ok").map((s) => card(s, true))}
+                {(agentRunning || ov.agent.state === "exited") && (
+                  <Section title="Trạng thái" bordered className="mt-4">
+                    <div data-testid="host-run">
+                      {agentRunning ? (
+                        <Banner tone={health === "ok" ? "ok" : "info"} title={health === "ok" ? "Máy đang nhận thuê" : "Đang khởi động, chờ kết nối với máy chủ"}>
+                          {healthText}. Đóng ứng dụng hoặc bấm Dừng thì máy ngừng nhận thuê, phiên đang chạy bị ngắt và môi trường của khách được dọn sạch.
+                        </Banner>
+                      ) : (
+                        <Banner tone={ov.agent.exitCode === 0 ? "info" : "danger"} title={ov.agent.exitCode === 0 ? "Đã dừng nhận thuê" : "Dừng nhận thuê bất thường"}>
+                          {ov.agent.exitCode === 0 ? "Máy không còn nhận thuê." : `Dịch vụ cho thuê dừng với mã ${ov.agent.exitCode}. Xem nhật ký bên dưới.`}
+                        </Banner>
+                      )}
+                      <KeyValue className="mt-3" items={[
+                        { k: "Máy", v: myMachine ? `${myMachine.name} (${myMachine.status === "approved" ? "đã đăng" : myMachine.status})` : machineId ? `Máy ${machineId.slice(0, 8)}… (không thuộc tài khoản đang đăng nhập)` : "Chưa ghi danh" },
+                        { k: "Kết nối với máy chủ", v: <span data-testid="host-health" data-health={health ?? "unknown"}>{healthText}</span> },
+                        { k: "Địa chỉ truy cập của khách", v: tunnel?.state === "running" && tunnel.url ? <span data-testid="host-public-url">{tunnel.url} (chỉ truy cập được bằng quyền xem của phiên thuê)</span> : `http://127.0.0.1:${ov.gatewayPort} (chỉ trên máy này, cần quyền xem của phiên thuê)` },
+                        { k: "Môi trường của khách", v: probe ? (probe.container === "running" ? "Đang chạy" : probe.container === "missing" ? "Chưa tạo" : "Chưa rõ") : "?" },
+                        ...(agentRunning ? [{ k: "Mức chia sẻ đang áp dụng", v: limitsSummary(appliedLimits(probe, true) ?? limits) }] : []),
+                      ]} />
+                      {agentRunning && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {!confirmStop ? (
+                            <Button variant="danger-outline" onClick={() => setConfirmStop(true)} disabled={busy !== ""}><Square className="h-4 w-4" aria-hidden />Dừng nhận thuê</Button>
+                          ) : (
+                            <>
+                              <span className="text-sm font-semibold text-danger">Dừng ngay? Phiên đang chạy (nếu có) sẽ bị ngắt và dữ liệu trong môi trường của khách bị xóa.</span>
+                              <Button variant="danger" loading={busy === "stop"} onClick={doStop}>Dừng và dọn dẹp</Button>
+                              <Button variant="ghost" onClick={() => setConfirmStop(false)}>Không</Button>
+                            </>
+                          )}
+                          <Button variant="ghost" onClick={() => void act("refresh", refresh)}>Làm mới trạng thái</Button>
+                        </div>
+                      )}
+                      <LogTail title="Nhật ký dịch vụ cho thuê" text={ov.agent.logTail} />
+                    </div>
+                  </Section>
+                )}
+
+                {machineId && <HostSessions machineId={machineId} />}
+
+                <details className="mt-4 rounded-lg border border-line bg-surface p-4">
+                  <summary className="cursor-pointer text-sm font-bold">Thông tin kỹ thuật của máy</summary>
+                  <KeyValue className="mt-3" items={[
+                    { k: "WSL trên Windows", v: wsl?.kind === "ready" ? `Đã cài${wsl.version ? ` (${wsl.version})` : ""}; ${wsl.distros.length} bản Linux` : wsl?.kind === "no_distro" ? "Đã cài, chưa có bản Linux" : wsl?.kind === "not_installed" ? "Chưa cài" : "Không áp dụng" },
+                    { k: "Bản Linux đang dùng", v: ov.backend ? (ov.backend.kind === "wsl" ? `WSL2: ${ov.backend.distro}` : `Máy ảo qua SSH (${ov.backend.target})`) : "Chưa chọn" },
+                    { k: "CPU / RAM / đĩa trống", v: probe ? `${probe.cpuCount ?? "?"} CPU · ${probe.memTotalMb ? (probe.memTotalMb / 1024).toFixed(1) : "?"} GB RAM · ${probe.diskFreeGb ?? "?"} GB trống` : "Chưa đọc được" },
+                    { k: "Phiên bản dịch vụ cho thuê", v: <span className="num">{ov.agentSha256.slice(0, 16)}…</span> },
+                  ]} />
+                </details>
+
+                <Banner tone="warn" className="mt-4" title="Lưu ý trước khi cho thuê">
+                  <ul className="list-disc space-y-1 pl-4">
+                    <li>Hãy giữ ứng dụng chạy trong lúc cho thuê. Đóng hẳn ứng dụng là dừng nhận thuê.</li>
+                    <li>Khách ở mạng khác chỉ truy cập được khi bạn bật “Cho phép người ở mạng khác thuê máy này”. Nếu tắt, chỉ người dùng ngay trên máy này truy cập được.</li>
+                    <li>Bạn là người quản trị máy nên không thể bảo vệ dữ liệu của khách khỏi chính bạn: chỉ cho thuê với người bạn tin.</li>
+                  </ul>
+                </Banner>
+                {footer({ nextDisabled: true })}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
