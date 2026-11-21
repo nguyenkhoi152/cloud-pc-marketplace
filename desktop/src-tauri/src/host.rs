@@ -753,6 +753,17 @@ pub async fn host_cleanup(app: AppHandle, state: State<'_, HostState>) -> Result
     blocking(move || run_guest(&b, Launch::Piped { root: false, action: "cleanup", args: &[] }, None, Duration::from_secs(150))).await
 }
 
+/// Gỡ ghi danh thiết bị khỏi guest (xoá credential cục bộ của agent) khi chủ máy đăng xuất, để tài khoản khác đăng nhập trên cùng PC
+/// bắt đầu từ đầu. Chỉ khi agent không chạy. Dùng bản script nhúng trong app (kênh Piped) nên chạy được trên guest đã cài từ trước.
+#[tauri::command]
+pub async fn host_unenroll(app: AppHandle, state: State<'_, HostState>) -> Result<Captured, String> {
+    let b = require_backend(&app)?;
+    if is_running(&state.agent) {
+        return Err("Agent đang chạy; hãy dừng nhận thuê trước khi gỡ ghi danh.".into());
+    }
+    blocking(move || run_guest(&b, Launch::Piped { root: false, action: "unenroll", args: &[] }, None, Duration::from_secs(60))).await
+}
+
 // ---------------------------------------------------------------- cài WSL giúp người dùng (có hộp thoại UAC)
 
 /// Bước 1: bật WSL (không kèm bản Linux). Windows hiện hộp thoại UAC; người dùng từ chối ⇒ PowerShell báo lỗi, KHÔNG có gì được cài. Có thể cần khởi động lại.
@@ -996,5 +1007,15 @@ mod tests {
         assert_eq!(AGENT_SHA256.trim().len(), 64);
         assert!(AGENT_BUNDLE.len() > 50_000 && AGENT_BUNDLE.len() < 4 * 1024 * 1024, "phải nhỏ hơn giới hạn 4 MiB của install-agent");
         assert!(GUEST_SCRIPT.contains("main \"$@\"") && !GUEST_SCRIPT.contains("__CPM_SELKIES_DIGEST__") && !GUEST_SCRIPT.contains('\r'));
+    }
+
+    #[test]
+    fn unenroll_runs_the_embedded_guest_script_with_a_fixed_action() {
+        // Kênh Piped: dùng bản script nhúng trong app nên gỡ ghi danh chạy được cả trên guest đã cài từ trước.
+        assert!(GUEST_SCRIPT.contains("unenroll) do_unenroll ;;"), "script guest nhúng trong app phải có hành động unenroll");
+        let b = Backend::Wsl { distro: "Ubuntu-24.04".into() };
+        let c = guest_command(&b, &Launch::Piped { root: false, action: "unenroll", args: &[] }, false).unwrap();
+        assert_eq!(args_of(&c), ["-d", "Ubuntu-24.04", "--cd", "~", "--exec", "bash", "-s", "--", "unenroll"]);
+        assert!(guest_command(&b, &Launch::Piped { root: false, action: "unenroll; id", args: &[] }, false).is_err());
     }
 }

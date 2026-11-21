@@ -99,6 +99,7 @@ const GUEST_ERRORS: Record<string, string> = {
   not_configured: "Dịch vụ cho thuê chưa được cấu hình.",
   agent_running: "Dịch vụ cho thuê đang chạy; hãy dừng trước.",
   enroll_failed: "Ghi danh thất bại: mã không hợp lệ, đã dùng, đã hết hạn, hoặc máy chưa kết nối được tới máy chủ.",
+  unenroll_failed: "Chưa gỡ được ghi danh khỏi bản Linux.",
   docker_unavailable: "Docker chưa chạy hoặc người dùng chưa có quyền dùng Docker.",
   image_missing: "Bản Linux chưa có môi trường desktop.",
   container_still_present: "Chưa dọn được môi trường của khách.",

@@ -37,6 +37,7 @@ pub fn run() {
             host::host_agent_start,
             host::host_agent_stop,
             host::host_cleanup,
+            host::host_unenroll,
             host::host_set_background,
             host::host_wsl_install_features,
             host::host_wsl_install_distro,

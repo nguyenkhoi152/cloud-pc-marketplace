@@ -7,7 +7,7 @@
 # Toàn bộ thân tệp nằm trong hàm và chỉ gọi `main` ở dòng cuối: khi chạy kiểu `bash -s` (script qua stdin), bash đọc hết tệp
 # trước khi chạy nên tiến trình con không thể đọc nhầm phần còn lại của script.
 #
-# Hành động (người dùng thường):  probe [apiBase] | sync-check | install-agent <sha256> | configure | enroll | run | stop | cleanup
+# Hành động (người dùng thường):  probe [apiBase] | sync-check | install-agent <sha256> | configure | enroll | unenroll | run | stop | cleanup
 # Hành động (root trong guest):    provision <user>
 set -euo pipefail
 umask 077
@@ -209,6 +209,18 @@ do_enroll() {
   say "enroll_done=1"
 }
 
+# Gỡ ghi danh thiết bị khỏi guest khi chủ máy đăng xuất: xoá credential và bộ đếm của agent. Chỉ khi agent KHÔNG chạy.
+# Không đụng tới Docker, image hay agent đã cài, nên tài khoản khác đăng nhập trên máy này chỉ cần ghi danh máy của mình là dùng lại ngay.
+# (Thu hồi thiết bị phía máy chủ do app làm riêng: xoá tệp ở đây chỉ làm credential cục bộ biến mất.)
+do_unenroll() {
+  if agent_pid >/dev/null; then die "agent_running"; fi
+  rm -f "$DATA/credential.json" "$DATA/counter.json"
+  if [ -e "$DATA/credential.json" ]; then die "unenroll_failed"; fi
+  say "enrolled=0"
+  say "machine_id="
+  say "unenroll_done=1"
+}
+
 # Chạy ở TIỀN CẢNH. App của host giữ stdin mở; stdin đóng (app thoát) ⇒ agent tự dừng, cắt phiên và dọn guest.
 do_run() {
   need_agent
@@ -255,6 +267,7 @@ main() {
     install-agent) do_install_agent "${1:-}" ;;
     configure) do_configure ;;
     enroll) do_enroll ;;
+    unenroll) do_unenroll ;;
     run) do_run ;;
     stop) do_stop ;;
     cleanup) do_cleanup ;;

@@ -52,6 +52,8 @@ export const hostNative = {
   agentStart: () => call<void>("host_agent_start"),
   agentStop: () => call<Captured>("host_agent_stop"),
   cleanup: () => call<Captured>("host_cleanup"),
+  /** Gỡ ghi danh thiết bị khỏi bản Linux (xoá credential cục bộ) khi chủ máy đăng xuất. Chỉ khi agent không chạy. */
+  unenroll: () => call<Captured>("host_unenroll"),
   /** Cho phép app thu về khay hệ thống khi đóng cửa sổ trong lúc đang nhận thuê. */
   setBackground: (enabled: boolean) => call<void>("host_set_background", { enabled }),
   /** "Cài giúp tôi": bật WSL bằng hộp thoại UAC (không kèm bản Linux). Có thể cần khởi động lại; app không tự khởi động lại. */
