@@ -298,7 +298,7 @@ const BOOKING_TONE: Record<string, "info" | "ok" | "warn" | "neutral"> = { reser
 /** Viewer thử nghiệm: nạp đường dẫn xem MỘT lần từ gateway của host trong khung nhúng (không mở trình duyệt ngoài). */
 function LiveViewer({ url, onClose }: { url: string; onClose: () => void }) {
   return (
-    <div className="mt-3 w-full rounded-lg border border-line bg-black/5 p-2">
+    <div className="mt-3 w-full rounded-lg border border-line bg-subtle p-2">
       <div className="mb-2 flex items-center justify-between text-xs text-ink-faint">
         <span>Màn hình máy thuê</span>
         <Button size="sm" variant="ghost" onClick={onClose}>Đóng</Button>
@@ -401,8 +401,8 @@ function BookingActions({ b, onChanged }: { b: LiveBooking; onChanged: () => voi
 }
 
 const STEP_CLS: Record<StepView["state"], string> = {
-  done: "border-ok bg-ok text-white",
-  current: "border-teal bg-teal-tint text-teal-dark",
+  done: "border-ok-solid bg-ok-solid text-white",
+  current: "border-teal bg-teal-tint text-teal-ink",
   failed: "border-danger bg-danger-bg text-danger",
   todo: "border-line-strong bg-surface text-ink-faint",
   skipped: "border-line bg-subtle text-ink-faint line-through",
@@ -465,7 +465,7 @@ export function LiveBookings() {
         {(list) => (
           <ul className="space-y-2">
             {list.map(({ b, name }, i) => (
-              <li key={b.id} style={stagger(i)} className="enter flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface p-3.5 shadow-[0_1px_2px_rgb(11_31_58/0.05)]">
+              <li key={b.id} style={stagger(i)} className="enter flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface p-3.5 shadow-[0_1px_2px_rgb(15_23_42/0.05)]">
                 <div>
                   <p className="font-semibold">{name}</p>
                   <p className="text-xs text-ink-faint">Giữ lúc {fmt(b.createdAt)} · hạn thanh toán {fmt(b.fundBy)} · <Amount units={b.priceUnits} suffix="PCP" inline /></p>
@@ -662,7 +662,7 @@ export function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => 
           <p className="text-xs text-ink-faint">{formatUnits(m.priceUnits)} PCP / gói</p>
           {m.specs.summary && <p className="mt-1 text-sm text-ink-soft">{m.specs.summary}</p>}
           <p className="mt-1 text-xs text-ink-soft" data-testid="machine-specs">{specsSummary(m.specs) ?? "Cấu hình sẽ được đọc từ máy của bạn khi bạn bấm Quét & đăng máy."}</p>
-          {specsSummary(m.specs) && <p className="mt-0.5 text-xs text-ink-faint" data-testid="machine-share-hint">Số nhân và RAM là phần bạn chia sẻ cho khách. Đổi ở <Link to="/host/setup" className="rounded font-semibold text-teal-dark hover:underline">Thiết lập & chạy máy</Link>.</p>}
+          {specsSummary(m.specs) && <p className="mt-0.5 text-xs text-ink-faint" data-testid="machine-share-hint">Số nhân và RAM là phần bạn chia sẻ cho khách. Đổi ở <Link to="/host/setup" className="rounded font-semibold text-teal-ink hover:underline">Thiết lập & chạy máy</Link>.</p>}
         </div>
         <div className="flex items-center gap-2">
           <Badge tone={st.tone}>{st.text}</Badge>

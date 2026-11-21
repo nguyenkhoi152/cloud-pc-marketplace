@@ -140,7 +140,7 @@ export function HostDashboard() {
           <Section title="Dịch vụ cung cấp máy">
             <p className="text-sm">{s.hostAgentRunning ? <Badge tone="ok">Đang chạy</Badge> : <Badge tone="neutral">Đã dừng</Badge>}</p>
             <p className="mt-2 text-xs text-ink-soft">Đóng cửa sổ app, chạy nền và dừng cung cấp là ba việc khác nhau.</p>
-            <Link to="/host/runtime" className="mt-1 inline-block rounded text-sm font-semibold text-teal-dark hover:underline">Xem chi tiết</Link>
+            <Link to="/host/runtime" className="mt-1 inline-block rounded text-sm font-semibold text-teal-ink hover:underline">Xem chi tiết</Link>
           </Section>
         </aside>
       </div>
@@ -179,7 +179,7 @@ export function HostSessions() {
             <div><p className="font-bold">{hs.hostAlias}</p><p className="num text-sm text-ink-soft">Còn {formatClock(hs.remainingSec)} / {formatDuration(hs.durationMin)}</p></div>
             <PhaseBadge phase={hs.phase} />
           </div>
-        ) : <p className="text-sm text-ink-soft">Không có phiên đang chạy. <Link to="/host" className="font-semibold text-teal-dark hover:underline">Về tổng quan</Link> để mô phỏng có khách.</p>}
+        ) : <p className="text-sm text-ink-soft">Không có phiên đang chạy. <Link to="/host" className="font-semibold text-teal-ink hover:underline">Về tổng quan</Link> để mô phỏng có khách.</p>}
       </Section>
       <Section title="Lịch sử" className="mt-8">
         {s.hostRecords.length === 0 ? <EmptyState title="Chưa có phiên nào hoàn tất">Các phiên đã kết thúc sẽ hiện ở đây cùng thu nhập tương ứng.</EmptyState> : (

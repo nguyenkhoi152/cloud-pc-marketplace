@@ -15,6 +15,7 @@ __pycache__/
 
 # Build output and caches
 dist/
+dist-web/
 build/
 out/
 .next/

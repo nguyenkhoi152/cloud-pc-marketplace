@@ -1,8 +1,89 @@
 @import "tailwindcss";
 
-/* Hệ token "Sky": nền xanh trời nhạt, chữ navy, teal làm màu nhấn. Không gradient, không kính mờ. */
+/*
+ * Hai theme dùng CHUNG tên token, chỉ khác giá trị. Không gradient, không kính mờ.
+ *   - TỐI (mặc định, "Avalanche"): các giá trị trong @theme bên dưới. Đặt mặc định ở đây (không phải ở thuộc tính
+ *     data-theme) để app mở ra là tối ngay, không nháy sáng trước khi JS chạy. Nền slate đậm, nhấn ĐỎ Avalanche,
+ *     xanh "node" cho thông tin và vòng focus.
+ *   - SÁNG ("Sky", giao diện xanh gốc của dự án): khối html[data-theme="light"] ghi đè các giá trị. Nền xanh trời nhạt,
+ *     chữ navy, nhấn teal.
+ *   Bật/tắt bằng nút ở thanh trên (xem src/lib/theme.ts); lựa chọn được nhớ trong localStorage.
+ *
+ * Tên token là tên cũ (để các file và test bám theo tên lớp không phải đổi); nghĩa theo vai trò, không theo tên màu:
+ *   teal*  = màu nhấn thương hiệu (đỏ ở theme tối, teal ở theme sáng)
+ *   navy*  = ô đặc (nút, thanh chuyển chế độ)   panel = khối tối lớn (panel trái màn đăng nhập, khung xem máy)
+ *   sky    = nền nhạt/hover
+ *
+ * Một màu không thể vừa là NỀN ĐẶC dưới chữ trắng vừa là CHỮ trên nền tối, nên có token tách theo vai trò:
+ *   teal-ink / ok-ink / danger-ink / info-ink = chữ; ok-solid / danger-solid = ô đặc dưới chữ/biểu tượng trắng;
+ *   panel-ink = chữ trên khối panel.
+ *
+ * Lưu ý tương phản (hiến chương dự án yêu cầu chữ tối thiểu 4.5:1): ở theme tối, chữ trắng trên nút đỏ #E84142 đạt
+ * 3.99:1 (nút hover #C82829 đạt 5.54:1). Muốn đạt 4.5:1 ở trạng thái thường, đổi --color-teal sang #D6393A (4.66:1).
+ */
 @theme {
   --font-sans: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+
+  /* ===== Theme TỐI (mặc định) ===== */
+  --color-bg: #0b1120;
+  --color-surface: #131b2e;
+  --color-subtle: #182238;
+  --color-sky: #223049;
+  --color-line: #243049;
+  --color-line-strong: #64748b;
+
+  --color-ink: #f1f5f9;
+  --color-ink-soft: #cbd5e1;
+  --color-ink-faint: #94a3b8;
+
+  --color-teal: #e84142;
+  --color-teal-dark: #c82829;
+  --color-teal-tint: #3b1c25;
+  --color-teal-ink: #ff8a8b;
+  --color-navy: #334155;
+  --color-navy-2: #3f4d68;
+  --color-panel: #1a2640;
+  --color-panel-ink: #e2e8f0;
+  --color-scrim: rgb(0 0 0 / 0.6);
+
+  --color-ok: #34d399;
+  --color-ok-bg: #0c2a22;
+  --color-ok-solid: #059669;
+  --color-ok-ink: #6ee7b7;
+  --color-online: #10b981;
+  --color-warn: #fcd34d;
+  --color-warn-bg: #2d2508;
+  --color-warn-line: #7a5f12;
+  --color-danger: #f87171;
+  --color-danger-bg: #3a1519;
+  --color-danger-solid: #b91c1c;
+  --color-danger-ink: #fca5a5;
+  --color-info: #60a5fa;
+  --color-info-bg: #14233f;
+  --color-info-ink: #93c5fd;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-pop: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px rgb(0 0 0 / 0.5);
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --animate-fade-in: fade-in 160ms var(--ease-out);
+  --animate-pop-in: pop-in 180ms var(--ease-out);
+  --animate-slide-in: slide-in 220ms var(--ease-out);
+}
+
+/* ===== Theme SÁNG ("Sky", giao diện xanh gốc): ghi đè giá trị của theme tối. ===== */
+html[data-theme="light"] {
+  color-scheme: light;
 
   --color-bg: #eef6fd;
   --color-surface: #ffffff;
@@ -18,36 +99,54 @@
   --color-teal: #0f766e;
   --color-teal-dark: #0b5c55;
   --color-teal-tint: #d5f5ef;
+  --color-teal-ink: #0b5c55;
   --color-navy: #0b1f3a;
   --color-navy-2: #14305a;
+  --color-panel: #0b1f3a;
+  --color-panel-ink: #cfe9fb;
+  --color-scrim: rgb(11 31 58 / 0.45);
 
   --color-ok: #15803d;
   --color-ok-bg: #dcfce7;
+  --color-ok-solid: #15803d;
+  --color-ok-ink: #14532d;
+  --color-online: #15803d;
   --color-warn: #92400e;
   --color-warn-bg: #fef3c7;
   --color-warn-line: #e6b94a;
   --color-danger: #b91c1c;
   --color-danger-bg: #fee2e2;
+  --color-danger-solid: #b91c1c;
+  --color-danger-ink: #7f1d1d;
   --color-info: #1d4ed8;
   --color-info-bg: #dbeafe;
-
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --color-info-ink: #1e3a8a;
 
   --shadow-pop: 0 1px 2px rgb(11 31 58 / 0.08), 0 10px 28px rgb(11 31 58 / 0.14);
+  --lift-shadow: 0 2px 4px rgb(11 31 58 / 0.06), 0 8px 20px rgb(11 31 58 / 0.1);
 
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-base: 16px;
-  --text-lg: 18px;
-  --text-xl: 22px;
-  --text-2xl: 28px;
+  /* Hình minh họa màn đăng nhập (xem AuthIllustration): màu riêng cho từng theme. */
+  --illus-body: #14305a;
+  --illus-light: #cfe9fb;
+  --illus-mid: #a3bdd3;
+  --illus-accent: #0f766e;
+  --illus-accent-soft: #d5f5ef;
+  --illus-ink: #0b1f3a;
+  --illus-mute: #3b556f;
+}
 
-  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --animate-fade-in: fade-in 160ms var(--ease-out);
-  --animate-pop-in: pop-in 180ms var(--ease-out);
-  --animate-slide-in: slide-in 220ms var(--ease-out);
+/* Báo cho trình duyệt biết giao diện tối để ô nhập, danh sách chọn và thanh cuộn gốc cũng tối theo. */
+:root {
+  color-scheme: dark;
+  --lift-shadow: 0 2px 4px rgb(0 0 0 / 0.35), 0 8px 20px rgb(0 0 0 / 0.45);
+
+  --illus-body: #1e293b;
+  --illus-light: #e2e8f0;
+  --illus-mid: #94a3b8;
+  --illus-accent: #e84142;
+  --illus-accent-soft: #fef2f2;
+  --illus-ink: #0f172a;
+  --illus-mute: #475569;
 }
 
 @keyframes fade-in {
@@ -78,7 +177,7 @@ body {
 }
 
 :focus-visible {
-  outline: 3px solid #1d4ed8;
+  outline: 3px solid var(--color-info);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -103,7 +202,7 @@ body {
 /* fill-mode "backwards" (không phải "both"): sau khi chạy xong phần tử trở về style thường, nên :hover của .lift vẫn nhấc được thẻ. */
 .enter { animation: rise 280ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; animation-delay: calc(min(var(--i, 0), 8) * 45ms); }
 .lift { transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 160ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 160ms; }
-.lift:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgb(11 31 58 / 0.06), 0 8px 20px rgb(11 31 58 / 0.1); }
+.lift:hover { transform: translateY(-2px); box-shadow: var(--lift-shadow); }
 .pulse-dot { animation: pulse-soft 2s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {

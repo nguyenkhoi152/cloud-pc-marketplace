@@ -12,7 +12,7 @@ export const buttonStyles = cva(
         navy: "bg-navy text-white hover:bg-navy-2",
         secondary: "border border-line-strong bg-surface text-ink hover:bg-subtle",
         ghost: "text-ink-soft hover:bg-sky/60 hover:text-ink",
-        danger: "bg-danger text-white hover:bg-[#991b1b]",
+        danger: "bg-danger-solid text-white hover:bg-[#991b1b]",
         "danger-outline": "border border-danger/50 bg-surface text-danger hover:bg-danger-bg",
       },
       size: {

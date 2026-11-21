@@ -15,14 +15,14 @@ export function PageHeader({ title, subtitle, actions, crumbs, icon }: { title: 
           {crumbs.map((c, i) => (
             <span key={i} className="inline-flex items-center gap-1">
               {i > 0 && <ChevronRight className="h-3 w-3" aria-hidden />}
-              {c.to ? <Link to={c.to} className="rounded font-semibold hover:text-teal-dark hover:underline">{c.label}</Link> : <span aria-current="page">{c.label}</span>}
+              {c.to ? <Link to={c.to} className="rounded font-semibold hover:text-teal-ink hover:underline">{c.label}</Link> : <span aria-current="page">{c.label}</span>}
             </span>
           ))}
         </nav>
       )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3.5">
-          {Icon && <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-tint text-teal-dark" aria-hidden data-testid="page-icon"><Icon className="h-6 w-6" /></span>}
+          {Icon && <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-tint text-teal-ink" aria-hidden data-testid="page-icon"><Icon className="h-6 w-6" /></span>}
           <div className="min-w-0">
             <h1 className="text-2xl font-bold leading-tight tracking-tight">{title}</h1>
             {subtitle && <p className="mt-1 max-w-2xl text-sm text-ink-soft">{subtitle}</p>}
@@ -37,7 +37,7 @@ export function PageHeader({ title, subtitle, actions, crumbs, icon }: { title: 
 /** Khối nội dung có tiêu đề; mặc định không viền để tránh "thẻ giống hệt nhau". */
 export function Section({ title, aside, children, bordered, className }: { title?: string; aside?: ReactNode; children: ReactNode; bordered?: boolean; className?: string }) {
   return (
-    <section className={cn(bordered && "rounded-xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(11_31_58/0.05)]", className)}>
+    <section className={cn(bordered && "rounded-xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_23_42/0.05)]", className)}>
       {(title || aside) && (
         <div className="mb-3 flex items-center justify-between gap-3">
           {title && <h2 className="text-base font-bold">{title}</h2>}
@@ -51,9 +51,9 @@ export function Section({ title, aside, children, bordered, className }: { title
 
 /** Ô số liệu: biểu tượng + nhãn + giá trị lớn (+ ghi chú). `index` là thứ tự xếp tầng khi hiện (xem `.enter` trong index.css). */
 export function StatTile({ label, value, hint, icon: Icon, tone = "default", index = 0, className }: { label: string; value: ReactNode; hint?: ReactNode; icon: LucideIcon; tone?: "default" | "ok" | "warn"; index?: number; className?: string }) {
-  const badge = tone === "ok" ? "bg-ok-bg text-ok" : tone === "warn" ? "bg-warn-bg text-warn" : "bg-teal-tint text-teal-dark";
+  const badge = tone === "ok" ? "bg-ok-bg text-ok" : tone === "warn" ? "bg-warn-bg text-warn" : "bg-teal-tint text-teal-ink";
   return (
-    <div className={cn("enter rounded-xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgb(11_31_58/0.05)]", className)} style={{ "--i": index } as React.CSSProperties} data-testid="stat-tile">
+    <div className={cn("enter rounded-xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgb(15_23_42/0.05)]", className)} style={{ "--i": index } as React.CSSProperties} data-testid="stat-tile">
       <div className="flex items-center gap-2.5">
         <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", badge)} aria-hidden><Icon className="h-[18px] w-[18px]" /></span>
         <p className="text-sm font-semibold text-ink-soft">{label}</p>

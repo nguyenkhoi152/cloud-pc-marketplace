@@ -50,7 +50,7 @@ export function Compare() {
                     <th scope="col" className="w-[170px] px-4 py-3 text-xs font-semibold text-ink-faint">Tiêu chí</th>
                     {ms.map((m) => (
                       <th key={m.id} scope="col" className="px-4 py-3 align-top">
-                        <button type="button" onClick={() => navigate(`/rent/machine/${m.id}`)} className="rounded text-left font-bold hover:text-teal-dark hover:underline">{m.name}</button>
+                        <button type="button" onClick={() => navigate(`/rent/machine/${m.id}`)} className="rounded text-left font-bold hover:text-teal-ink hover:underline">{m.name}</button>
                         <p className="text-xs font-normal text-ink-faint">{m.hostAlias}</p>
                         <div className="mt-1.5 flex items-center gap-2"><MachineStateBadge state={m.state} /><button type="button" className="rounded text-xs font-semibold text-ink-faint hover:text-danger hover:underline" onClick={() => toggle(m.id)}>Bỏ</button></div>
                       </th>
@@ -112,7 +112,7 @@ export function MachineDetail({ id }: { id: string }) {
               subtitle={<><MapPin className="mr-1 inline h-3.5 w-3.5" aria-hidden />{m.hostAlias} · {m.location} · {m.categories.map((c) => CATEGORY_LABEL[c]).join(", ")}</>}
               actions={<><MachineStateBadge state={m.state} /><DemoTag /></>}
             />
-            <div className="grid grid-cols-[minmax(0,1fr)_300px] gap-8">
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
               <div className="space-y-8">
                 <p className="text-sm text-ink-soft">{m.summary}</p>
 

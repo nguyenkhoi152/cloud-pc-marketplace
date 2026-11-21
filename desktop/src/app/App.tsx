@@ -1,9 +1,11 @@
 import { MotionConfig } from "motion/react";
 import { lazy, Suspense, useEffect, type ComponentType, type ReactNode } from "react";
-import { isLive, ENV } from "@/api/env";
+import { IS_WEB, isLive, ENV } from "@/api/env";
+import { NeedApp } from "@/features/web/WebScreens";
 import { AppShell } from "@/layout/AppShell";
 import { useAppStore } from "@/state/store";
 import { matchPath, navigate, usePath } from "./router";
+import { isOpenOnWeb } from "./webAccess";
 
 /**
  * Tách mã theo màn hình: mỗi nhóm tải khi người dùng vào route. Preview không tải màn live và ngược lại.
@@ -181,6 +183,16 @@ function AppInner() {
 
   if (isLive() && booting) return <p className="p-6 text-sm text-ink-soft" role="status">Đang khôi phục phiên đăng nhập…</p>;
   if (!route || (!route.public && !authed)) return null;
+  // Bản web: mọi màn ngoài danh sách mở (kể cả /login, /register) thay bằng lời nhắc tải app, vẫn trong khung app.
+  if (IS_WEB && !isOpenOnWeb(path)) {
+    return (
+      <MotionConfig reducedMotion={reduce ? "always" : "user"}>
+        <AppShell>
+          <NeedApp path={path} />
+        </AppShell>
+      </MotionConfig>
+    );
+  }
   const render = (isLive() && LIVE_OVERRIDES[route.pattern]) || route.render;
   return (
     <MotionConfig reducedMotion={reduce ? "always" : "user"}>

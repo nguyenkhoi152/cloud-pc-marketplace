@@ -7,10 +7,10 @@ import { Button } from "./button";
 
 type BannerTone = "info" | "ok" | "warn" | "danger";
 const bannerStyle: Record<BannerTone, string> = {
-  info: "border-info/30 bg-info-bg text-[#1e3a8a]",
-  ok: "border-ok/30 bg-ok-bg text-[#14532d]",
+  info: "border-info/30 bg-info-bg text-info-ink",
+  ok: "border-ok/30 bg-ok-bg text-ok-ink",
   warn: "border-warn-line bg-warn-bg text-warn",
-  danger: "border-danger/30 bg-danger-bg text-[#7f1d1d]",
+  danger: "border-danger/30 bg-danger-bg text-danger-ink",
 };
 const bannerIcon: Record<BannerTone, LucideIcon> = { info: Info, ok: CheckCircle2, warn: AlertTriangle, danger: XCircle };
 
@@ -59,8 +59,8 @@ export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => v
   return (
     <div role="alert" className="flex flex-col items-center rounded-lg border border-danger/30 bg-danger-bg/60 px-6 py-10 text-center">
       {offline ? <WifiOff className="mb-3 h-8 w-8 text-danger" aria-hidden /> : <XCircle className="mb-3 h-8 w-8 text-danger" aria-hidden />}
-      <p className="text-base font-bold text-[#7f1d1d]">{offline ? "Mất kết nối mạng" : "Không tải được dữ liệu"}</p>
-      <p className="mt-1 max-w-md text-sm text-[#7f1d1d]">{error.message} Dữ liệu đang hiển thị là mô phỏng; đây là trạng thái lỗi để bạn duyệt.</p>
+      <p className="text-base font-bold text-danger-ink">{offline ? "Mất kết nối mạng" : "Không tải được dữ liệu"}</p>
+      <p className="mt-1 max-w-md text-sm text-danger-ink">{error.message} Dữ liệu đang hiển thị là mô phỏng; đây là trạng thái lỗi để bạn duyệt.</p>
       {onRetry && (
         <Button className="mt-4" onClick={onRetry}>
           <RefreshCw className="h-4 w-4" aria-hidden /> Thử lại

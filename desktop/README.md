@@ -15,6 +15,23 @@ npm run lint -w @cpm/desktop
 npm run test -w @cpm/desktop
 ```
 
+## Bản web (chỉ để xem)
+
+Cùng giao diện app, dựng bằng `vite --mode web` thành **trang tĩnh** (không server, router hash nên host ở đâu cũng được, không cần rewrite):
+
+```powershell
+npm run dev:site -w @cpm/desktop       # http://127.0.0.1:5177 (hot reload)
+npm run build:site -w @cpm/desktop     # typecheck + dựng vào desktop/dist-web/ (không commit)
+npm run preview:site -w @cpm/desktop   # phục vụ dist-web ở http://127.0.0.1:5178
+```
+
+- **Xem được:** màn chào, danh sách máy + so sánh + chi tiết máy (**dữ liệu mẫu**, banner trên cùng nói rõ), Giới thiệu, Hỗ trợ (chỉ câu hỏi thường gặp), Cài đặt (chỉ phần giao diện sáng/tối). Danh sách này là `WEB_OPEN_ROUTES` trong `src/app/webAccess.ts`.
+- **Cần app:** thuê máy, cho thuê máy, ví, phiên, lịch sử, workspace, thông báo, tài khoản, kể cả `/login` và `/register`. Các màn đó hiện lời nhắc tải app (`NeedApp`) trong cùng khung app, mục tương ứng ở thanh bên có ổ khóa. Web không có tài khoản nên không có luồng đăng nhập giả.
+- **Link tải:** mặc định trỏ trang Releases của repo (`DEFAULT_DOWNLOAD_URL`), chỉ nhận `https`. Bộ cài ở nơi khác thì đặt biến môi trường `VITE_DOWNLOAD_URL` khi chạy `build:site`. Link chỉ dùng được khi repo công khai và đã có Release.
+- **Không lộ cấu hình live:** chế độ `web` không nạp `desktop/.env.local` (Vite nhúng mọi `VITE_*` vào trang) và luôn là preview. Sau khi dựng, có thể quét `dist-web/` xem còn giá trị nào của `.env.local` không.
+- **Màn hẹp:** dưới 1024px thanh bên thu thành ngăn kéo (nút menu ở thanh trên). Cửa sổ app desktop có độ rộng tối thiểu 1024px nên không bị ảnh hưởng.
+- Đưa lên mạng là việc của người triển khai: `dist-web/` là thư mục tĩnh, đặt ở bất kỳ host tĩnh nào.
+
 Stack: React 19, TypeScript 6, Vite 8, Tailwind 4, primitives kiểu shadcn/ui (Radix) trong `src/ui`, Lucide, Motion, zustand. Spec Kit: `specs/002-desktop-companion-ui/`.
 
 ## Cấu trúc

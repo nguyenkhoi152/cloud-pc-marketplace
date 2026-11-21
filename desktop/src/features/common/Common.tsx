@@ -2,7 +2,7 @@ import { Bell, Coins, Mail, MessageSquareText, ShieldCheck } from "lucide-react"
 import { useState } from "react";
 import type { Transaction, TxKind } from "@/domain/types";
 import { getLiveApi, service } from "@/api";
-import { isLive } from "@/api/env";
+import { IS_WEB, isLive } from "@/api/env";
 import { useSignOut } from "@/features/common/useSignOut";
 import { HostBackgroundRow } from "@/features/live/HostBackgroundRow";
 import { ServerConnection } from "@/features/live/ServerConnection";
@@ -14,6 +14,7 @@ import { Checkbox, Field, Input, Select, Segmented, Switch } from "@/ui/controls
 import { Async, Banner, EmptyState } from "@/ui/feedback";
 import { KeyValue, Money, PageHeader, Section } from "@/ui/page";
 import { ApprovalBadge } from "@/ui/status";
+import { setTheme, useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /* ===================== Số dư & giao dịch ===================== */
@@ -84,7 +85,7 @@ export function Notifications() {
               {list.map((n) => (
                 <li key={n.id} className={cn("flex items-start gap-3 px-4 py-3", !n.read && "bg-teal-tint/40")}>
                   <Badge tone={tone[n.tone]} className="mt-0.5 shrink-0">{n.tone === "ok" ? "Tốt" : n.tone === "info" ? "Thông tin" : n.tone === "warn" ? "Lưu ý" : "Lỗi"}</Badge>
-                  <div className="min-w-0 flex-1"><p className="font-semibold">{n.title}{!n.read && <span className="ml-2 text-xs font-bold text-teal-dark">· Mới</span>}</p><p className="text-sm text-ink-soft">{n.body}</p><p className="num mt-0.5 text-xs text-ink-faint">{n.at} · {n.scope === "rent" ? "Thuê máy" : n.scope === "host" ? "Cho thuê máy" : "Chung"}</p></div>
+                  <div className="min-w-0 flex-1"><p className="font-semibold">{n.title}{!n.read && <span className="ml-2 text-xs font-bold text-teal-ink">· Mới</span>}</p><p className="text-sm text-ink-soft">{n.body}</p><p className="num mt-0.5 text-xs text-ink-faint">{n.at} · {n.scope === "rent" ? "Thuê máy" : n.scope === "host" ? "Cho thuê máy" : "Chung"}</p></div>
                   <Button size="sm" variant="ghost" onClick={() => { service.markNotification(n.id, !n.read); refresh(); }}>{n.read ? "Đánh dấu chưa đọc" : "Đã đọc"}</Button>
                 </li>
               ))}
@@ -112,8 +113,8 @@ export function Support() {
   const [err, setErr] = useState("");
   return (
     <>
-      <PageHeader title="Hỗ trợ" subtitle="Câu hỏi thường gặp và gửi yêu cầu (mô phỏng — chưa có đội hỗ trợ thật)." />
-      <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-10">
+      <PageHeader title="Hỗ trợ" subtitle={IS_WEB ? "Câu hỏi thường gặp." : "Câu hỏi thường gặp và gửi yêu cầu (mô phỏng — chưa có đội hỗ trợ thật)."} />
+      <div className={cn("grid gap-10", IS_WEB ? "max-w-3xl grid-cols-1" : "grid-cols-[minmax(0,1fr)_360px]")}>
         <Section title="Câu hỏi thường gặp">
           <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
             {FAQ.map((x, i) => (
@@ -124,14 +125,15 @@ export function Support() {
             ))}
           </ul>
         </Section>
-        <Section title="Gửi yêu cầu hỗ trợ">
+        {/* Bản web: không có form gửi yêu cầu (form này chỉ giả vờ ghi nhận, không được hiện trên trang công khai). */}
+        {!IS_WEB && <Section title="Gửi yêu cầu hỗ trợ">
           <form className="space-y-3" noValidate onSubmit={(e) => { e.preventDefault(); if (f.msg.trim().length < 10) return setErr("Mô tả ít nhất 10 ký tự."); setErr(""); setF({ ...f, msg: "" }); toast("Đã ghi nhận yêu cầu (mô phỏng). Không có email nào được gửi.", "ok"); }}>
             <Field label="Chủ đề" htmlFor="topic"><Select id="topic" value={f.topic} onChange={(e) => setF({ ...f, topic: e.target.value })}><option value="session">Phiên thuê</option><option value="host">Cho thuê máy</option><option value="balance">Số dư PCP thử</option><option value="other">Khác</option></Select></Field>
             <Field label="Mô tả" htmlFor="msg" error={err}><textarea id="msg" rows={5} value={f.msg} onChange={(e) => setF({ ...f, msg: e.target.value })} aria-invalid={!!err} className="w-full rounded-md border border-line-strong bg-surface p-3 text-sm aria-[invalid=true]:border-danger" /></Field>
             <Button type="submit" variant="primary" className="w-full"><MessageSquareText className="h-4 w-4" aria-hidden />Gửi yêu cầu</Button>
           </form>
           <p className="mt-3 flex items-start gap-1.5 text-xs text-ink-faint"><Mail className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />Đừng gửi mật khẩu hay khóa riêng.</p>
-        </Section>
+        </Section>}
       </div>
     </>
   );
@@ -142,6 +144,7 @@ export function SettingsScreen() {
   const s = useAppStore((a) => a.settings);
   const up = useAppStore((a) => a.updateSettings);
   const reset = useAppStore((a) => a.resetDemo);
+  const theme = useTheme();
   const Row = ({ id, title, desc, value, onChange }: { id: string; title: string; desc: string; value: boolean; onChange: (v: boolean) => void }) => (
     <div className="flex items-center justify-between gap-6 py-3">
       <div><label htmlFor={id} className="font-semibold">{title}</label><p className="text-sm text-ink-soft">{desc}</p></div>
@@ -150,18 +153,22 @@ export function SettingsScreen() {
   );
   return (
     <>
-      <PageHeader title="Cài đặt" subtitle={isLive() ? "Tùy chỉnh ứng dụng và kết nối." : "Các lựa chọn chỉ có tác dụng trong bản xem trước."} />
+      <PageHeader title="Cài đặt" subtitle={IS_WEB ? "Tùy chỉnh giao diện trang web." : isLive() ? "Tùy chỉnh ứng dụng và kết nối." : "Các lựa chọn chỉ có tác dụng trong bản xem trước."} />
       <div className="max-w-2xl divide-y divide-line">
-        <Section title="Giao diện" className="pb-4"><Row id="rm" title="Giảm chuyển động" desc="Tắt hiệu ứng chuyển cảnh. App cũng tự theo cài đặt hệ thống “giảm chuyển động”." value={s.reduceMotion} onChange={(v) => up({ reduceMotion: v })} /></Section>
-        {!isLive() && (
+        <Section title="Giao diện" className="pb-4">
+          <Row id="theme" title="Giao diện tối" desc="Bật để dùng nền tối, tắt để dùng nền sáng. Lựa chọn được nhớ trên máy này. Cũng có nút chuyển nhanh ở thanh trên." value={theme === "dark"} onChange={(v) => setTheme(v ? "dark" : "light")} />
+          <Row id="rm" title="Giảm chuyển động" desc="Tắt hiệu ứng chuyển cảnh. App cũng tự theo cài đặt hệ thống “giảm chuyển động”." value={s.reduceMotion} onChange={(v) => up({ reduceMotion: v })} />
+        </Section>
+        {/* Bản web chỉ có phần Giao diện: thông báo, chạy nền và dữ liệu demo thuộc về app. */}
+        {!isLive() && !IS_WEB && (
           <Section title="Thông báo" className="py-4">
             <Row id="nd" title="Thông báo trên máy" desc="Hiện thông báo khi phiên bắt đầu/kết thúc, máy được duyệt hoặc có sự cố (mô phỏng)." value={s.notifyDesktop} onChange={(v) => up({ notifyDesktop: v })} />
             <Row id="ne" title="Thông báo qua email" desc="Không có email thật nào được gửi trong bản xem trước." value={s.notifyEmail} onChange={(v) => up({ notifyEmail: v })} />
           </Section>
         )}
-        <Section title="Cho thuê máy" className="py-4">{isLive() ? <HostBackgroundRow /> : <Row id="bg" title="Chạy nền khi đóng cửa sổ" desc="Giữ dịch vụ cung cấp máy chạy ở khay hệ thống. Đóng cửa sổ không phải là dừng cung cấp." value={s.hostBackground} onChange={(v) => up({ hostBackground: v })} />}</Section>
+        {!IS_WEB && <Section title="Cho thuê máy" className="py-4">{isLive() ? <HostBackgroundRow /> : <Row id="bg" title="Chạy nền khi đóng cửa sổ" desc="Giữ dịch vụ cung cấp máy chạy ở khay hệ thống. Đóng cửa sổ không phải là dừng cung cấp." value={s.hostBackground} onChange={(v) => up({ hostBackground: v })} />}</Section>}
         {isLive() && <ServerConnection />}
-        {!isLive() && (
+        {!isLive() && !IS_WEB && (
           <Section title="Dữ liệu demo" className="pt-4">
             <p className="mb-3 text-sm text-ink-soft">Đặt lại toàn bộ dữ liệu mô phỏng và kịch bản về mặc định.</p>
             <Button variant="danger-outline" onClick={reset}>Đặt lại dữ liệu demo</Button>

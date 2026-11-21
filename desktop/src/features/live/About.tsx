@@ -20,11 +20,11 @@ import { ABOUT_UPDATED, AUDIENCES, HIGHLIGHTS, HOST_STEPS, PAYMENT_RULES, PCP_FA
 const SNOWTRACE = "https://testnet.snowtrace.io/address/";
 const FUJI = 43113;
 
-const card = "rounded-xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(11_31_58/0.05)]";
+const card = "rounded-xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_23_42/0.05)]";
 const stagger = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
 function Badge({ icon: Icon, className }: { icon: LucideIcon; className?: string }) {
-  return <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-tint text-teal-dark", className)} aria-hidden><Icon className="h-5 w-5" /></span>;
+  return <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-tint text-teal-ink", className)} aria-hidden><Icon className="h-5 w-5" /></span>;
 }
 
 /* ---------- Tổng quan ---------- */
@@ -37,18 +37,18 @@ export function OverviewTab() {
           <p className="mt-3 text-sm leading-relaxed text-ink-soft">{PURPOSE}</p>
           <dl className="mt-auto grid grid-cols-3 gap-3 border-t border-line pt-4" data-testid="about-highlights">
             {HIGHLIGHTS.map((h) => (
-              <div key={h.label}><dt className="sr-only">{h.label}</dt><dd className="text-xl font-bold leading-tight text-teal-dark">{h.value}</dd><p className="mt-0.5 text-xs text-ink-faint" aria-hidden>{h.label}</p></div>
+              <div key={h.label}><dt className="sr-only">{h.label}</dt><dd className="text-xl font-bold leading-tight text-teal-ink">{h.value}</dd><p className="mt-0.5 text-xs text-ink-faint" aria-hidden>{h.label}</p></div>
             ))}
           </dl>
         </section>
-        <section className="enter rounded-xl bg-navy p-5 text-white" style={stagger(1)} aria-labelledby="about-pcp">
+        <section className="enter rounded-xl bg-panel p-5 text-white" style={stagger(1)} aria-labelledby="about-pcp">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-2 text-sky" aria-hidden><Coins className="h-5 w-5" /></span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy-2 text-panel-ink" aria-hidden><Coins className="h-5 w-5" /></span>
             <h2 id="about-pcp" className="text-lg font-bold">PC Point (PCP)</h2>
           </div>
-          <ul className="mt-3 space-y-2 text-sm leading-snug text-sky">
+          <ul className="mt-3 space-y-2 text-sm leading-snug text-panel-ink">
             {PCP_FACTS.map((f) => (
-              <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-tint" aria-hidden />{f}</li>
+              <li key={f} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-white" aria-hidden />{f}</li>
             ))}
           </ul>
         </section>
@@ -191,7 +191,7 @@ function ContractLine({ label, address, chainId }: { label: string; address: str
       <span className="flex items-center gap-2">
         <code className="num break-all text-xs text-ink-soft">{address}</code>
         {chainId === FUJI && (
-          <a href={`${SNOWTRACE}${address}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded text-xs font-semibold text-teal-dark hover:underline">
+          <a href={`${SNOWTRACE}${address}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded text-xs font-semibold text-teal-ink hover:underline">
             Xem trên Snowtrace <ExternalLink className="h-3 w-3" aria-hidden />
           </a>
         )}

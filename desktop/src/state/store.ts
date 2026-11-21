@@ -18,7 +18,7 @@ import { addTransaction, releaseHeld } from "../domain/wallet";
 import { ACCOUNT, DEFAULT_HOST_CONFIG, INSTALL_COMPONENTS, WALLET } from "../mock/fixtures";
 import { ServiceError, type ScenarioId } from "../mock/scenarios";
 import { activateWalletForAccount, getLiveApi, service, walletAccountId } from "../api";
-import { isLive as isLiveMode } from "../api/env";
+import { IS_WEB, isLive as isLiveMode } from "../api/env";
 import { navigate } from "../app/router";
 import { readSavedMode, safeLocalStorage, saveMode, startupRoute } from "../domain/startup";
 import type { LiveAccount } from "../api/live";
@@ -141,7 +141,8 @@ const initialHostSetup = (): HostSetup => ({
 
 const BLANK_ACCOUNT: Account = { name: "", email: "", mode: "rent", hostApproval: "none" };
 const initial = () => ({
-  authed: false,
+  authed: IS_WEB, // bản web không có tài khoản: khách xem luôn "đã vào" để thấy khung app; các màn cần tài khoản bị chặn ở App.tsx
+
   account: isLiveMode() ? { ...BLANK_ACCOUNT } : { ...ACCOUNT },
   scenario: "normal" as ScenarioId,
   online: true,

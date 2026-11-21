@@ -1,4 +1,4 @@
-import { FlaskConical, LogOut, RotateCcw, User, X } from "lucide-react";
+import { FlaskConical, Info, LogOut, Lock, Menu, RotateCcw, User, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Popover } from "radix-ui";
 import { Server, MonitorSmartphone } from "lucide-react";
@@ -6,7 +6,9 @@ import { Link, navigate } from "@/app/router";
 import { formatClock } from "@/domain/clock";
 import { isTerminal } from "@/domain/session";
 import { cn } from "@/lib/utils";
-import { isLive } from "@/api/env";
+import { IS_WEB, isLive } from "@/api/env";
+import { DOWNLOAD_URL, isOpenOnWeb } from "@/app/webAccess";
+import { DownloadButton } from "@/features/web/WebScreens";
 import { networkLabel, PREVIEW_BANNER } from "@/domain/envLabels";
 import { envFacts } from "@/api/envFacts";
 import { SCENARIOS } from "@/mock/scenarios";
@@ -15,6 +17,7 @@ import { useAppStore } from "@/state/store";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { RadioGroup } from "@/ui/radio";
+import { ThemeToggle } from "@/ui/theme-toggle";
 import { Money } from "@/ui/page";
 import { ADMIN_NAV, COMMON_NAV, HOST_NAV, LIVE_NAV, RENT_NAV, isActive, type NavItem } from "./nav";
 
@@ -22,6 +25,16 @@ import { ADMIN_NAV, COMMON_NAV, HOST_NAV, LIVE_NAV, RENT_NAV, isActive, type Nav
 export function DemoBanner() {
   const scenario = useAppStore((s) => s.scenario);
   const label = SCENARIOS.find((s) => s.id === scenario)?.label;
+  if (IS_WEB) {
+    // Bản web: nói rõ đây là bản chỉ để xem, danh sách máy là dữ liệu mẫu, và việc thật nằm trong app.
+    return (
+      <div className="flex min-h-7 shrink-0 flex-wrap items-center justify-center gap-x-2 border-b border-info/30 bg-info-bg px-4 py-1 text-xs font-semibold text-info-ink" data-testid="web-banner">
+        <Info className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span>Bản web chỉ để xem: danh sách máy là dữ liệu mẫu. Thuê và cho thuê máy cần cài app.</span>
+        <a href={DOWNLOAD_URL} target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">Tải app</a>
+      </div>
+    );
+  }
   if (isLive()) return null; // bản thật không có dải này: nhãn mạng nằm ở chip trên thanh trên và chân thanh bên
   return (
     <div className="flex h-7 shrink-0 items-center justify-center gap-2 border-b border-warn-line bg-warn-bg px-4 text-xs font-semibold text-warn">
@@ -65,20 +78,22 @@ export function ModeSwitch() {
             type="button"
             role="radio"
             aria-checked={mode === i.v}
+            aria-label={i.label}
             tabIndex={mode === i.v ? 0 : -1}
             onClick={() => go(i.v)}
-            className={cn("relative inline-flex h-8 items-center rounded-md px-3 text-sm font-semibold transition-colors duration-150", mode === i.v ? "text-white" : "text-ink-soft hover:bg-sky/60")}
+            className={cn("relative inline-flex h-8 items-center rounded-md px-2.5 text-sm font-semibold transition-colors duration-150 sm:px-3", mode === i.v ? "text-white" : "text-ink-soft hover:bg-sky/60")}
           >
             {/* Nền đậm trượt từ nút này sang nút kia (motion tự tắt khi bật "Giảm chuyển động"). */}
             {mode === i.v && <motion.span layoutId="mode-pill" className="absolute inset-0 rounded-md bg-navy" transition={{ type: "spring", stiffness: 520, damping: 38 }} aria-hidden />}
             <span className="relative z-10 inline-flex items-center gap-1.5">
               <i.icon className="h-4 w-4" aria-hidden />
-              {i.label}
+              {/* Màn rất hẹp: chỉ còn biểu tượng (tên đọc ra nhờ aria-label). */}
+              <span className="hidden sm:inline">{i.label}</span>
             </span>
           </button>
         ))}
       </RadioGroup>
-      {mode === "host" && approval !== "approved" && !isLive() && <Badge tone="warn" icon={false}>Chưa được duyệt</Badge>}
+      {mode === "host" && approval !== "approved" && !isLive() && !IS_WEB && <Badge tone="warn" icon={false}>Chưa được duyệt</Badge>}
       {mode === "host" && approval === "rejected" && isLive() && <Badge tone="danger" icon={false}>Tài khoản host bị tạm khóa</Badge>}
     </div>
   );
@@ -123,27 +138,33 @@ export function DemoPanel() {
 }
 
 /* ---------- Thanh trên ---------- */
-export function TopBar() {
+export function TopBar({ onMenu }: { onMenu?: () => void } = {}) {
   const mode = useAppStore((s) => s.account.mode);
   const wallet = useAppStore((s) => s.wallet);
   const name = useAppStore((s) => s.account.name);
   const email = useAppStore((s) => s.account.email);
   const { requestSignOut, dialog: signOutDialog } = useSignOut();
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-5">
+    <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-line bg-surface px-3 sm:gap-3 sm:px-5">
       {signOutDialog}
-      <ModeSwitch />
-      <div className="flex items-center gap-3">
-        {!isLive() && <Link to="/wallet" className="hidden rounded-md px-2 py-1 text-right text-xs leading-tight hover:bg-subtle sm:block" aria-label="Xem số dư và giao dịch">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {/* Màn hẹp: thanh bên thu thành ngăn kéo, mở bằng nút này. */}
+        {onMenu && <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Mở menu điều hướng" onClick={onMenu}><Menu className="h-5 w-5" aria-hidden /></Button>}
+        <ModeSwitch />
+      </div>
+      <div className="flex items-center gap-1.5 sm:gap-3">
+        {!isLive() && !IS_WEB && <Link to="/wallet" className="hidden rounded-md px-2 py-1 text-right text-xs leading-tight hover:bg-subtle sm:block" aria-label="Xem số dư và giao dịch">
           <span className="block text-ink-faint">{mode === "rent" ? "Số dư để thuê" : "Thu nhập host đã ghi nhận"}</span>
           <Money value={mode === "rent" ? wallet.usable : wallet.hostSettled} className="text-sm" />
         </Link>}
-        {!isLive() && <DemoPanel />}
+        {!isLive() && !IS_WEB && <DemoPanel />}
         <NetworkChip />
-        <Popover.Root>
+        <ThemeToggle />
+        {/* Bản web không có tài khoản: thay menu tài khoản/đăng xuất bằng nút tải app (khách xem luôn ở trạng thái "đã vào"). */}
+        {IS_WEB ? <DownloadButton size="sm">Tải app</DownloadButton> : <Popover.Root>
           <Popover.Trigger asChild>
             <Button variant="ghost" size="icon" aria-label={`Tài khoản của ${name}`}>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky text-sm font-bold text-navy">{name.trim().split(" ").slice(-1)[0]?.[0] ?? "?"}</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky text-sm font-bold text-ink">{name.trim().split(" ").slice(-1)[0]?.[0] ?? "?"}</span>
             </Button>
           </Popover.Trigger>
           <Popover.Portal>
@@ -157,7 +178,7 @@ export function TopBar() {
               </Popover.Close>
             </Popover.Content>
           </Popover.Portal>
-        </Popover.Root>
+        </Popover.Root>}
       </div>
     </div>
   );
@@ -167,13 +188,20 @@ export function TopBar() {
 function NavLink({ item, path, badge }: { item: NavItem; path: string; badge?: string }) {
   const active = isActive(item, path);
   return (
-    <Link to={item.to} aria-current={active ? "page" : undefined} className={cn("relative flex h-9 items-center rounded-md px-2.5 text-sm font-semibold transition-colors duration-150", active ? "text-teal-dark" : "text-ink-soft hover:bg-sky/60 hover:text-ink")}>
+    <Link to={item.to} aria-current={active ? "page" : undefined} className={cn("relative flex h-9 items-center rounded-md px-2.5 text-sm font-semibold transition-colors duration-150", active ? "text-teal-ink" : "text-ink-soft hover:bg-sky/60 hover:text-ink")}>
       {/* Nền của mục đang xem trượt giữa các mục khi đổi màn. */}
       {active && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-md bg-teal-tint" transition={{ type: "spring", stiffness: 520, damping: 40 }} aria-hidden />}
       <span className="relative z-10 flex min-w-0 flex-1 items-center gap-2.5">
         <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
         <span className="truncate">{isLive() ? (item.liveLabel ?? item.label) : item.label}</span>
         {badge && <span className="num ml-auto rounded-full bg-navy px-1.5 text-[11px] font-bold leading-5 text-white">{badge}</span>}
+        {/* Bản web: mục cần app có biểu tượng khóa (bấm vào vẫn ra màn giải thích + nút tải app). */}
+        {IS_WEB && !isOpenOnWeb(item.to) && (
+          <span className="ml-auto text-ink-faint">
+            <Lock className="h-3.5 w-3.5" aria-hidden />
+            <span className="sr-only"> (cần app)</span>
+          </span>
+        )}
       </span>
     </Link>
   );
@@ -222,7 +250,7 @@ export function Sidebar({ path }: { path: string }) {
           <NavLink key={i.to} item={i} path={path} />
         ))}
       </nav>
-      <p className="border-t border-line p-3 text-[11px] leading-snug text-ink-faint">{isLive() ? (networkLabel(envFacts())?.footer ?? "") : "Bản xem trước · dữ liệu mẫu"}</p>
+      <p className="border-t border-line p-3 text-[11px] leading-snug text-ink-faint">{IS_WEB ? "Bản web · chỉ để xem" : isLive() ? (networkLabel(envFacts())?.footer ?? "") : "Bản xem trước · dữ liệu mẫu"}</p>
     </aside>
   );
 }

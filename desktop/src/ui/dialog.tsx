@@ -19,7 +19,7 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-40 bg-navy/45 animate-fade-in" />
+        <D.Overlay className="fixed inset-0 z-40 bg-scrim animate-fade-in" />
         <D.Content
           className={cn("fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-48px)] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-lg border border-line bg-surface p-6 shadow-pop animate-pop-in", width)}
           aria-describedby={description ? undefined : undefined}

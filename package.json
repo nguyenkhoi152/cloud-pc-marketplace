@@ -22,6 +22,8 @@
     "test": "npm run test -w @cpm/shared && npm run test -w @cpm/db-tests && npm run test -w @cpm/contracts && npm run test -w @cpm/desktop && npm run test -w @cpm/host-agent && npm run test -w @cpm/server",
     "dev:desktop": "npm run dev -w @cpm/desktop",
     "build:desktop": "npm run build -w @cpm/desktop",
+    "dev:site": "npm run dev:site -w @cpm/desktop",
+    "build:site": "npm run build:site -w @cpm/desktop",
     "check:env": "node scripts/check-env.mjs",
     "smoke:supabase": "npm run smoke:supabase -w @cpm/desktop"
   }

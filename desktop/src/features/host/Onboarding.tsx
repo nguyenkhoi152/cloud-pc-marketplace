@@ -64,8 +64,8 @@ export function Onboarding({ step }: { step: string }) {
               const done = i < max || (approval !== "none" && i < 6);
               return (
                 <li key={s.id}>
-                  <button type="button" disabled={!reachable} aria-current={i === idx ? "step" : undefined} onClick={() => go(i)} className={cn("flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:text-ink-faint/70", i === idx ? "bg-teal-tint text-teal-dark" : "text-ink-soft hover:bg-sky/60 enabled:hover:text-ink")}>
-                    <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[11px]", done ? "border-ok bg-ok text-white" : i === idx ? "border-teal text-teal-dark" : "border-line-strong")}>{done ? "✓" : i + 1}</span>
+                  <button type="button" disabled={!reachable} aria-current={i === idx ? "step" : undefined} onClick={() => go(i)} className={cn("flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:text-ink-faint/70", i === idx ? "bg-teal-tint text-teal-ink" : "text-ink-soft hover:bg-sky/60 enabled:hover:text-ink")}>
+                    <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-[11px]", done ? "border-ok-solid bg-ok-solid text-white" : i === idx ? "border-teal text-teal-ink" : "border-line-strong")}>{done ? "✓" : i + 1}</span>
                     {s.label}
                   </button>
                 </li>
@@ -108,7 +108,7 @@ function IntroStep({ onNext }: { onNext: () => void }) {
       <h2 className="mb-3 text-lg font-bold">Trước khi bắt đầu: quyền và trách nhiệm của host</h2>
       <div className="grid grid-cols-2 gap-8">
         <section>
-          <h3 className="mb-2 flex items-center gap-1.5 font-bold text-teal-dark"><ShieldCheck className="h-4 w-4" aria-hidden />Bạn có quyền</h3>
+          <h3 className="mb-2 flex items-center gap-1.5 font-bold text-teal-ink"><ShieldCheck className="h-4 w-4" aria-hidden />Bạn có quyền</h3>
           <ul className="list-disc space-y-1.5 pl-5 text-sm">
             <li>Chọn phần tài nguyên chia sẻ, giá và giờ cung cấp máy.</li>
             <li>Tạm nghỉ nhận phiên mới hoặc dừng cung cấp máy bất cứ lúc nào.</li>

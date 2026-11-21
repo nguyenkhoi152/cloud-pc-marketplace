@@ -23,7 +23,7 @@ function FakeDesktop() {
       <div className="absolute left-[24%] top-[12%] w-[52%] overflow-hidden rounded-lg border border-white/20 bg-[#0e1a2b] shadow-2xl">
         <div className="flex h-7 items-center gap-1.5 bg-[#22344d] px-3">
           <span className="h-2.5 w-2.5 rounded-full bg-[#ff7b72]" /><span className="h-2.5 w-2.5 rounded-full bg-[#f2cc60]" /><span className="h-2.5 w-2.5 rounded-full bg-[#56d364]" />
-          <span className="ml-3 text-[11px] text-sky">Terminal — minh họa</span>
+          <span className="ml-3 text-[11px] text-panel-ink">Terminal — minh họa</span>
         </div>
         <pre className="m-0 h-44 overflow-hidden p-3 font-mono leading-5 text-[#9fe7d8]">{`user@phiên-thuê:~$ echo "Đây là khung minh họa"
 Đây là khung minh họa
@@ -34,7 +34,7 @@ user@phiên-thuê:~$ █`}</pre>
       </div>
       <div className="absolute inset-x-0 bottom-0 flex h-9 items-center justify-between bg-[#0b1626]/95 px-3">
         <div className="flex gap-2">{[0, 1, 2, 3].map((i) => <span key={i} className="h-5 w-5 rounded bg-sky/60" />)}</div>
-        <span className="num text-[11px] text-sky">20:10</span>
+        <span className="num text-[11px] text-panel-ink">20:10</span>
       </div>
     </div>
   );
@@ -68,8 +68,8 @@ export function SessionViewer({ s }: { s: SessionState }) {
 
   return (
     <div>
-      <div ref={frame} className="flex flex-col overflow-hidden rounded-lg border border-line-strong bg-navy">
-        <div className="flex h-12 shrink-0 items-center justify-between gap-3 bg-navy px-3 text-white" role="toolbar" aria-label="Thanh công cụ phiên">
+      <div ref={frame} className="flex flex-col overflow-hidden rounded-lg border border-line-strong bg-panel">
+        <div className="flex h-12 shrink-0 items-center justify-between gap-3 bg-panel px-3 text-white" role="toolbar" aria-label="Thanh công cụ phiên">
           <div className="flex min-w-0 items-center gap-3">
             <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold", reconnecting ? "bg-warn-bg text-warn" : "bg-ok-bg text-ok")}>
               {reconnecting ? <WifiOff className="h-3.5 w-3.5" aria-hidden /> : <Wifi className="h-3.5 w-3.5" aria-hidden />}
@@ -90,7 +90,7 @@ export function SessionViewer({ s }: { s: SessionState }) {
         <div className="relative aspect-[16/9] max-h-[calc(100vh-330px)] min-h-[300px] w-full bg-black">
           <FakeDesktop />
           {reconnecting && (
-            <div className="absolute inset-0 flex items-center justify-center bg-navy/75 p-6" role="alert">
+            <div className="absolute inset-0 flex items-center justify-center bg-panel/75 p-6" role="alert">
               <div className="max-w-sm rounded-lg bg-surface p-5 text-center text-ink shadow-pop">
                 {s.reconnectFailed ? <WifiOff className="mx-auto mb-2 h-7 w-7 text-danger" aria-hidden /> : <RefreshCw className="mx-auto mb-2 h-7 w-7 animate-[spin_1.2s_linear_infinite] text-teal" aria-hidden />}
                 <p className="font-bold">{s.reconnectFailed ? "Chưa kết nối lại được" : "Đang kết nối lại…"}</p>

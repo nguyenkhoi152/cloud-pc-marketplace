@@ -16,7 +16,7 @@ export function MachineStateBadge({ state }: { state: MachineState }) {
     case "online":
       return (
         <Badge tone="ok" icon={false}>
-          <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-ok" aria-hidden />
+          <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-online" aria-hidden />
           Đang online
         </Badge>
       );

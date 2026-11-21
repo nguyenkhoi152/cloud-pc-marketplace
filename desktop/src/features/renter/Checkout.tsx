@@ -55,7 +55,7 @@ export function Checkout({ id }: { id: string }) {
                       {options.map((d) => {
                         const bad = d > max;
                         return (
-                          <button key={d} type="button" role="radio" aria-checked={minutes === d} tabIndex={minutes === d ? 0 : -1} disabled={bad} onClick={() => { setMinutes(d); setError(""); }} className={cn("h-10 min-w-[92px] rounded-md border px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45", minutes === d ? "border-teal bg-teal-tint text-teal-dark" : "border-line-strong bg-surface hover:bg-subtle")}>
+                          <button key={d} type="button" role="radio" aria-checked={minutes === d} tabIndex={minutes === d ? 0 : -1} disabled={bad} onClick={() => { setMinutes(d); setError(""); }} className={cn("h-10 min-w-[92px] rounded-md border px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45", minutes === d ? "border-teal bg-teal-tint text-teal-ink" : "border-line-strong bg-surface hover:bg-subtle")}>
                             {formatDuration(d)}
                             {bad && <span className="block text-[10px] font-medium leading-3">vượt khung giờ</span>}
                           </button>

@@ -29,7 +29,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: T
 
 const STATUS_UI: Record<StepStatus, { icon: typeof CheckCircle2; cls: string; label: string }> = {
   ok: { icon: CheckCircle2, cls: "text-ok", label: "Xong" },
-  action: { icon: Wrench, cls: "text-teal-dark", label: "Làm ngay trong ứng dụng" },
+  action: { icon: Wrench, cls: "text-teal-ink", label: "Làm ngay trong ứng dụng" },
   manual: { icon: AlertTriangle, cls: "text-warn", label: "Bạn cần tự làm" },
   blocked: { icon: Lock, cls: "text-ink-faint", label: "Chưa tới" },
   info: { icon: Info, cls: "text-info", label: "Thông tin" },

@@ -53,5 +53,12 @@ export function readEnv(raw: RawEnv): EnvResult {
   return problems.length ? { mode: "invalid", problems } : { mode: "live", url, anonKey: key, apiBase: apiRaw || undefined };
 }
 
-export const ENV: EnvResult = readEnv(import.meta.env as unknown as RawEnv);
+/**
+ * Bản web = bản dựng `vite --mode web`: trang tĩnh chỉ để XEM (danh sách máy mẫu, giới thiệu). Thuê và cho thuê máy
+ * cần cài app nên các màn đó bị chặn bằng lời nhắc tải app. Cờ lấy từ chế độ dựng của Vite, không từ file .env.
+ */
+export const IS_WEB = import.meta.env.MODE === "web";
+
+// Bản web luôn là preview, không bao giờ đọc cấu hình live: không nhúng URL/khóa Supabase hay địa chỉ API vào trang công khai.
+export const ENV: EnvResult = IS_WEB ? { mode: "preview" } : readEnv(import.meta.env as unknown as RawEnv);
 export const isLive = () => ENV.mode === "live";

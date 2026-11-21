@@ -59,7 +59,7 @@ export function Discover() {
         ]}
       />
 
-      <form role="search" aria-label="Lọc danh sách máy" onSubmit={(e) => e.preventDefault()} className="mt-4 grid grid-cols-[minmax(180px,1.6fr)_repeat(4,minmax(96px,1fr))] items-end gap-3">
+      <form role="search" aria-label="Lọc danh sách máy" onSubmit={(e) => e.preventDefault()} className="mt-4 grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(180px,1.6fr)_repeat(4,minmax(96px,1fr))]">
         <label className="relative col-span-1">
           <span className="sr-only">Tìm theo tên, GPU, ứng dụng</span>
           <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-ink-faint" aria-hidden />

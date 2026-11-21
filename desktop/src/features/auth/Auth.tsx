@@ -4,11 +4,13 @@ import { cn } from "@/lib/utils";
 import { passwordStrength } from "@/domain/passwordStrength";
 import { Link, navigate } from "@/app/router";
 import { activateWalletForAccount, getLiveApi } from "@/api";
-import { isLive } from "@/api/env";
+import { IS_WEB, isLive } from "@/api/env";
+import { DownloadButton } from "@/features/web/WebScreens";
 import { useAppStore } from "@/state/store";
 import { Banner } from "@/ui/feedback";
 import { Button } from "@/ui/button";
 import { Field, Input } from "@/ui/controls";
+import { ThemeToggle } from "@/ui/theme-toggle";
 import { DemoBanner, DemoPanel, ToastRegion } from "@/layout/Chrome";
 import { envFacts } from "@/api/envFacts";
 import { networkLabel } from "@/domain/envLabels";
@@ -21,34 +23,34 @@ function AuthIllustration() {
   return (
     <svg viewBox="0 0 420 300" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden focusable="false" data-testid="auth-illustration">
       <defs>
-        <pattern id="auth-dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="#14305a" /></pattern>
+        <pattern id="auth-dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="var(--illus-body)" /></pattern>
       </defs>
       <rect width="420" height="300" fill="url(#auth-dots)" />
       {/* Máy được thuê (host): cửa sổ desktop từ xa */}
       <rect x="215" y="28" width="185" height="128" rx="12" fill="#ffffff" />
-      <path d="M215 40a12 12 0 0 1 12-12h161a12 12 0 0 1 12 12v14H215z" fill="#cfe9fb" />
-      <circle cx="232" cy="41" r="3.5" fill="#a3bdd3" /><circle cx="246" cy="41" r="3.5" fill="#a3bdd3" /><circle cx="260" cy="41" r="3.5" fill="#0f766e" />
-      <rect x="229" y="68" width="70" height="8" rx="4" fill="#cfe9fb" /><rect x="229" y="84" width="52" height="8" rx="4" fill="#cfe9fb" />
-      <rect x="229" y="100" width="62" height="8" rx="4" fill="#cfe9fb" /><rect x="229" y="116" width="44" height="8" rx="4" fill="#cfe9fb" />
-      <rect x="310" y="66" width="76" height="60" rx="8" fill="#0f766e" /><path d="M336 84v24l22-12z" fill="#d5f5ef" />
-      <rect x="229" y="134" width="157" height="8" rx="4" fill="#d5f5ef" />
-      <path d="M352 112v22l6-5 4 9 5-2-4-9 8-1z" fill="#0b1f3a" stroke="#ffffff" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M290 156h35l6 22h-47z" fill="#cfe9fb" /><rect x="272" y="178" width="71" height="8" rx="4" fill="#a3bdd3" />
+      <path d="M215 40a12 12 0 0 1 12-12h161a12 12 0 0 1 12 12v14H215z" fill="var(--illus-light)" />
+      <circle cx="232" cy="41" r="3.5" fill="var(--illus-mid)" /><circle cx="246" cy="41" r="3.5" fill="var(--illus-mid)" /><circle cx="260" cy="41" r="3.5" fill="var(--illus-accent)" />
+      <rect x="229" y="68" width="70" height="8" rx="4" fill="var(--illus-light)" /><rect x="229" y="84" width="52" height="8" rx="4" fill="var(--illus-light)" />
+      <rect x="229" y="100" width="62" height="8" rx="4" fill="var(--illus-light)" /><rect x="229" y="116" width="44" height="8" rx="4" fill="var(--illus-light)" />
+      <rect x="310" y="66" width="76" height="60" rx="8" fill="var(--illus-accent)" /><path d="M336 84v24l22-12z" fill="var(--illus-accent-soft)" />
+      <rect x="229" y="134" width="157" height="8" rx="4" fill="var(--illus-accent-soft)" />
+      <path d="M352 112v22l6-5 4 9 5-2-4-9 8-1z" fill="var(--illus-ink)" stroke="#ffffff" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M290 156h35l6 22h-47z" fill="var(--illus-light)" /><rect x="272" y="178" width="71" height="8" rx="4" fill="var(--illus-mid)" />
       {/* Người thuê: laptop */}
-      <rect x="20" y="168" width="130" height="82" rx="8" fill="#14305a" stroke="#cfe9fb" strokeWidth="2" />
-      <rect x="30" y="178" width="110" height="62" rx="4" fill="#0b1f3a" />
-      <rect x="40" y="188" width="60" height="8" rx="4" fill="#cfe9fb" /><rect x="40" y="202" width="84" height="6" rx="3" fill="#3b556f" />
-      <rect x="40" y="216" width="38" height="14" rx="7" fill="#0f766e" /><circle cx="122" cy="224" r="9" fill="#cfe9fb" />
-      <path d="M8 250h154l-10 12H18z" fill="#cfe9fb" />
+      <rect x="20" y="168" width="130" height="82" rx="8" fill="var(--illus-body)" stroke="var(--illus-light)" strokeWidth="2" />
+      <rect x="30" y="178" width="110" height="62" rx="4" fill="var(--illus-ink)" />
+      <rect x="40" y="188" width="60" height="8" rx="4" fill="var(--illus-light)" /><rect x="40" y="202" width="84" height="6" rx="3" fill="var(--illus-mute)" />
+      <rect x="40" y="216" width="38" height="14" rx="7" fill="var(--illus-accent)" /><circle cx="122" cy="224" r="9" fill="var(--illus-light)" />
+      <path d="M8 250h154l-10 12H18z" fill="var(--illus-light)" />
       {/* Đường nối và hợp đồng giữ tiền ở giữa */}
-      <path d="M150 205C166 205 168 172 182 160" fill="none" stroke="#cfe9fb" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" />
-      <path d="M200 138C206 122 206 114 215 108" fill="none" stroke="#cfe9fb" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" />
-      <circle cx="162" cy="196" r="3" fill="#d5f5ef" /><circle cx="173" cy="174" r="3" fill="#d5f5ef" /><circle cx="207" cy="122" r="3" fill="#d5f5ef" />
-      <circle cx="190" cy="150" r="25" fill="#0f766e" stroke="#0b1f3a" strokeWidth="6" />
+      <path d="M150 205C166 205 168 172 182 160" fill="none" stroke="var(--illus-light)" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" />
+      <path d="M200 138C206 122 206 114 215 108" fill="none" stroke="var(--illus-light)" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" />
+      <circle cx="162" cy="196" r="3" fill="var(--illus-accent-soft)" /><circle cx="173" cy="174" r="3" fill="var(--illus-accent-soft)" /><circle cx="207" cy="122" r="3" fill="var(--illus-accent-soft)" />
+      <circle cx="190" cy="150" r="25" fill="var(--illus-accent)" stroke="var(--illus-ink)" strokeWidth="6" />
       <path d="M184 151v-4a6 6 0 0 1 12 0v4" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
-      <rect x="181" y="151" width="18" height="14" rx="3" fill="#ffffff" /><circle cx="190" cy="158" r="2" fill="#0f766e" />
-      <rect x="160" y="182" width="60" height="20" rx="10" fill="#14305a" stroke="#cfe9fb" strokeWidth="1.5" />
-      <text x="190" y="196" textAnchor="middle" fill="#cfe9fb" fontSize="11" fontWeight="700">PCP</text>
+      <rect x="181" y="151" width="18" height="14" rx="3" fill="#ffffff" /><circle cx="190" cy="158" r="2" fill="var(--illus-accent)" />
+      <rect x="160" y="182" width="60" height="20" rx="10" fill="var(--illus-body)" stroke="var(--illus-light)" strokeWidth="1.5" />
+      <text x="190" y="196" textAnchor="middle" fill="var(--illus-light)" fontSize="11" fontWeight="700">PCP</text>
     </svg>
   );
 }
@@ -67,8 +69,8 @@ function AuthLayout({ children, title, subtitle, extra, icon: Icon }: { children
   return (
     <div className="flex h-full flex-col">
       <DemoBanner />
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(300px,2fr)_3fr]">
-        <aside className="flex min-h-0 flex-col gap-5 overflow-auto bg-navy p-8 text-white lg:p-10" data-testid="auth-aside">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(300px,2fr)_3fr]">
+        <aside className="hidden min-h-0 flex-col gap-5 overflow-auto bg-panel p-8 text-white lg:flex lg:p-10" data-testid="auth-aside">
           <div className="flex shrink-0 items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal"><MonitorSmartphone className="h-5 w-5" aria-hidden /></span>
             <span className="font-bold leading-tight">Cloud PC Companion</span>
@@ -79,24 +81,29 @@ function AuthLayout({ children, title, subtitle, extra, icon: Icon }: { children
             <ul className="mt-4 max-w-md space-y-3">
               {BENEFITS.map((b) => (
                 <li key={b.title} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-navy-2 text-sky"><b.icon className="h-4 w-4" aria-hidden /></span>
-                  <span className="text-sm leading-snug"><span className="block font-semibold text-white">{b.title}</span><span className="block text-sky">{b.text}</span></span>
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-navy-2 text-panel-ink"><b.icon className="h-4 w-4" aria-hidden /></span>
+                  <span className="text-sm leading-snug"><span className="block font-semibold text-white">{b.title}</span><span className="block text-panel-ink">{b.text}</span></span>
                 </li>
               ))}
             </ul>
           </div>
-          <p className="shrink-0 text-xs text-sky/80">{isLive() ? (networkLabel(envFacts())?.note ?? "") : "Bản xem trước giao diện. Không có tài khoản, thanh toán hay kết nối thật."}</p>
+          <p className="shrink-0 text-xs text-panel-ink/80">{isLive() ? (networkLabel(envFacts())?.note ?? "") : "Bản xem trước giao diện. Không có tài khoản, thanh toán hay kết nối thật."}</p>
         </aside>
         <main className="relative min-h-0 overflow-hidden">
           <AuthBackdrop />
           {/* Bản xem trước: chừa chỗ phía trên cho bảng kịch bản demo (cố định ở góc phải) để không đè lên thẻ. */}
-          <div className={cn("relative flex h-full min-h-0 overflow-auto p-8", !isLive() && "pt-12")}>
+          <div className={cn("relative flex h-full min-h-0 overflow-auto p-4 sm:p-8", (!isLive() || IS_WEB) && "pt-14 sm:pt-12")}>
             <div className="m-auto w-full max-w-[460px] space-y-4">
+              {/* Màn hẹp: panel trái bị ẩn nên có logo nhỏ ở đây. */}
+              <div className="flex items-center gap-2.5 lg:hidden">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal text-white"><MonitorSmartphone className="h-5 w-5" aria-hidden /></span>
+                <span className="font-bold leading-tight">Cloud PC Companion</span>
+              </div>
               <div className="relative overflow-hidden rounded-xl border border-line bg-surface shadow-pop">
                 <div className="h-1.5 bg-teal" aria-hidden />
                 <div className="p-6">
                   <div className="flex items-start gap-3.5">
-                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-tint text-teal-dark" aria-hidden><Icon className="h-6 w-6" /></span>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-tint text-teal-ink" aria-hidden><Icon className="h-6 w-6" /></span>
                     <div className="min-w-0">
                       <h1 className="text-2xl font-bold leading-tight">{title}</h1>
                       {subtitle && <p className="mt-1 text-sm text-ink-soft">{subtitle}</p>}
@@ -110,7 +117,10 @@ function AuthLayout({ children, title, subtitle, extra, icon: Icon }: { children
           </div>
         </main>
       </div>
-      {!isLive() && <div className="fixed right-4 top-10"><DemoPanel /></div>}
+      <div className={cn("fixed right-4 flex items-center gap-2", isLive() && !IS_WEB ? "top-3" : "top-10")}>
+        <ThemeToggle />
+        {!isLive() && !IS_WEB && <DemoPanel />}
+      </div>
       <ToastRegion />
     </div>
   );
@@ -143,8 +153,8 @@ function Chip({ children }: { children: ReactNode }) {
 /** Ô giới thiệu vai trò: chỉ để đọc (không hover, không mũi tên) nên không giống nút bấm. */
 function RoleTile({ icon: Icon, title, text, chips }: { icon: LucideIcon; title: string; text: string; chips: string[] }) {
   return (
-    <div className="flex flex-col rounded-xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgb(11_31_58/0.06)]">
-      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-tint text-teal-dark"><Icon className="h-5 w-5" aria-hidden /></span>
+    <div className="flex flex-col rounded-xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgb(15_23_42/0.06)]">
+      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-tint text-teal-ink"><Icon className="h-5 w-5" aria-hidden /></span>
       <p className="mt-3 font-bold">{title}</p>
       <p className="mt-1 text-sm text-ink-soft">{text}</p>
       <div className="mt-3 flex flex-wrap gap-1.5 [@media(max-height:780px)]:hidden">{chips.map((c) => <Chip key={c}>{c}</Chip>)}</div>
@@ -172,7 +182,7 @@ function FactStrip() {
 
 /** Dòng chuyển giữa đăng nhập và đăng ký, nằm dưới thẻ (không nằm trong thẻ để không trùng liên kết). */
 function AuthSwitch({ text, to, cta }: { text: string; to: string; cta: string }) {
-  return <p className="text-center text-sm text-ink-soft">{text} <Link to={to} className="rounded font-semibold text-teal-dark hover:underline">{cta}</Link></p>;
+  return <p className="text-center text-sm text-ink-soft">{text} <Link to={to} className="rounded font-semibold text-teal-ink hover:underline">{cta}</Link></p>;
 }
 
 /** Ô nhập có biểu tượng đầu dòng (và nút phụ ở cuối nếu có). Giữ nguyên `id`, `type`, `autoComplete` do nơi gọi truyền vào. */
@@ -233,15 +243,30 @@ export function Welcome() {
         </div>
       }
     >
-      <div className="space-y-3">
-        <Button variant="primary" size="lg" className="w-full" onClick={() => navigate("/login")}>Đăng nhập</Button>
-        <Button variant="secondary" size="lg" className="w-full" onClick={() => navigate("/register")}>Tạo tài khoản</Button>
-        {!isLive() && <Button variant="ghost" className="w-full" onClick={() => { signIn(); navigate("/choose-mode"); }}>Vào nhanh với tài khoản demo <ArrowRight className="h-4 w-4" aria-hidden /></Button>}
-      </div>
-      {!isLive() && (
-        <Banner tone="warn" className="mt-6" title="Dữ liệu mẫu">
-          Đăng nhập và đăng ký chỉ minh họa luồng. Không dữ liệu nào được gửi đi hay lưu lại.
-        </Banner>
+      {IS_WEB ? (
+        // Bản web: không có đăng nhập/đăng ký (kể cả giả). Hai việc duy nhất: tải app, hoặc xem danh sách máy mẫu.
+        <>
+          <div className="space-y-3">
+            <DownloadButton size="lg" className="w-full" />
+            <Button variant="secondary" size="lg" className="w-full" onClick={() => navigate("/rent/discover")}>Xem danh sách máy <ArrowRight className="h-4 w-4" aria-hidden /></Button>
+          </div>
+          <Banner tone="info" className="mt-6" title="Bản web chỉ để xem">
+            Thuê máy và cho thuê máy cần cài app Cloud PC Companion cho Windows. Danh sách máy trên web là dữ liệu mẫu.
+          </Banner>
+        </>
+      ) : (
+        <>
+          <div className="space-y-3">
+            <Button variant="primary" size="lg" className="w-full" onClick={() => navigate("/login")}>Đăng nhập</Button>
+            <Button variant="secondary" size="lg" className="w-full" onClick={() => navigate("/register")}>Tạo tài khoản</Button>
+            {!isLive() && <Button variant="ghost" className="w-full" onClick={() => { signIn(); navigate("/choose-mode"); }}>Vào nhanh với tài khoản demo <ArrowRight className="h-4 w-4" aria-hidden /></Button>}
+          </div>
+          {!isLive() && (
+            <Banner tone="warn" className="mt-6" title="Dữ liệu mẫu">
+              Đăng nhập và đăng ký chỉ minh họa luồng. Không dữ liệu nào được gửi đi hay lưu lại.
+            </Banner>
+          )}
+        </>
       )}
     </AuthLayout>
   );
@@ -301,7 +326,7 @@ export function Login() {
         <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>{busy ? "Đang đăng nhập…" : "Đăng nhập"}</Button>
       </form>
       <div className="mt-4 text-center text-sm">
-        <Link to="/recover" className="rounded font-semibold text-teal-dark hover:underline">Quên mật khẩu?</Link>
+        <Link to="/recover" className="rounded font-semibold text-teal-ink hover:underline">Quên mật khẩu?</Link>
       </div>
     </AuthLayout>
   );
@@ -417,7 +442,7 @@ export function Recover() {
             <IconInput icon={Mail} id="qemail" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!err} />
           </Field>
           <Button type="submit" variant="primary" size="lg" className="w-full">Gửi liên kết</Button>
-          <Link to="/login" className="block rounded text-center text-sm font-semibold text-teal-dark hover:underline">Quay lại đăng nhập</Link>
+          <Link to="/login" className="block rounded text-center text-sm font-semibold text-teal-ink hover:underline">Quay lại đăng nhập</Link>
         </form>
       )}
     </AuthLayout>
@@ -428,7 +453,7 @@ export function Recover() {
 function ModeChoice({ icon: Icon, title, text, chips, onPick }: { icon: LucideIcon; title: string; text: string; chips: string[]; onPick: () => void }) {
   return (
     <button type="button" onClick={onPick} className="group flex w-full items-start gap-3.5 rounded-xl border border-line-strong bg-surface p-4 text-left transition-colors hover:border-teal hover:bg-teal-tint/40">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-tint text-teal-dark"><Icon className="h-5 w-5" aria-hidden /></span>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-tint text-teal-ink"><Icon className="h-5 w-5" aria-hidden /></span>
       <span className="min-w-0 flex-1">
         <span className="block font-bold">{title}</span>
         <span className="mt-0.5 block text-sm text-ink-soft">{text}</span>

@@ -56,7 +56,7 @@ describe("khung màn đăng nhập", () => {
     for (const C of [Welcome, Login, Register, Recover, ChooseMode]) {
       const s = html(<C />);
       expect(s).toMatch(/data-testid="auth-backdrop"[^>]*aria-hidden|aria-hidden[^>]*data-testid="auth-backdrop"/);
-      expect(s).toContain("bg-teal-tint text-teal-dark"); // huy hiệu biểu tượng cạnh tiêu đề
+      expect(s).toContain("bg-teal-tint text-teal-ink"); // huy hiệu biểu tượng cạnh tiêu đề
       expect(s).toContain("h-1.5 bg-teal"); // thanh nhấn trên cùng của thẻ
     }
   });

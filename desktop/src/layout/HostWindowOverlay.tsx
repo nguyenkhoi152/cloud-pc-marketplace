@@ -18,11 +18,11 @@ export function HostWindowOverlay() {
   const live = hostSession && !isTerminal(hostSession.phase);
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="ov-title" className="fixed inset-0 z-[55] flex flex-col items-center justify-center gap-6 bg-[#1b3a5c] p-8 text-white">
-      <p className="absolute left-4 top-3 text-xs font-semibold text-sky">Mô phỏng: cửa sổ app đã đóng — đây là màn hình Windows minh họa</p>
+      <p className="absolute left-4 top-3 text-xs font-semibold text-panel-ink">Mô phỏng: cửa sổ app đã đóng — đây là màn hình Windows minh họa</p>
       <div className="max-w-md text-center">
-        {hidden ? <MonitorSmartphone className="mx-auto mb-3 h-10 w-10 text-teal-tint" aria-hidden /> : <Power className="mx-auto mb-3 h-10 w-10 text-warn-bg" aria-hidden />}
+        {hidden ? <MonitorSmartphone className="mx-auto mb-3 h-10 w-10 text-white" aria-hidden /> : <Power className="mx-auto mb-3 h-10 w-10 text-amber-200" aria-hidden />}
         <h2 id="ov-title" className="text-xl font-bold">{hidden ? "Cửa sổ đã đóng — app đang chạy nền" : "App đã thoát — máy ngừng được cung cấp"}</h2>
-        <p className="mt-2 text-sm text-sky">
+        <p className="mt-2 text-sm text-panel-ink">
           {hidden
             ? `Biểu tượng vẫn ở khay hệ thống. Dịch vụ cung cấp máy ${live ? "và phiên đang chạy vẫn tiếp tục" : "vẫn hoạt động theo lịch"}. Đóng cửa sổ không phải là dừng cung cấp.`
             : "Vì chạy nền đang tắt, đóng cửa sổ đã dừng dịch vụ. Máy không nhận phiên mới; lịch không tự bật lại máy."}

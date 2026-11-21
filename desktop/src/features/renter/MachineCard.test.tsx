@@ -94,7 +94,7 @@ describe("cả thẻ là một vùng bấm", () => {
   it("thẻ là một nhóm: có con trỏ bấm được và các phần đổi màu theo cả thẻ (không chỉ chữ tên máy)", () => {
     const s = html(machine());
     expect(s).toMatch(/<article[^>]*class="[^"]*\bgroup\b[^"]*\bcursor-pointer\b/);
-    expect(s).toContain("group-hover:text-teal-dark"); // tên máy
+    expect(s).toContain("group-hover:text-teal-ink"); // tên máy
     expect(s).toContain("group-hover:bg-teal-tint/60"); // dải đầu và chân thẻ
     expect(s).toContain("group-hover:bg-teal-dark"); // nút Chi tiết
     expect(s).not.toContain("hover:underline"); // không còn phản ứng riêng của chữ tên máy

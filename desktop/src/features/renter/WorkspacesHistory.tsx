@@ -94,7 +94,7 @@ export function HistoryList() {
                 <tbody>
                   {list.map((h) => (
                     <tr key={h.id} className="border-b border-line last:border-0 hover:bg-subtle/70">
-                      <td className="px-4 py-3"><Link to={`/rent/history/${h.id}`} className="rounded font-bold hover:text-teal-dark hover:underline">{h.machineName}</Link><p className="text-xs text-ink-faint">{h.hostAlias}</p></td>
+                      <td className="px-4 py-3"><Link to={`/rent/history/${h.id}`} className="rounded font-bold hover:text-teal-ink hover:underline">{h.machineName}</Link><p className="text-xs text-ink-faint">{h.hostAlias}</p></td>
                       <td className="num px-4 py-3 text-ink-soft">{h.startedAt}</td>
                       <td className="num px-4 py-3">{h.minutes ? formatDuration(h.minutes) : "—"}</td>
                       <td className="px-4 py-3 text-right"><Money value={h.charged} /></td>
@@ -145,7 +145,7 @@ export function HistoryDetail({ id }: { id: string }) {
               <aside className="h-fit rounded-lg border border-line bg-surface p-5">
                 <h2 className="mb-3 text-base font-bold">Chi phí (mô phỏng)</h2>
                 <KeyValue items={[{ k: "Tính phí", v: <Money value={h.charged} /> }, { k: "Hoàn lại", v: <Money value={h.refunded} /> }, { k: "Thời lượng dùng", v: h.minutes ? formatDuration(h.minutes) : "—" }]} />
-                <Link to="/wallet" className="mt-4 block rounded text-sm font-semibold text-teal-dark hover:underline">Xem giao dịch liên quan</Link>
+                <Link to="/wallet" className="mt-4 block rounded text-sm font-semibold text-teal-ink hover:underline">Xem giao dịch liên quan</Link>
               </aside>
             </div>
           </>

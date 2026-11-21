@@ -67,11 +67,11 @@ export function MachineCard({ m, index, compared, onToggle }: { m: Machine; inde
     if (isCardBackgroundClick(e.target as Element, window.getSelection()?.toString() ?? "")) navigate(detail);
   };
   return (
-    <article onClick={open} className="group enter lift flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-line bg-surface text-ink shadow-[0_1px_2px_rgb(11_31_58/0.05)] hover:border-teal" style={stagger(index)} data-testid="machine-card" aria-label={m.name}>
+    <article onClick={open} className="group enter lift flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-line bg-surface text-ink shadow-[0_1px_2px_rgb(15_23_42/0.05)] hover:border-teal" style={stagger(index)} data-testid="machine-card" aria-label={m.name}>
       <header className="flex items-start justify-between gap-3 border-b border-line bg-subtle px-5 py-4 transition-colors group-hover:bg-teal-tint/60">
         <div className="min-w-0">
           <h3 className="line-clamp-2 break-words text-lg font-bold leading-tight">
-            <Link to={detail} className="rounded transition-colors group-hover:text-teal-dark">{m.name}</Link>
+            <Link to={detail} className="rounded transition-colors group-hover:text-teal-ink">{m.name}</Link>
           </h3>
           <p className="mt-0.5 truncate text-xs text-ink-faint">{m.hostAlias} · {m.location}</p>
         </div>
@@ -93,14 +93,14 @@ export function MachineCard({ m, index, compared, onToggle }: { m: Machine; inde
         </dl>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {m.categories.map((c) => <span key={c} className="rounded-full bg-sky/70 px-2.5 py-0.5 text-xs font-semibold text-ink-soft">{CATEGORY_LABEL[c]}</span>)}
-          {m.workspace && <span className="rounded-full bg-teal-tint px-2.5 py-0.5 text-xs font-semibold text-teal-dark">Lưu workspace</span>}
+          {m.workspace && <span className="rounded-full bg-teal-tint px-2.5 py-0.5 text-xs font-semibold text-teal-ink">Lưu workspace</span>}
         </div>
         <p className="mt-3 text-xs text-ink-faint"><b className="font-semibold text-ink">{r.text}</b>{r.sub ? ` · ${r.sub}` : ""}</p>
       </div>
 
       <footer className="flex items-center justify-between gap-3 border-t border-line bg-subtle px-5 py-4 transition-colors group-hover:bg-teal-tint/60">
         <p className="min-w-0">
-          <span className="num text-2xl font-bold text-teal-dark" data-testid="machine-price">{m.pricePer15}</span>
+          <span className="num text-2xl font-bold text-teal-ink" data-testid="machine-price">{m.pricePer15}</span>
           <span className="ml-1.5 text-sm text-ink-faint">{live ? "PCP" : "PCP thử"} / 15 phút</span>
         </p>
         <div className="flex shrink-0 items-center gap-3">

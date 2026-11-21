@@ -35,7 +35,7 @@ export function Checkbox({ checked, onChange, label, hint, disabled, className }
     <div className={cn("flex items-start gap-2.5", className)}>
       <span className="relative mt-0.5 inline-flex h-[18px] w-[18px] shrink-0">
         <input id={id} type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="peer absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed" />
-        <span className="pointer-events-none flex h-full w-full items-center justify-center rounded border-2 border-line-strong bg-surface text-white peer-checked:border-teal peer-checked:bg-teal peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#1d4ed8] peer-disabled:opacity-50">
+        <span className="pointer-events-none flex h-full w-full items-center justify-center rounded border-2 border-line-strong bg-surface text-white peer-checked:border-teal peer-checked:bg-teal peer-focus-visible:outline peer-focus-visible:outline-[3px] peer-focus-visible:outline-offset-2 peer-focus-visible:outline-info peer-disabled:opacity-50">
           {checked && <Check className="h-3 w-3" strokeWidth={3.5} aria-hidden />}
         </span>
       </span>
@@ -81,7 +81,7 @@ export function Tabs<V extends string>({ value, onValueChange, items, children, 
     <T.Root value={value} onValueChange={(v) => onValueChange(v as V)} className={className}>
       <T.List className="flex gap-1 border-b border-line" aria-label="Chuyển mục">
         {items.map((i) => (
-          <T.Trigger key={i.value} value={i.value} className="-mb-px inline-flex h-10 items-center gap-1.5 border-b-2 border-transparent px-3.5 text-sm font-semibold text-ink-soft transition-colors hover:text-ink data-[state=active]:border-teal data-[state=active]:text-teal-dark">
+          <T.Trigger key={i.value} value={i.value} className="-mb-px inline-flex h-10 items-center gap-1.5 border-b-2 border-transparent px-3.5 text-sm font-semibold text-ink-soft transition-colors hover:text-ink data-[state=active]:border-teal data-[state=active]:text-teal-ink">
             {i.label}
           </T.Trigger>
         ))}

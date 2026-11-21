@@ -11,7 +11,7 @@ const tones: Record<Tone, string> = {
   danger: "bg-danger-bg text-danger",
   info: "bg-info-bg text-info",
   neutral: "bg-sky/70 text-ink-soft",
-  teal: "bg-teal-tint text-teal-dark",
+  teal: "bg-teal-tint text-teal-ink",
 };
 const icons: Record<Tone, LucideIcon> = { ok: CheckCircle2, warn: AlertTriangle, danger: XCircle, info: Info, neutral: Minus, teal: Clock };
 
