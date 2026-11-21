@@ -526,7 +526,7 @@ Yêu cầu của chủ dự án: "làm hết tất cả giống octaspace … ra
 2. Chạy `scripts/public/fuji-rental-check.mts` (phần chuỗi trên Fuji thật).
 3. Chạy trọn một phiên có host trên WSL2 + Fuji, cục bộ (ghi danh → agent → thuê → xem → kết thúc → chia tiền → rút).
 4. Chủ dự án đồng ý mở tunnel công khai ⇒ E2E qua tunnel trên máy này.
-5. Một người thử ở máy khác chạy một lượt thuê (tiêu chí nghiệm thu).
+5. Một người thử ở máy khác chạy một lượt thuê (tiêu chí nghiệm thu). **Đã làm ngày 21/11/2026:** chủ dự án thử bản demo ở máy khác, mạng khác và ghi nhận hoạt động tốt (ghi nhận bằng tay, chưa có log hay số đo độ trễ/FPS).
 6. Cập nhật tài liệu, chạy lại toàn bộ kiểm tra, dọn tiến trình.
 
 ## Việc còn lại và đầu vào cần từ chủ dự án

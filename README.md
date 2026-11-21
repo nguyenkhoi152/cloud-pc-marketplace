@@ -155,7 +155,7 @@ Công nghệ: TypeScript 6, Node, React 19, Vite 8, Tailwind 4, Tauri 2, Next 16
 
 Phần này ghi rõ điều đã được kiểm chứng và điều chưa, để người đánh giá biết chính xác mức độ hoàn thiện.
 
-**Vòng thuê đầy đủ** (giữ máy → trả tiền → kích hoạt → xem desktop → kết thúc → chia tiền → máy sạch lại) đã chạy thật trên Fuji, nhưng **trên một máy**: người thuê và host cùng mạng, đi qua tunnel công khai. Chưa có người ở máy khác mạng thuê thử và chưa đo hiệu năng.
+**Vòng thuê đầy đủ** (giữ máy → trả tiền → kích hoạt → xem desktop → kết thúc → chia tiền → máy sạch lại) đã chạy thật trên Fuji; lần chạy đo được (18/11/2026) là **trên một máy**: người thuê và host cùng mạng, đi qua tunnel công khai. **Nghiệm thu (21/11/2026):** chủ dự án đã thử bản demo ở **máy khác, mạng khác** và ghi nhận hoạt động tốt. Kết quả này do chủ dự án ghi nhận bằng tay, chưa có log hay số đo kèm theo, và chưa đo hiệu năng.
 
 | Phần | Trạng thái |
 | --- | --- |
@@ -163,13 +163,14 @@ Phần này ghi rõ điều đã được kiểm chứng và điều chưa, đ�
 | Chủ máy tự đăng ký, tự đăng máy sau khi quét đạt, thông số máy do ứng dụng tự đọc, màn Quản trị | Có trong ứng dụng. Thông số máy mới kiểm bằng dữ liệu giả, test và một lần chạy trên máy phát triển; màn Quản trị đã kiểm trong trình duyệt với dữ liệu thật |
 | Ví thử trong ứng dụng, vòi PCP và gas trên Fuji | Chạy thật bằng script dùng chính mã của ứng dụng; ví riêng theo tài khoản đã kiểm trong ứng dụng cài đặt |
 | Thanh toán, kích hoạt, kết thúc, chia tiền trên escrow Fuji | Chạy thật trên một máy: 20/20 bước đạt qua tunnel công khai (18/11), số tiền và phí 10% khớp chính xác (so với giá tính bằng bigint) |
+| Thử ở máy khác, mạng khác | Chủ dự án thử bản demo (nghiệm thu 21/11/2026) và ghi nhận hoạt động tốt; ghi nhận bằng tay, chưa có số đo |
 | Xem màn hình qua gateway của host | Trình duyệt thật đổi token một lần (HTTP 200), WebSocket nhận luồng hình 1280×720; không token bị từ chối (401) |
 | Host WSL2 + Docker + image Selkies | Chạy thật trên máy phát triển: agent ghi danh, nhận lệnh, chạy trọn một phiên |
 | Trạng thái online | Đã đo trên hệ thống thật: sau khi dừng agent, máy chuyển `online` → `offline` trên danh mục công khai sau 1,7 giây. Agent bị tắt cứng hoặc mất điện thì máy offline sau tối đa 90 giây (hết hạn heartbeat) |
 
 **Chưa kiểm chứng**
 
-- Hai máy ở hai mạng khác nhau, độ trễ và FPS: **chưa đo, không có tuyên bố hiệu năng nào**.
+- Độ trễ và FPS giữa hai máy ở hai mạng khác nhau: **chưa đo, không có tuyên bố hiệu năng nào** (chủ dự án đã thử ở máy khác, mạng khác và thấy ổn, nhưng chưa có số đo).
 - Viewer nhúng trong WebView2 (chuột, bàn phím, âm thanh, toàn màn hình).
 - Nút **Rút về ví** bấm qua giao diện (hàm rút của ví ứng dụng đã chạy thật trên Fuji bằng script, xem mục 3).
 - Bộ cài trên máy khác (chưa ký số: SmartScreen cảnh báo, Smart App Control chặn hẳn).
