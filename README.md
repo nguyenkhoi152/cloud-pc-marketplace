@@ -231,7 +231,7 @@ Lệnh riêng lẻ: `npm run typecheck`, `npm run lint`, `npm run build:desktop`
 
 Máy chủ API, worker và máy cho thuê của bản demo chạy trên PC của nhóm phát triển, nên chỉ dùng được khi nhóm đang bật; địa chỉ tunnel Cloudflare đổi mỗi lần khởi động lại. Liên hệ nhóm để hẹn giờ thử và nhận liên kết kết nối.
 
-1. Cài `Cloud PC Companion_0.2.5_x64-setup.exe` (Windows 11), tải ở mục **Releases** của repo, kèm `SHA256SUMS.txt`. Bộ cài **chưa ký số** (`Get-AuthenticodeSignature` báo `NotSigned`), nên tùy máy sẽ gặp một trong hai trường hợp:
+1. Cài `Cloud PC Companion_0.2.6_x64-setup.exe` (Windows 11), tải ở mục **Releases** của repo, kèm `SHA256SUMS.txt`. Bộ cài **chưa ký số** (`Get-AuthenticodeSignature` báo `NotSigned`), nên tùy máy sẽ gặp một trong hai trường hợp:
    - **SmartScreen** ("Windows protected your PC"): đối chiếu SHA-256 trong `SHA256SUMS.txt` bằng `Get-FileHash <tệp> -Algorithm SHA256`, rồi chọn *More info → Run anyway*.
    - **Smart App Control** (thường bật sẵn trên Windows 11 mới cài): **chặn hẳn, không có nút bỏ qua và không cho phép riêng từng ứng dụng**. Chỉ có cách tắt trong *Windows Security → App & browser control → Smart App Control settings → Off*. Trên bản Windows cũ, đã tắt thì không bật lại được nếu không cài lại Windows (bản mới hơn có thể bật lại). Nếu không muốn tắt, dùng máy khác hoặc xem mức A.
 2. Bấm **liên kết kết nối** do nhóm cấp (`https://….trycloudflare.com/api/connect`), chọn *Mở*, rồi **Kết nối** ở hộp xác nhận. Nếu không được, dán địa chỉ vào **Cài đặt → Kết nối máy chủ**. Chỉ dán địa chỉ từ nguồn đáng tin: ứng dụng gửi phiên đăng nhập tới địa chỉ đó.
