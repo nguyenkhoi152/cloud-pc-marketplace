@@ -1,6 +1,6 @@
 import { CalendarOff, CalendarPlus, Copy, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { addDays, DAY_LABELS, DEMO_DATE, formatDateVi, parseHM, TIMEZONE_LABEL } from "@/domain/clock";
+import { addDays, DAY_LABELS, DEMO_DATE, formatDateVi, parseEndHM, parseHM, TIMEZONE_LABEL } from "@/domain/clock";
 import { effectiveRanges, totalWeeklyMinutes, upcomingWindows, validateException, validateRanges, validateWeekly } from "@/domain/schedule";
 import type { ScheduleException, TimeRange, WeeklySchedule } from "@/domain/types";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ function DayBar({ ranges }: { ranges: TimeRange[] }) {
     <div className="relative h-4 w-full rounded bg-line/70" aria-hidden>
       {ranges.map((r, i) => {
         const s = parseHM(r.start);
-        const e = parseHM(r.end);
+        const e = parseEndHM(r.end);
         if (s === null || e === null || e <= s) return null;
         return <span key={i} className="absolute top-0 h-full rounded bg-teal" style={{ left: `${(s / 1440) * 100}%`, width: `${((e - s) / 1440) * 100}%` }} />;
       })}

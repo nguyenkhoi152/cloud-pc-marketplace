@@ -15,6 +15,15 @@ export function parseHM(s: string): number | null {
   return h * 60 + mi;
 }
 
+/**
+ * Giờ KẾT THÚC của một khung: "00:00" nghĩa là hết ngày (24:00 = 1440 phút), giống cơ sở dữ liệu (end_minute đến 1440).
+ * Ô giờ của trình duyệt không nhập được "24:00", nên chủ máy gõ "00:00" để nói "đến nửa đêm".
+ */
+export function parseEndHM(s: string): number | null {
+  const v = parseHM(s);
+  return v === 0 ? 1440 : v;
+}
+
 export function formatHM(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;

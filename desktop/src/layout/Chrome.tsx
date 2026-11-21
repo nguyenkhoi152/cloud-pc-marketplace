@@ -19,7 +19,7 @@ import { Button } from "@/ui/button";
 import { RadioGroup } from "@/ui/radio";
 import { ThemeToggle } from "@/ui/theme-toggle";
 import { Money } from "@/ui/page";
-import { ADMIN_NAV, COMMON_NAV, HOST_NAV, LIVE_NAV, RENT_NAV, isActive, type NavItem } from "./nav";
+import { ADMIN_NAV, COMMON_NAV, hostNav, isActive, isComingSoon, rentNav, type NavItem } from "./nav";
 
 /* ---------- Dải thông báo (chỉ ở bản xem trước: dữ liệu mẫu phải được ghi rõ) ---------- */
 export function DemoBanner() {
@@ -185,7 +185,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void } = {}) {
 }
 
 /* ---------- Sidebar ---------- */
-function NavLink({ item, path, badge }: { item: NavItem; path: string; badge?: string }) {
+function NavLink({ item, path, badge, soon }: { item: NavItem; path: string; badge?: string; soon?: boolean }) {
   const active = isActive(item, path);
   return (
     <Link to={item.to} aria-current={active ? "page" : undefined} className={cn("relative flex h-9 items-center rounded-md px-2.5 text-sm font-semibold transition-colors duration-150", active ? "text-teal-ink" : "text-ink-soft hover:bg-sky/60 hover:text-ink")}>
@@ -195,6 +195,8 @@ function NavLink({ item, path, badge }: { item: NavItem; path: string; badge?: s
         <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
         <span className="truncate">{isLive() ? (item.liveLabel ?? item.label) : item.label}</span>
         {badge && <span className="num ml-auto rounded-full bg-navy px-1.5 text-[11px] font-bold leading-5 text-white">{badge}</span>}
+        {/* App (live): mục chưa nối chức năng thật vẫn hiện cho giống bản web, gắn nhãn để không ai tưởng đã dùng được. */}
+        {soon && <span className="ml-auto shrink-0 rounded-full border border-line-strong px-1.5 text-[10px] font-semibold leading-4 text-ink-faint" data-testid="nav-soon">Sắp có</span>}
         {/* Bản web: mục cần app có biểu tượng khóa (bấm vào vẫn ra màn giải thích + nút tải app). */}
         {IS_WEB && !isOpenOnWeb(item.to) && (
           <span className="ml-auto text-ink-faint">
@@ -216,8 +218,8 @@ export function Sidebar({ path }: { path: string }) {
   const isAdmin = useAppStore((s) => !!s.account.isAdmin);
 
   const live = isLive();
-  const rent = RENT_NAV.filter((i) => (live ? LIVE_NAV.has(i.to) : !i.liveOnly && (i.to !== "/rent/session" || !!session)));
-  const host = HOST_NAV.filter((i) => (live ? LIVE_NAV.has(i.to) : i.liveOnly ? false : i.to === "/host/onboarding/intro" ? approval !== "approved" : true));
+  const rent = rentNav({ live, hasSession: !!session });
+  const host = hostNav({ live, approved: approval === "approved" });
 
   const badgeFor = (to: string) => {
     if (to === "/rent/session" && session) return isTerminal(session.phase) ? "!" : formatClock(session.remainingSec);
@@ -237,7 +239,7 @@ export function Sidebar({ path }: { path: string }) {
       <nav className="flex flex-1 flex-col gap-0.5 overflow-auto p-2.5" aria-label={mode === "rent" ? "Thuê máy" : "Cho thuê máy"}>
         <p className="px-2.5 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-ink-faint">{mode === "rent" ? "Thuê máy" : "Cho thuê máy"}</p>
         {(mode === "rent" ? rent : host).map((i) => (
-          <NavLink key={i.to} item={i} path={path} badge={badgeFor(i.to)} />
+          <NavLink key={i.to} item={i} path={path} badge={badgeFor(i.to)} soon={isComingSoon(i.to, live)} />
         ))}
         {live && isAdmin && (
           <>
@@ -246,8 +248,8 @@ export function Sidebar({ path }: { path: string }) {
           </>
         )}
         <p className="mt-4 px-2.5 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-faint">Chung</p>
-        {COMMON_NAV.filter((i) => !live || LIVE_NAV.has(i.to)).map((i) => (
-          <NavLink key={i.to} item={i} path={path} />
+        {COMMON_NAV.map((i) => (
+          <NavLink key={i.to} item={i} path={path} soon={isComingSoon(i.to, live)} />
         ))}
       </nav>
       <p className="border-t border-line p-3 text-[11px] leading-snug text-ink-faint">{IS_WEB ? "Bản web · chỉ để xem" : isLive() ? (networkLabel(envFacts())?.footer ?? "") : "Bản xem trước · dữ liệu mẫu"}</p>

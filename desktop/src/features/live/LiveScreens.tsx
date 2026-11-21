@@ -2,15 +2,15 @@
  * Màn hình chỉ có ở chế độ live (dữ liệu thật trên Supabase dev). Mọi thứ chưa nối được nói rõ là chưa nối;
  * không dựng số dư, phiên, thanh toán hay trạng thái online giả.
  */
-import { ArrowDownToLine, CircleSlash, Coins, Fuel, Plus, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowDownToLine, CircleSlash, Coins, Fuel, MonitorPlay, Plus, Timer, Undo2, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { getDevWallet, getLiveApi, getServerApi, serverApiConfigured } from "@/api";
 import { linkWallet, type Eip1193 } from "@/api/wallet";
 import { formatUnits, splitFeeUnits, type DeclaredSpecs, type HostMachine, type HostMachineStatus, type LiveBooking } from "@/api/live";
 import { Link, navigate } from "@/app/router";
 import { ACCESS_STATE_LABEL, BOOKING_STATE_LABEL } from "@/domain/adminData";
 import { bookingPhase, formatRemaining } from "@/domain/bookingPhase";
-import { sessionSteps, type StepView } from "@/domain/sessionSteps";
+import { sessionSteps } from "@/domain/sessionSteps";
 import { cn, stagger } from "@/lib/utils";
 import { HostSessions } from "./HostSetup";
 import { hostNativeAvailable } from "@/api/hostNative";
@@ -22,16 +22,13 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Field, Input, Select, Switch } from "@/ui/controls";
 import { Async, Banner, EmptyState } from "@/ui/feedback";
+import { StepList } from "@/ui/steps";
 import { KeyValue, PageHeader, Section, StatTile } from "@/ui/page";
 import { Amount } from "./Amount";
+import { WeeklySchedulePanel } from "./WeeklySchedulePanel";
 
 const TZ = "Asia/Ho_Chi_Minh";
 const fmt = (iso: string) => new Date(iso).toLocaleString("vi-VN", { timeZone: TZ, hour12: false, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-const hm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-const parseHm = (s: string) => {
-  const m = /^(\d{2}):(\d{2})$/.exec(s);
-  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
-};
 const WEEKDAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"];
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString("vi-VN", { timeZone: TZ, hour12: false, hour: "2-digit", minute: "2-digit" });
 /** Khung nhận thuê: "Thứ Hai 23/11, 19:00–23:00" (ngày theo giờ Việt Nam; `day` là ngày địa phương dạng YYYY-MM-DD). */
@@ -208,6 +205,24 @@ const keyFor = (machineId: string) => {
   return k;
 };
 
+function CostRow({ label, value, sub, strong }: { label: string; value: string; sub?: boolean; strong?: boolean }) {
+  return (
+    <div className={cn("flex items-baseline justify-between gap-3", sub && "pl-3 text-ink-faint", strong && "text-base font-bold")}>
+      <dt>{label}</dt>
+      <dd className="num whitespace-nowrap font-semibold">{value}</dd>
+    </div>
+  );
+}
+
+function RuleCard({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-line bg-surface p-4">
+      <p className="flex items-center gap-2 font-bold"><Icon className="h-4 w-4 text-teal-ink" aria-hidden />{title}</p>
+      <p className="mt-1.5 text-sm text-ink-soft">{children}</p>
+    </div>
+  );
+}
+
 export function LiveCheckout({ id }: { id: string }) {
   const state = useAsync(async () => {
     const api = getLiveApi();
@@ -237,55 +252,89 @@ export function LiveCheckout({ id }: { id: string }) {
       {(d) => {
         if (!d) return null;
         const { fee, host } = splitFeeUnits(d.priceUnits, d.cfg.feeBps);
+        const crumbs = [{ label: "Khám phá máy", to: "/rent/discover" }, { label: d.machine.name, to: `/rent/machine/${id}` }, { label: booking ? "Đã giữ máy" : "Xác nhận" }];
+        const layout = "grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_340px]";
+        const card = "h-fit rounded-xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_23_42/0.05)] lg:sticky lg:top-0";
+        if (booking) {
+          return (
+            <div>
+              <PageHeader title="Đã giữ máy" subtitle={d.machine.name} crumbs={crumbs} />
+              <div className={layout}>
+                <div className="space-y-5">
+                  <Banner tone="ok" title="Máy đã được giữ cho bạn">
+                    Mã phiên <span className="num font-semibold">{booking.id.slice(0, 8)}</span>. Hãy thanh toán trước <strong>{fmt(booking.fundBy)}</strong>, nếu không máy sẽ được nhả cho người khác.
+                  </Banner>
+                  <StepList steps={sessionSteps(booking)} />
+                  {getDevWallet() && serverApiConfigured() ? (
+                    <Banner tone="info" title="Bước tiếp theo: thanh toán">
+                      Mở Phiên & đặt chỗ của tôi rồi bấm Trả tiền. Sau khi thanh toán, máy được chuẩn bị và bạn mở được màn hình.
+                    </Banner>
+                  ) : (
+                    <Banner tone="warn" title="Cần ví để thanh toán">
+                      Hãy liên kết ví ở mục Ví để thanh toán. Máy sẽ được nhả nếu quá hạn thanh toán.
+                    </Banner>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="primary" size="lg" onClick={() => navigate("/rent/history")}>Tới Phiên & đặt chỗ của tôi</Button>
+                    <Button variant="secondary" size="lg" onClick={() => navigate("/rent/discover")}>Về danh mục</Button>
+                  </div>
+                </div>
+                <aside className={card} aria-label="Thông tin giữ chỗ">
+                  <h2 className="text-lg font-bold">Thông tin giữ chỗ</h2>
+                  <KeyValue className="mt-3" items={[
+                    { k: "Gói", v: `${booking.durationSeconds / 60} phút` },
+                    { k: "Giá gói", v: `${formatUnits(booking.priceUnits)} PCP` },
+                    { k: "Hạn thanh toán", v: fmt(booking.fundBy) },
+                    { k: "Hạn kích hoạt", v: fmt(booking.activateBy) },
+                    { k: "Trạng thái", v: `${BOOKING_STATE_LABEL[booking.state] ?? booking.state} · ${ACCESS_STATE_LABEL[booking.accessState] ?? booking.accessState}` },
+                  ]} />
+                </aside>
+              </div>
+            </div>
+          );
+        }
         return (
           <div>
-            <PageHeader title="Giữ máy" subtitle={d.machine.name} crumbs={[{ label: "Khám phá", to: "/rent/discover" }, { label: d.machine.name, to: `/rent/machine/${id}` }, { label: "Giữ máy" }]} />
-            {booking ? (
-              <Section title="Đã giữ máy">
-                <Banner tone="ok" title="Máy đã được giữ cho bạn">
-                  Mã phiên <span className="num font-semibold">{booking.id.slice(0, 8)}</span>. Hãy thanh toán trước <strong>{fmt(booking.fundBy)}</strong>, nếu không máy sẽ được nhả cho người khác.
-                </Banner>
-                <KeyValue className="mt-4" items={[
-                  { k: "Gói", v: `${booking.durationSeconds / 60} phút` },
-                  { k: "Giá gói", v: `${formatUnits(booking.priceUnits)} PCP` },
-                  { k: "Hạn thanh toán", v: fmt(booking.fundBy) },
-                  { k: "Hạn kích hoạt", v: fmt(booking.activateBy) },
-                  { k: "Trạng thái", v: `${BOOKING_STATE_LABEL[booking.state] ?? booking.state} · ${ACCESS_STATE_LABEL[booking.accessState] ?? booking.accessState}` },
-                ]} />
-                {getDevWallet() && serverApiConfigured() ? (
-                  <Banner tone="info" className="mt-4" title="Bước tiếp theo: thanh toán">
-                    Mở Phiên & đặt chỗ của tôi rồi bấm Trả tiền. Sau khi thanh toán, máy được chuẩn bị và bạn mở được màn hình.
-                  </Banner>
-                ) : (
-                  <Banner tone="warn" className="mt-4" title="Cần ví để thanh toán">
-                    Hãy liên kết ví ở mục Ví để thanh toán. Máy sẽ được nhả nếu quá hạn thanh toán.
-                  </Banner>
-                )}
-                <div className="mt-4 flex gap-2">
-                  <Button variant="primary" onClick={() => navigate("/rent/history")}>Tới Phiên & đặt chỗ của tôi</Button>
-                  <Button variant="secondary" onClick={() => navigate("/rent/discover")}>Về danh mục</Button>
-                </div>
-              </Section>
-            ) : (
-              <Section title="Xác nhận giữ máy">
-                <KeyValue items={[
-                  { k: "Thời lượng gói", v: `${d.cfg.packageSeconds / 60} phút` },
-                  { k: "Giá gói", v: `${formatUnits(d.priceUnits)} PCP` },
-                  { k: `Phí nền tảng ${d.cfg.feeBps / 100}% (đã gồm trong giá)`, v: `${formatUnits(fee)} PCP` },
-                  { k: "Host nhận", v: `${formatUnits(host)} PCP` },
-                  { k: "Hạn thanh toán sau khi giữ", v: `${d.cfg.quoteTtlSeconds / 60} phút` },
-                ]} />
-                <Banner tone="info" className="mt-4" title="Quy tắc thanh toán">
-                  Hủy trước khi máy được kích hoạt: hoàn đủ, tiền hoàn nằm trong hợp đồng và bạn rút về ví ở mục Ví. Thời gian thuê tính từ lúc máy được kích hoạt. Kết thúc sớm sau khi kích hoạt vẫn trả cả gói.
-                </Banner>
+            <PageHeader title="Xác nhận thuê" subtitle={d.machine.name} crumbs={crumbs} />
+            <div className={layout}>
+              <div className="space-y-8">
+                <section aria-labelledby="co-pkg">
+                  <h2 id="co-pkg" className="text-lg font-bold">1. Gói thuê</h2>
+                  <p className="mt-1 text-sm text-ink-soft">Mỗi lần thuê là một gói cố định. Thời gian thuê tính từ lúc máy được kích hoạt, không phải lúc bạn bấm giữ máy.</p>
+                  <div className="mt-3 inline-flex flex-col rounded-lg border-2 border-teal bg-teal-tint px-5 py-3" aria-current="true">
+                    <span className="text-lg font-bold text-teal-ink">{d.cfg.packageSeconds / 60} phút</span>
+                    <span className="num text-sm text-ink-soft">{formatUnits(d.priceUnits)} PCP</span>
+                  </div>
+                </section>
+                <section aria-labelledby="co-rules">
+                  <h2 id="co-rules" className="text-lg font-bold">2. Quy tắc thanh toán</h2>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <RuleCard icon={Undo2} title="Hủy trước khi kích hoạt">Hoàn đủ. Tiền hoàn nằm trong hợp đồng, bạn rút về ví ở mục Ví.</RuleCard>
+                    <RuleCard icon={Timer} title="Kết thúc sớm">Sau khi kích hoạt vẫn trả cả gói đã chọn; chưa tính tiền theo phút.</RuleCard>
+                  </div>
+                </section>
+              </div>
+              <aside className={card} aria-label="Chi phí">
+                <h2 className="text-lg font-bold">Chi phí</h2>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <CostRow label="Giá thuê (1 gói)" value={`${formatUnits(d.priceUnits)} PCP`} />
+                  <CostRow sub label={`Trong đó phí nền tảng ${d.cfg.feeBps / 100}%`} value={`${formatUnits(fee)} PCP`} />
+                  <CostRow sub label="Chủ máy nhận" value={`${formatUnits(host)} PCP`} />
+                </dl>
+                <dl className="mt-3 space-y-2 border-t border-line pt-3 text-sm">
+                  <CostRow strong label="Tạm giữ khi thanh toán" value={`${formatUnits(d.priceUnits)} PCP`} />
+                  <CostRow label="Hạn thanh toán sau khi giữ" value={`${d.cfg.quoteTtlSeconds / 60} phút`} />
+                </dl>
+                <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-ink-soft">
+                  <li>Bạn cần liên kết ví trước, và không thuê được máy của chính mình.</li>
+                  <li>Giữ máy chưa trừ tiền: tiền chỉ được tạm giữ trong hợp đồng khi bạn thanh toán.</li>
+                  <li>PCP là token thử nghiệm, không phải tiền thật.</li>
+                </ul>
                 {error && <Banner tone="danger" className="mt-4" title="Không giữ được máy">{error}</Banner>}
-                <div className="mt-4 flex gap-2">
-                  <Button variant="primary" size="lg" onClick={reserve} disabled={busy}>{busy ? "Đang giữ máy…" : "Giữ máy"}</Button>
-                  <Button variant="secondary" size="lg" onClick={() => navigate(`/rent/machine/${id}`)}>Quay lại</Button>
-                </div>
-                <p className="mt-2 text-xs text-ink-faint">Bạn cần liên kết ví trước, và không thuê được máy của chính mình.</p>
-              </Section>
-            )}
+                <Button variant="primary" size="lg" className="mt-4 w-full" onClick={reserve} disabled={busy}>{busy ? "Đang giữ máy…" : "Giữ máy"}</Button>
+                <Button variant="secondary" size="lg" className="mt-2 w-full" onClick={() => navigate(`/rent/machine/${id}`)}>Quay lại</Button>
+              </aside>
+            </div>
           </div>
         );
       }}
@@ -369,17 +418,17 @@ function BookingActions({ b, onChanged }: { b: LiveBooking; onChanged: () => voi
     }
   };
   return (
-    <div className="w-full space-y-2">
-      <SessionProgress steps={sessionSteps(b)} />
-      <div className="rounded-md bg-subtle p-2.5 text-sm">
-        <p className="font-semibold" data-testid="phase-label">{ph.label}</p>
-        <p className="text-ink-soft">{ph.detail}</p>
-        <p className="mt-1 text-xs"><b>Nếu dừng ở bước này:</b> {ph.policyText}</p>
-        {ph.clockRunning && ph.remainingSec !== null && <p className="num mt-1 text-xs font-semibold">Còn lại: {formatRemaining(ph.remainingSec)}</p>}
+    <div className="w-full space-y-4">
+      <StepList steps={sessionSteps(b)} />
+      <div className={cn("rounded-lg border p-3.5 text-sm", b.state === "active" ? "border-ok/30 bg-ok-bg text-ok-ink" : "border-info/30 bg-info-bg text-info-ink")}>
+        <p className="font-bold" data-testid="phase-label">{ph.label}</p>
+        <p className="mt-0.5">{ph.detail}</p>
+        <p className="mt-1.5 text-xs"><b>Nếu dừng ở bước này:</b> {ph.policyText}</p>
+        {ph.clockRunning && ph.remainingSec !== null && <p className="num mt-1.5 text-base font-bold">Còn lại: {formatRemaining(ph.remainingSec)}</p>}
       </div>
       {b.state === "active" && b.accessState === "granted" && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="primary" onClick={open} disabled={busy || !serverApiConfigured()}>{busy ? "Đang mở…" : "Mở màn hình"}</Button>
+          <Button variant="primary" onClick={open} disabled={busy || !serverApiConfigured()}><MonitorPlay className="h-4 w-4" aria-hidden />{busy ? "Đang mở…" : "Vào phiên"}</Button>
           {!serverApiConfigured() && <span className="text-xs text-ink-faint">Ứng dụng chưa kết nối máy chủ (Cài đặt → Kết nối máy chủ).</span>}
         </div>
       )}
@@ -387,10 +436,10 @@ function BookingActions({ b, onChanged }: { b: LiveBooking; onChanged: () => voi
         ? <SignAction label="Trả tiền" busy={busy} onClick={() => void sign("Thanh toán", (w) => w.pay(b.id, getServerApi()))} />
         : <DisabledAction label="Trả tiền" reason="Hãy liên kết ví ở mục Ví trước." />)}
       {b.state === "funded" && (dev && serverApiConfigured()
-        ? <SignAction label="Hủy trước khi kích hoạt (hoàn đủ)" busy={busy} onClick={() => void sign("Hủy", async (w) => w.cancelBeforeStart(await needChain(), getServerApi()))} />
+        ? <SignAction secondary label="Hủy trước khi kích hoạt (hoàn đủ)" busy={busy} onClick={() => void sign("Hủy", async (w) => w.cancelBeforeStart(await needChain(), getServerApi()))} />
         : <DisabledAction label="Hủy trước khi kích hoạt (hoàn đủ)" reason="Hãy liên kết ví ở mục Ví trước." />)}
       {b.state === "active" && (dev && serverApiConfigured()
-        ? <SignAction label="Kết thúc sớm (vẫn trả cả gói)" busy={busy} onClick={() => void sign("Kết thúc", async (w) => w.accept(await needChain(), getServerApi()))} />
+        ? <SignAction secondary label="Kết thúc sớm (vẫn trả cả gói)" busy={busy} onClick={() => void sign("Kết thúc", async (w) => w.accept(await needChain(), getServerApi()))} />
         : <DisabledAction label="Kết thúc sớm (vẫn trả cả gói)" reason="Hãy liên kết ví ở mục Ví trước." />)}
       {note && <Banner tone="ok" title="Đã gửi">{note}</Banner>}
       {signErr && <Banner tone="danger" title="Chưa thực hiện được">{signErr}</Banner>}
@@ -400,33 +449,10 @@ function BookingActions({ b, onChanged }: { b: LiveBooking; onChanged: () => voi
   );
 }
 
-const STEP_CLS: Record<StepView["state"], string> = {
-  done: "border-ok-solid bg-ok-solid text-white",
-  current: "border-teal bg-teal-tint text-teal-ink",
-  failed: "border-danger bg-danger-bg text-danger",
-  todo: "border-line-strong bg-surface text-ink-faint",
-  skipped: "border-line bg-subtle text-ink-faint line-through",
-};
-const STEP_SR: Record<StepView["state"], string> = { done: "đã xong", current: "đang diễn ra", failed: "gặp sự cố", todo: "chưa tới", skipped: "không diễn ra" };
-/** Bảy bước của một phiên; chỉ phản ánh trạng thái do máy chủ/chuỗi xác nhận. */
-function SessionProgress({ steps }: { steps: StepView[] }) {
-  return (
-    <ol className="flex flex-wrap gap-1.5" aria-label="Tiến trình phiên" data-testid="session-steps">
-      {steps.map((s, i) => (
-        <li key={s.key} data-step={s.key} data-state={s.state} className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", STEP_CLS[s.state])} aria-current={s.state === "current" ? "step" : undefined}>
-          <span aria-hidden>{s.state === "done" ? "✓" : s.state === "failed" ? "!" : i + 1}</span>
-          {s.label}
-          <span className="sr-only"> — {STEP_SR[s.state]}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function SignAction({ label, busy, onClick }: { label: string; busy: boolean; onClick: () => void }) {
+function SignAction({ label, busy, onClick, secondary }: { label: string; busy: boolean; onClick: () => void; secondary?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="primary" onClick={onClick} disabled={busy}>{busy ? "Đang xử lý giao dịch…" : label}</Button>
+      <Button variant={secondary ? "secondary" : "primary"} onClick={onClick} disabled={busy}>{busy ? "Đang xử lý giao dịch…" : label}</Button>
     </div>
   );
 }
@@ -434,7 +460,7 @@ function SignAction({ label, busy, onClick }: { label: string; busy: boolean; on
 function DisabledAction({ label, reason }: { label: string; reason: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="secondary" disabled>{label}</Button>
+      <Button variant="secondary" disabled>{label}</Button>
       <span className="text-xs text-ink-faint">{reason}</span>
     </div>
   );
@@ -442,6 +468,40 @@ function DisabledAction({ label, reason }: { label: string; reason: string }) {
 
 const TERMINAL_MONEY = new Set(["settled", "refunded", "resolved", "cancelled", "expired"]);
 const isDone = (b: LiveBooking) => TERMINAL_MONEY.has(b.state) && (b.accessState === "not_granted" || b.accessState === "reset_verified");
+
+/** Một phiên thuê: tên máy + trạng thái, tiến trình và hành động bên trái, thẻ chi phí/quyết toán bên phải (như màn Phiên trong bản xem trước). */
+function BookingCard({ b, name, index, onChanged }: { b: LiveBooking; name: string; index: number; onChanged: () => void }) {
+  const { fee, host } = splitFeeUnits(b.priceUnits, b.feeBps);
+  const ended = TERMINAL_MONEY.has(b.state);
+  return (
+    <li style={stagger(index)} className="enter rounded-xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(15_23_42/0.05)]" data-testid="booking-card">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3.5">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-tint text-teal-ink" aria-hidden><MonitorPlay className="h-6 w-6" /></span>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold leading-tight">{name}</p>
+            <p className="text-xs text-ink-faint">Giữ lúc {fmt(b.createdAt)} · gói {b.durationSeconds / 60} phút</p>
+          </div>
+        </div>
+        <Badge tone={BOOKING_TONE[b.state] ?? "neutral"} icon={false}>{BOOKING_STATE_LABEL[b.state] ?? b.state}</Badge>
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <BookingActions b={b} onChanged={onChanged} />
+        <aside className="h-fit rounded-lg border border-line bg-subtle p-4 text-sm" aria-label={ended ? "Quyết toán" : "Chi phí"}>
+          <h3 className="text-base font-bold">{ended ? "Quyết toán" : "Chi phí"}</h3>
+          <dl className="mt-3 space-y-2">
+            <div className="flex items-baseline justify-between gap-3"><dt className="text-ink-soft">Giá gói</dt><dd className="num whitespace-nowrap font-semibold"><Amount units={b.priceUnits} suffix="PCP" inline /></dd></div>
+            <div className="flex items-baseline justify-between gap-3 pl-3 text-ink-faint"><dt>Phí nền tảng {b.feeBps / 100}%</dt><dd className="num whitespace-nowrap font-semibold">{formatUnits(fee)} PCP</dd></div>
+            <div className="flex items-baseline justify-between gap-3 pl-3 text-ink-faint"><dt>Chủ máy nhận</dt><dd className="num whitespace-nowrap font-semibold">{formatUnits(host)} PCP</dd></div>
+            {b.state === "reserved" && <div className="flex items-baseline justify-between gap-3 border-t border-line pt-2"><dt className="text-ink-soft">Hạn thanh toán</dt><dd className="num font-semibold">{fmt(b.fundBy)}</dd></div>}
+            {b.state === "funded" && <div className="flex items-baseline justify-between gap-3 border-t border-line pt-2"><dt className="text-ink-soft">Hạn kích hoạt</dt><dd className="num font-semibold">{fmt(b.activateBy)}</dd></div>}
+          </dl>
+          <p className="mt-3 text-xs text-ink-faint">Kết thúc sớm vẫn trả cả gói; chưa tính tiền theo phút. PCP là token thử nghiệm, không phải tiền thật.</p>
+        </aside>
+      </div>
+    </li>
+  );
+}
 
 export function LiveBookings() {
   const [tick, setTick] = useState(0);
@@ -463,16 +523,9 @@ export function LiveBookings() {
       <PageHeader title="Đặt chỗ của tôi" subtitle="Theo dõi các phiên thuê của bạn. Trạng thái tự cập nhật, không cần tải lại." />
       <Async state={state} isEmpty={(l) => l.length === 0} empty={<EmptyState title="Bạn chưa giữ máy nào" action={<Button onClick={() => navigate("/rent/discover")}>Khám phá máy</Button>} />}>
         {(list) => (
-          <ul className="space-y-2">
+          <ul className="space-y-4">
             {list.map(({ b, name }, i) => (
-              <li key={b.id} style={stagger(i)} className="enter flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface p-3.5 shadow-[0_1px_2px_rgb(15_23_42/0.05)]">
-                <div>
-                  <p className="font-semibold">{name}</p>
-                  <p className="text-xs text-ink-faint">Giữ lúc {fmt(b.createdAt)} · hạn thanh toán {fmt(b.fundBy)} · <Amount units={b.priceUnits} suffix="PCP" inline /></p>
-                </div>
-                <Badge tone={BOOKING_TONE[b.state] ?? "neutral"} icon={false}>{BOOKING_STATE_LABEL[b.state] ?? b.state}</Badge>
-                <BookingActions b={b} onChanged={() => setTick((n) => n + 1)} />
-              </li>
+              <BookingCard key={b.id} b={b} name={name} index={i} onChanged={() => setTick((n) => n + 1)} />
             ))}
           </ul>
         )}
@@ -603,11 +656,10 @@ export function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => 
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: TZ });
     const end = new Date(Date.now() + 6 * 86_400_000).toLocaleDateString("sv-SE", { timeZone: TZ });
     const [commitments, rules, accepting, health, windows] = await Promise.all([api.listCommitments(m.id), api.listRules(m.id), api.getAccepting(m.id), api.health(m.id), api.windows(m.id, today, end)]);
-    return { commitments, rules, accepting, health, windows };
+    return { commitments, rules, accepting, health, windows, today };
   }, [m.id]);
   const [err, setErr] = useState("");
   const [hours, setHours] = useState("4");
-  const [rule, setRule] = useState({ weekday: "0", from: "19:00", to: "23:00" });
   const run = async (fn: () => Promise<void>, after: "detail" | "list" = "detail") => {
     setErr("");
     try {
@@ -674,7 +726,7 @@ export function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => 
       {err && <Banner tone="danger" className="mt-3" title="Thao tác không thành công">{err}</Banner>}
       <Async state={detail} skeleton={<p className="mt-3 text-sm text-ink-faint">Đang tải…</p>}>
         {(d) => (
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <div className="mt-3 space-y-6">
             <div>
               <p className="mb-1 text-sm font-semibold">Cam kết cho thuê (tối thiểu 4 giờ)</p>
               {d.commitments.length === 0 ? <p className="text-sm text-ink-soft">Chưa có. Cần ít nhất một cam kết để người thuê giữ được máy.</p> : (
@@ -691,36 +743,14 @@ export function MachinePanel({ m, onChange }: { m: HostMachine; onChange: () => 
               <p className="mt-1 text-xs text-ink-faint">Không rút được cam kết khi đang có phiên thuê dựa trên cam kết đó.</p>
             </div>
             <div>
-              <p className="mb-1 text-sm font-semibold">Lịch nhận thuê hằng tuần (GMT+7)</p>
-              {d.rules.length === 0 ? <p className="text-sm text-ink-soft">Chưa có khung giờ.</p> : (
-                <ul className="space-y-1 text-sm">
-                  {d.rules.map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-2">
-                      <span>{WEEKDAYS[r.weekday]} {hm(r.startMinute)}–{hm(r.endMinute)}</span>
-                      <Button size="sm" variant="ghost" aria-label="Xóa khung giờ" onClick={() => void run(() => api.removeRule(r.id))}><Trash2 className="h-4 w-4" aria-hidden /></Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-2 flex flex-wrap items-end gap-2">
-                <Field label="Ngày" htmlFor={`d-${m.id}`}>
-                  <Select id={`d-${m.id}`} value={rule.weekday} onChange={(e) => setRule({ ...rule, weekday: e.target.value })}>{WEEKDAYS.map((w, i) => <option key={w} value={i}>{w}</option>)}</Select>
-                </Field>
-                <Field label="Từ" htmlFor={`f-${m.id}`}><Input id={`f-${m.id}`} className="w-24" value={rule.from} onChange={(e) => setRule({ ...rule, from: e.target.value })} /></Field>
-                <Field label="Đến" htmlFor={`t-${m.id}`}><Input id={`t-${m.id}`} className="w-24" value={rule.to} onChange={(e) => setRule({ ...rule, to: e.target.value })} /></Field>
-                <Button size="sm" variant="secondary" onClick={() => void run(async () => {
-                  const a = parseHm(rule.from), b = parseHm(rule.to);
-                  if (a === null || b === null) throw new Error("Giờ phải có dạng HH:mm.");
-                  await api.addRule(m.id, Number(rule.weekday), a, b);
-                })}>Thêm</Button>
-              </div>
-              <p className="mt-1 text-xs text-ink-faint">Mỗi khung dài tối thiểu 30 phút, tính theo mốc 15 phút, không qua nửa đêm và không chồng nhau. Lịch chỉ là giờ bạn sẵn sàng; máy chỉ nhận khách khi bạn đã bắt đầu nhận thuê.</p>
+              <p className="mb-2 text-sm font-semibold">Lịch nhận thuê hằng tuần</p>
+              <WeeklySchedulePanel key={d.rules.map((r) => `${r.id}:${r.weekday}:${r.startMinute}:${r.endMinute}`).join(",")} machineId={m.id} rules={d.rules} windows={d.windows} today={d.today} onSaved={detail.retry} />
+              <p className="mt-2 text-xs text-ink-faint">Lịch chỉ là giờ bạn sẵn sàng; máy chỉ nhận khách khi bạn đã bắt đầu nhận thuê.</p>
             </div>
-            <div className="md:col-span-2">
+            <div>
               <KeyValue items={[
                 { k: "Nhận phiên mới", v: <Switch id={`acc-${m.id}`} label="Nhận phiên mới" checked={d.accepting} onCheckedChange={(v) => void run(() => api.setAccepting(m.id, v))} /> },
                 { k: "Kết nối của máy", v: d.health === "unknown" ? "Đang không nhận thuê: máy hiện offline (bấm “Bắt đầu nhận thuê” ở Thiết lập & chạy máy; lần đầu cần ghi danh)" : d.health === "ok" ? "Đang kết nối" : d.health === "suspect" ? "Kết nối chậm" : "Mất kết nối" },
-                { k: "Khung nhận thuê 7 ngày tới", v: d.windows.length ? d.windows.map(windowLabel).join("; ") : "Chưa có" },
               ]} />
             </div>
           </div>

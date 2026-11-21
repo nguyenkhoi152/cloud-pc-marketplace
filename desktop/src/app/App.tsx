@@ -46,6 +46,7 @@ const HostSessionsPage = lz(() => import("@/features/live/LiveScreens").then((m)
 const HostSetup = lz(() => import("@/features/live/HostSetup").then((m) => m.HostSetup));
 const LiveHostEarnings = lz(() => import("@/features/live/HostEarnings").then((m) => m.HostEarnings));
 const About = lz(() => import("@/features/live/About").then((m) => m.About));
+const LiveConfigure = lz(() => import("@/features/live/LiveConfigure").then((m) => m.LiveConfigure));
 const AdminDashboard = lz(() => import("@/features/admin/AdminDashboard").then((m) => m.AdminDashboard));
 const ConnectLinkPrompt = lz(() => import("@/features/live/ConnectLinkPrompt").then((m) => m.ConnectLinkPrompt));
 
@@ -101,7 +102,7 @@ const LIVE_OVERRIDES: Record<string, (p: Record<string, string>) => ReactNode> =
   "/rent/history/:id": () => <NotWired what="Chi tiết phiên" why="Chi tiết từng phiên chưa có màn riêng; xem tiến trình ở Phiên & đặt chỗ của tôi." />,
   "/host/onboarding/:step": () => <HostSetup />,
   "/host/setup": () => <HostSetup />,
-  "/host/configure": () => <NotWired what="Tài nguyên, giá & lịch" why="Dùng màn Cho thuê máy (đăng máy, cam kết, lịch) ở chế độ live." />,
+  "/host/configure": () => <LiveConfigure />,
   "/host/sessions": () => <HostSessionsPage />,
   "/host/earnings": () => <LiveHostEarnings />,
   "/host/incidents": () => <NotWired what="Sự cố" why="Chưa có bảng sự cố." />,

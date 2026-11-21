@@ -48,8 +48,11 @@ export const HOST_NAV: NavItem[] = [
   { to: "/host/runtime", label: "Chạy nền & dừng", icon: Power },
 ];
 
-/** Mục điều hướng đã nối dữ liệu thật ở chế độ live; mục khác bị ẩn (route vẫn trả màn "chưa nối"). */
-export const LIVE_NAV = new Set(["/rent/discover", "/rent/history", "/host", "/host/setup", "/host/sessions", "/host/earnings", "/wallet", "/settings", "/about"]);
+/**
+ * Mục điều hướng đã nối dữ liệu thật ở chế độ live. Mục KHÁC vẫn hiện trên thanh bên (để app và bản web giống nhau)
+ * nhưng gắn nhãn "Sắp có" và dẫn tới trang "Tính năng đang được hoàn thiện" (NotWired), không hiện dữ liệu mẫu.
+ */
+export const LIVE_NAV = new Set(["/rent/discover", "/rent/history", "/host", "/host/setup", "/host/configure", "/host/sessions", "/host/earnings", "/wallet", "/settings", "/about"]);
 
 /** Chỉ hiện ở chế độ live cho tài khoản admin (xem Sidebar). Không thuộc LIVE_NAV vì không phải mục của người thuê/host. */
 export const ADMIN_NAV: NavItem = { to: "/admin", label: "Quản trị", icon: ShieldCheck, liveOnly: true };
@@ -61,6 +64,23 @@ export const COMMON_NAV: NavItem[] = [
   { to: "/settings", label: "Cài đặt", icon: Settings },
   { to: "/about", label: "Giới thiệu", icon: BadgeInfo },
 ];
+
+/**
+ * Mục thuê máy trên thanh bên. Preview/web: "Phiên hiện tại" chỉ hiện khi đang có phiên. Live: ẩn mục đó vì nó trùng với
+ * "Phiên & đặt chỗ của tôi" (cùng một màn); các mục còn lại hiện đủ như bản web.
+ */
+export const rentNav = ({ live, hasSession }: { live: boolean; hasSession: boolean }): NavItem[] =>
+  RENT_NAV.filter((i) => (live ? i.to !== "/rent/session" : !i.liveOnly && (i.to !== "/rent/session" || hasSession)));
+
+/**
+ * Mục cho thuê máy trên thanh bên. Live có thêm "Thiết lập & chạy máy" (việc thật của host) và bỏ "Thiết lập cho thuê"
+ * (bản mô phỏng của đúng việc đó); preview/web giữ nguyên: "Thiết lập cho thuê" chỉ hiện khi chưa được duyệt.
+ */
+export const hostNav = ({ live, approved }: { live: boolean; approved: boolean }): NavItem[] =>
+  HOST_NAV.filter((i) => (live ? i.to !== "/host/onboarding/intro" : i.liveOnly ? false : i.to === "/host/onboarding/intro" ? !approved : true));
+
+/** Mục chưa nối chức năng thật ở live: hiện nhãn "Sắp có". Ngoài live (preview/web) không có khái niệm này. */
+export const isComingSoon = (to: string, live: boolean): boolean => live && !LIVE_NAV.has(to);
 
 export const isActive = (item: NavItem, path: string) => {
   const p = path.split("?")[0]!;

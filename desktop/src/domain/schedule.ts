@@ -1,4 +1,4 @@
-import { addDays, DEMO_DATE, DEMO_MINUTES, formatHM, parseHM, weekdayIndex } from "./clock";
+import { addDays, DEMO_DATE, DEMO_MINUTES, formatHM, parseEndHM, parseHM, weekdayIndex } from "./clock";
 import type { OfferWindow, ScheduleException, TimeRange, WeeklySchedule } from "./types";
 
 export type IssueCode = "invalid_time" | "start_not_before_end" | "not_quarter" | "too_short" | "overlap";
@@ -27,7 +27,7 @@ export function validateRanges(ranges: TimeRange[]): ScheduleIssue[] {
 
   ranges.forEach((r, i) => {
     const s = parseHM(r.start);
-    const e = parseHM(r.end);
+    const e = parseEndHM(r.end);
     if (s === null || e === null) return add(i, "invalid_time");
     if (s % 15 !== 0 || e % 15 !== 0) return add(i, "not_quarter");
     if (s >= e) return add(i, "start_not_before_end");
@@ -65,7 +65,7 @@ export function totalWeeklyMinutes(weekly: WeeklySchedule): number {
       sum +
       day.reduce((s, r) => {
         const a = parseHM(r.start);
-        const b = parseHM(r.end);
+        const b = parseEndHM(r.end);
         return a !== null && b !== null && b > a ? s + (b - a) : s;
       }, 0),
     0,
@@ -98,7 +98,7 @@ export function upcomingWindows(
     const { ranges, source } = effectiveRanges(date, weekly, exceptions);
     if (validateRanges(ranges).length) continue;
     for (const r of [...ranges].sort((a, b) => (parseHM(a.start) ?? 0) - (parseHM(b.start) ?? 0))) {
-      const e = parseHM(r.end) ?? 0;
+      const e = parseEndHM(r.end) ?? 0;
       if (d === 0 && e <= fromMinutes) continue;
       out.push({ date, start: r.start, end: r.end, source });
     }
@@ -114,12 +114,12 @@ export function isInsideOfferWindow(
 ): boolean {
   const { ranges } = effectiveRanges(date, weekly, exceptions);
   if (validateRanges(ranges).length) return false;
-  return ranges.some((r) => (parseHM(r.start) ?? 1e9) <= minutes && minutes < (parseHM(r.end) ?? -1));
+  return ranges.some((r) => (parseHM(r.start) ?? 1e9) <= minutes && minutes < (parseEndHM(r.end) ?? -1));
 }
 
 export function describeRange(r: TimeRange): string {
   const s = parseHM(r.start);
-  const e = parseHM(r.end);
+  const e = parseEndHM(r.end);
   return s !== null && e !== null ? `${formatHM(s)}–${formatHM(e)}` : `${r.start}–${r.end}`;
 }
 
