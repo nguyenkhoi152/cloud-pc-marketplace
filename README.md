@@ -4,6 +4,8 @@
 
 `Avalanche Fuji (chainId 43113)` · `Tauri 2 + React 19` · `Supabase` · `Solidity 0.8.28` · `704 test tự động` · `Chỉ testnet`
 
+**Video demo:** [xem trên YouTube](https://www.youtube.com/watch?v=WMhjwGor4Qc) · **Slide giới thiệu:** [Google Slides](https://docs.google.com/presentation/d/1-vWS8sxFjR1vLP7gcOfBmONnCKWfVDT3sVU2lLMQ41A/edit?slide=id.p1#slide=id.p1)
+
 > **English summary.** Cloud PC Companion is a peer-to-peer marketplace for renting idle Windows PCs. A host shares a clean Selkies/Linux guest running in WSL2; a renter pays in a restricted test token (PCP) through an EIP-712-quoted escrow on **Avalanche Fuji (chain 43113)** and streams the desktop inside a Tauri app. Everything runs on testnet only. The contracts can be verified on the explorer (section 3), the 704 automated tests run without any credentials (section 7A), and a live demo is available on request (section 7B). Section 6 states what has and has not been verified.
 
 ## Mục lục
@@ -228,6 +230,8 @@ Lệnh riêng lẻ: `npm run typecheck`, `npm run lint`, `npm run build:desktop`
 **Biên dịch và triển khai contract cục bộ** (không cần ví, không tốn gì): `cd contracts && npx hardhat run scripts/deploy.ts` triển khai lên mạng mô phỏng trong tiến trình và ghi manifest cục bộ.
 
 ### B. Dùng thử bản demo
+
+**Xem nhanh, không cần cài gì:** [video demo trên YouTube](https://www.youtube.com/watch?v=WMhjwGor4Qc) (quay từ bản xem trước với dữ liệu mẫu có nhãn, gồm luồng thuê máy và luồng thiết lập của chủ máy) và [slide giới thiệu](https://docs.google.com/presentation/d/1-vWS8sxFjR1vLP7gcOfBmONnCKWfVDT3sVU2lLMQ41A/edit?slide=id.p1#slide=id.p1). Muốn thử vòng thuê thật thì làm theo các bước dưới.
 
 Máy chủ API, worker và máy cho thuê của bản demo chạy trên PC của nhóm phát triển, nên chỉ dùng được khi nhóm đang bật; địa chỉ tunnel Cloudflare đổi mỗi lần khởi động lại. Liên hệ nhóm để hẹn giờ thử và nhận liên kết kết nối.
 
