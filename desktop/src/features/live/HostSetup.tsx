@@ -10,6 +10,7 @@ import { hostNative, hostNativeAvailable, viewerOrigins } from "@/api/hostNative
 import { splitFeeUnits, type HostMachine, type LiveBooking } from "@/api/live";
 import { BOOKING_STATE_LABEL } from "@/domain/adminData";
 import { buildSteps, enrolledForOtherAccount, gpuNote, guestError, interpretWsl, interpretWslInstall, MIN_FREE_GB, nextStep, parseProbe, RECOMMENDED_DISTRO, type GuestProbe, type Overview, type SetupStep, type StepStatus } from "@/domain/hostEnv";
+import { backgroundAgent, blocksEnroll } from "@/domain/hostAgentOwner";
 import { WIZARD, wizardItems, type WizardId } from "@/domain/hostWizard";
 import { startHosting, stopHosting, type TunnelInfo } from "@/domain/hostStart";
 import { loadLimits, saveLimits, toLimitInput, type Limits } from "@/domain/hostLimits";
@@ -22,7 +23,7 @@ import { Banner } from "@/ui/feedback";
 import { KeyValue, PageHeader, Section } from "@/ui/page";
 import { Amount } from "./Amount";
 import { defaultScanDeps, syncOwnMachineSpecs } from "./machineScan";
-import { Checklist, CheckTable, IndeterminateBar, WizardFooter, WizardNav, type CheckRowData, type CheckStatus, type ChecklistState } from "./HostWizard";
+import { BackgroundAgentNotice, Checklist, CheckTable, IndeterminateBar, WizardFooter, WizardNav, type CheckRowData, type CheckStatus, type ChecklistState } from "./HostWizard";
 import { ShareLimits, appliedLimits, limitsSummary } from "./ShareLimits";
 
 const SHARE_KEY = "cpm.hostShare.v1";
@@ -167,6 +168,7 @@ export function HostSetup() {
   const [dedicated, setDedicated] = useState(false);
   const [consent, setConsent] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
+  const [confirmBgStop, setConfirmBgStop] = useState(false);
   // Trình hướng dẫn: bước đang xem (null = tự theo bước hiện tại), và đã xác nhận đọc quyền/trách nhiệm chưa.
   const [selected, setSelected] = useState<WizardId | null>(null);
   const [introAck, setIntroAck] = useState(loadIntro);
@@ -287,6 +289,9 @@ export function HostSetup() {
   const myMachine = machineId ? machines.find((m) => m.id === machineId) : undefined;
   const gpu = gpuNote(probe);
   const api = apiBase();
+  // Agent chạy nền không do app này bật (vd. script demo, hoặc tài khoản trước): chặn ghi danh cho tới khi dừng nó.
+  const bg = backgroundAgent(probe, !!agentRunning, ownIds);
+  const bgMachineName = bg.kind !== "none" && bg.machineId ? machines.find((m) => m.id === bg.machineId)?.name : undefined;
   const frameAncestors = viewerOrigins(window.location.origin, getDevWallet()?.kind === "dev");
 
   const doInstall = () =>
@@ -303,8 +308,10 @@ export function HostSetup() {
       await hostNative.provisionStart(probe.user);
       await loadOverview();
     });
+  const bgBlockMessage = "Đang có dịch vụ cho thuê chạy nền trên bản Linux này. Dừng nó trước (nút “Dừng dịch vụ đó” ở trên) rồi mới ghi danh.";
   const doEnroll = () =>
     act("enroll", async () => {
+      if (blocksEnroll(bg)) throw new Error(bgBlockMessage);
       must(await hostNative.enroll(token));
       setToken("");
       await refresh();
@@ -316,6 +323,7 @@ export function HostSetup() {
   const doEnrollAuto = () =>
     act("enroll", async () => {
       if (!chosenMachine) throw new Error("Chưa có máy nào đã đăng. Vào Máy của tôi, tạo máy rồi bấm Quét & đăng máy.");
+      if (blocksEnroll(bg)) throw new Error(bgBlockMessage);
       const server = getServerApi();
       if (replaceOld) await server.revokeMyDevice(chosenMachine);
       let t: string | null = await server.createMyEnrollment(chosenMachine);
@@ -340,6 +348,16 @@ export function HostSetup() {
       // Mức RAM/CPU vừa chọn có hiệu lực từ lần bắt đầu này: cập nhật thẻ máy để người thuê thấy đúng phần họ được dùng (chạy nền, không chặn).
       void syncOwnMachineSpecs(getLiveApi().host, machines, { ...defaultScanDeps(), share: () => limits });
       return `Đang khởi động: chuẩn bị môi trường sạch cho khách và kết nối với máy chủ. Có thể mất một hai phút.${r.publicUrl ? ` Địa chỉ truy cập của máy (đổi mỗi lần bắt đầu): ${r.publicUrl}` : " Hiện chỉ người dùng ngay trên máy này truy cập được (bạn chưa bật chia sẻ ra Internet)."}`;
+    });
+  /** Dừng dịch vụ cho thuê chạy NỀN (không do app này bật): dừng agent (máy đó offline, ngắt phiên, dọn guest) rồi đóng tunnel. */
+  const doStopBackground = () =>
+    act("stopbg", async () => {
+      setConfirmBgStop(false);
+      const c = await stopHosting(hostNative);
+      void hostNative.tunnelState().then(setTunnel, () => undefined);
+      await refresh();
+      must(c);
+      return "Đã dừng dịch vụ cho thuê chạy nền: máy đó chuyển sang offline và môi trường của khách đã được dọn sạch. Giờ bạn ghi danh máy của mình được rồi.";
     });
   const doStop = () =>
     act("stop", async () => {
@@ -469,6 +487,7 @@ export function HostSetup() {
         )}
         {current && s.action === "enroll" && (
           <div className="mt-3 space-y-3">
+            {bgNotice}
             {publishedMachines.length === 0 ? (
               <Banner tone="info" title="Chưa có máy nào đã đăng">Vào <b>Máy của tôi</b>, tạo máy rồi bấm <b>Quét & đăng máy</b>. Xong quay lại đây để ghi danh.</Banner>
             ) : (
@@ -479,7 +498,7 @@ export function HostSetup() {
                       {publishedMachines.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </Select>
                   </Field>
-                  <Button variant="primary" disabled={!chosenMachine} loading={busy === "enroll"} onClick={doEnrollAuto}>Ghi danh máy này</Button>
+                  <Button variant="primary" disabled={!chosenMachine || blocksEnroll(bg)} loading={busy === "enroll"} onClick={doEnrollAuto}>Ghi danh máy này</Button>
                 </div>
                 <Checkbox checked={replaceOld} onChange={setReplaceOld} label="Máy này đã từng ghi danh trên một bản Linux khác (ví dụ tôi cài lại): thay thiết bị cũ. Thiết bị cũ sẽ ngừng hoạt động ngay." />
               </>
@@ -490,7 +509,7 @@ export function HostSetup() {
                 <Field label="Mã ghi danh (dùng một lần)" htmlFor="hs-token" hint="Mã được dùng ngay để ghi danh và không được lưu lại.">
                   <Input id="hs-token" type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value.trim())} className="w-80" />
                 </Field>
-                <Button type="submit" variant="secondary" disabled={token.length < 20} loading={busy === "enroll"}>Ghi danh bằng mã</Button>
+                <Button type="submit" variant="secondary" disabled={token.length < 20 || blocksEnroll(bg)} loading={busy === "enroll"}>Ghi danh bằng mã</Button>
               </form>
             </details>
           </div>
@@ -515,6 +534,7 @@ export function HostSetup() {
   }
 
   const next2 = next ? <Badge tone="info">Việc tiếp theo: {next.title}</Badge> : <Badge tone="ok">Mọi bước đã xong</Badge>;
+  const bgNotice = <BackgroundAgentNotice agent={bg} machineName={bgMachineName} confirming={confirmBgStop} busy={busy === "stopbg"} onAsk={() => setConfirmBgStop(true)} onCancel={() => setConfirmBgStop(false)} onStop={doStopBackground} />;
 
   return (
     <div>
@@ -640,6 +660,7 @@ export function HostSetup() {
               <div className="max-w-4xl">
                 <h2 className="text-lg font-bold">Nhận thuê</h2>
                 <p className="mb-3 mt-1 text-sm text-ink-soft">Bật hoặc dừng nhận thuê, xem trạng thái kết nối và các phiên trên máy của bạn.</p>
+                {bgNotice}
                 {groupSteps("run").filter((s) => s.status !== "ok").map((s) => card(s, true))}
                 {(agentRunning || ov.agent.state === "exited") && (
                   <Section title="Trạng thái" bordered className="mt-4">

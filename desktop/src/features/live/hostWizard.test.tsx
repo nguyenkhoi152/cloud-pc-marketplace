@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { WizardItem } from "@/domain/hostWizard";
-import { Checklist, CheckTable, IndeterminateBar, WizardFooter, WizardNav } from "./HostWizard";
+import { BackgroundAgentNotice, Checklist, CheckTable, IndeterminateBar, WizardFooter, WizardNav } from "./HostWizard";
 
 const items: WizardItem[] = [
   { id: "intro", label: "Quyền và trách nhiệm", state: "done", reachable: true },
@@ -90,5 +90,44 @@ describe("Checklist và thanh tiến trình", () => {
     expect(bar).toContain('aria-busy="true"');
     expect(bar).not.toContain("aria-valuenow");
     expect(bar).not.toMatch(/\d+\s*%/);
+  });
+});
+
+describe("BackgroundAgentNotice (dịch vụ cho thuê chạy nền không do app này bật)", () => {
+  const M = "99999999-8888-7777-6666-555555555555";
+  const noop = () => {};
+  const render = (kind: "none" | "mine" | "other" | "unknown", confirming = false, machineName?: string) =>
+    renderToStaticMarkup(<BackgroundAgentNotice agent={kind === "none" ? { kind } : { kind, machineId: M }} machineName={machineName} confirming={confirming} busy={false} onAsk={noop} onCancel={noop} onStop={noop} />);
+  it("không có agent chạy nền thì không hiện gì", () => {
+    expect(render("none")).toBe("");
+  });
+  it("máy của tài khoản khác: nói rõ máy nào, nói rõ vì sao ghi danh bị chặn, có nút dừng", () => {
+    const h = render("other");
+    expect(h).toContain('data-kind="other"');
+    expect(h).toContain("99999999…");
+    expect(h).toContain("không thuộc tài khoản đang đăng nhập");
+    expect(h).toContain("Bản Linux không cho ghi danh");
+    expect(h).toContain("Dừng dịch vụ đó");
+    expect(h).toContain("offline");
+  });
+  it("máy của chính tài khoản này chạy nền: có tên máy và có nút dừng", () => {
+    const h = render("mine", false, "Máy của tôi");
+    expect(h).toContain('data-kind="mine"');
+    expect(h).toContain("Máy của tôi (99999999…)");
+    expect(h).toContain("Dừng dịch vụ đó");
+  });
+  it("chưa rõ máy nào: vẫn cho dừng, không khẳng định là của ai", () => {
+    const h = render("unknown");
+    expect(h).toContain('data-kind="unknown"');
+    expect(h).not.toContain("không thuộc tài khoản");
+  });
+  it("hỏi xác nhận trước khi dừng: chỉ khi xác nhận mới hiện nút Dừng và dọn dẹp, và nói rõ hậu quả", () => {
+    const ask = render("other", false);
+    expect(ask).not.toContain("Dừng và dọn dẹp");
+    const confirm = render("other", true);
+    expect(confirm).toContain("Dừng và dọn dẹp");
+    expect(confirm).toContain("Không");
+    expect(confirm).toContain("dữ liệu trong môi trường của khách bị xóa");
+    expect(confirm).not.toContain("Dừng dịch vụ đó");
   });
 });

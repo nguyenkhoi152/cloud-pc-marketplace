@@ -1,8 +1,43 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, Circle, Loader2, Square, XCircle } from "lucide-react";
 import type { ReactNode } from "react";
+import type { BackgroundAgent } from "@/domain/hostAgentOwner";
 import type { WizardItem } from "@/domain/hostWizard";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/button";
+import { Banner } from "@/ui/feedback";
+
+/**
+ * Có dịch vụ cho thuê đang chạy NỀN trong bản Linux mà app này không quản lý. Cho phép dừng nó (có xác nhận), vì bản Linux
+ * không cho ghi danh máy khác khi agent còn chạy và app trước đây không có nút nào để dừng loại agent này.
+ */
+export function BackgroundAgentNotice({ agent, machineName, confirming, busy, onAsk, onCancel, onStop }: { agent: BackgroundAgent; machineName?: string; confirming: boolean; busy: boolean; onAsk: () => void; onCancel: () => void; onStop: () => void }) {
+  if (agent.kind === "none") return null;
+  const id = agent.machineId ? `${machineName ? `${machineName} ` : ""}(${agent.machineId.slice(0, 8)}…)` : "chưa rõ máy nào";
+  const title = agent.kind === "other" ? "Dịch vụ cho thuê của một máy khác đang chạy nền trên bản Linux này" : agent.kind === "mine" ? "Máy của bạn đang nhận thuê (chạy nền, không do app này bật)" : "Có dịch vụ cho thuê đang chạy nền trên bản Linux này";
+  const lead = agent.kind === "other"
+    ? `Nó đang phục vụ máy ${id}, máy không thuộc tài khoản đang đăng nhập (ví dụ do script demo hoặc tài khoản trước bật rồi thoát). Bản Linux không cho ghi danh máy của bạn khi nó còn chạy.`
+    : agent.kind === "mine"
+      ? `Nó đang phục vụ máy ${id} của bạn dù không do app này bật.`
+      : `Nó đang phục vụ ${id}.`;
+  return (
+    <Banner tone="warn" className="mt-3" title={title}>
+      <div data-testid="bg-agent" data-kind={agent.kind}>
+        <p>{lead} Dừng nó thì máy đó chuyển sang <b>offline</b>, phiên đang chạy (nếu có) bị ngắt và môi trường của khách được dọn sạch.</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {!confirming ? (
+            <Button variant="danger-outline" size="sm" onClick={onAsk} disabled={busy}><Square className="h-3.5 w-3.5" aria-hidden />Dừng dịch vụ đó</Button>
+          ) : (
+            <>
+              <span className="text-sm font-semibold text-danger">Dừng ngay? Máy đó sẽ offline và dữ liệu trong môi trường của khách bị xóa.</span>
+              <Button variant="danger" size="sm" loading={busy} onClick={onStop}>Dừng và dọn dẹp</Button>
+              <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>Không</Button>
+            </>
+          )}
+        </div>
+      </div>
+    </Banner>
+  );
+}
 
 /** Thanh bước bên trái: bước đã xong có dấu ✓, bước hiện tại tô nền, bước chưa mở được thì mờ và không bấm được. */
 export function WizardNav({ items, selected, onSelect }: { items: WizardItem[]; selected: string; onSelect: (id: WizardItem["id"]) => void }) {
